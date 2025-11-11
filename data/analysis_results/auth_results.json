@@ -1,0 +1,79 @@
+{
+  "auth_tests": {
+    "/": {
+      "error": "timed out"
+    },
+    "/status": {
+      "status": 400,
+      "headers": {
+        "date": "Thu, 01 Jan 1970 00:41:40 GMT",
+        "content-type": "text/html; charset=utf-8",
+        "content-length": "150",
+        "connection": "close",
+        "x-frame-options": "SAMEORIGIN",
+        "x-content-type-options": "nosniff",
+        "x-xss-protection": "1; mode=block",
+        "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
+        "pragma": "no-cache",
+        "x-download-options": "noopen",
+        "x-permitted-cross-domain-policies": "master-only",
+        "referrer-policy": "no-referrer-when-downgrade"
+      },
+      "body_length": 150
+    },
+    "/info": {
+      "status": 400,
+      "headers": {
+        "date": "Thu, 01 Jan 1970 00:41:40 GMT",
+        "content-type": "text/html; charset=utf-8",
+        "content-length": "150",
+        "connection": "close",
+        "x-frame-options": "SAMEORIGIN",
+        "x-content-type-options": "nosniff",
+        "x-xss-protection": "1; mode=block",
+        "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
+        "pragma": "no-cache",
+        "x-download-options": "noopen",
+        "x-permitted-cross-domain-policies": "master-only",
+        "referrer-policy": "no-referrer-when-downgrade"
+      },
+      "body_length": 150
+    },
+    "/device": {
+      "status": 400,
+      "headers": {
+        "date": "Thu, 01 Jan 1970 00:41:40 GMT",
+        "content-type": "text/html; charset=utf-8",
+        "content-length": "150",
+        "connection": "close",
+        "x-frame-options": "SAMEORIGIN",
+        "x-content-type-options": "nosniff",
+        "x-xss-protection": "1; mode=block",
+        "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
+        "pragma": "no-cache",
+        "x-download-options": "noopen",
+        "x-permitted-cross-domain-policies": "master-only",
+        "referrer-policy": "no-referrer-when-downgrade"
+      },
+      "body_length": 150
+    },
+    "/management": {
+      "status": 400,
+      "headers": {
+        "date": "Thu, 01 Jan 1970 00:41:40 GMT",
+        "content-type": "text/html; charset=utf-8",
+        "content-length": "150",
+        "connection": "close",
+        "x-frame-options": "SAMEORIGIN",
+        "x-content-type-options": "nosniff",
+        "x-xss-protection": "1; mode=block",
+        "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
+        "pragma": "no-cache",
+        "x-download-options": "noopen",
+        "x-permitted-cross-domain-policies": "master-only",
+        "referrer-policy": "no-referrer-when-downgrade"
+      },
+      "body_length": 150
+    }
+  }
+}

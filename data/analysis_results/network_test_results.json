@@ -1,0 +1,81 @@
+{
+  "host": "192.168.100.1",
+  "tests": {
+    "ping": {
+      "target": "192.168.100.1",
+      "reachable": true,
+      "packets_sent": 4,
+      "packets_received": 4,
+      "packet_loss_pct": 0.0,
+      "avg_latency_ms": 3,
+      "min_latency_ms": 3,
+      "max_latency_ms": 3
+    },
+    "http": {
+      "http_accessible": true,
+      "https_accessible": false,
+      "response_time_ms": 24.64,
+      "status_code": 200
+    },
+    "gateway": {
+      "gateway": "192.168.100.1",
+      "ping_result": {
+        "target": "192.168.100.1",
+        "reachable": true,
+        "packets_sent": 4,
+        "packets_received": 4,
+        "packet_loss_pct": 0.0,
+        "avg_latency_ms": 2,
+        "min_latency_ms": 2,
+        "max_latency_ms": 4
+      }
+    },
+    "dns": {
+      "dns_working": true,
+      "resolved_hosts": [
+        {
+          "domain": "google.com",
+          "ip": "172.217.2.142",
+          "success": true
+        },
+        {
+          "domain": "cloudflare.com",
+          "ip": "104.16.133.229",
+          "success": true
+        }
+      ]
+    },
+    "ports": {
+      "80": {
+        "host": "192.168.100.1",
+        "port": 80,
+        "open": true,
+        "response_time_ms": 22.72
+      },
+      "443": {
+        "host": "192.168.100.1",
+        "port": 443,
+        "open": false,
+        "response_time_ms": null
+      },
+      "22": {
+        "host": "192.168.100.1",
+        "port": 22,
+        "open": false,
+        "response_time_ms": null
+      },
+      "23": {
+        "host": "192.168.100.1",
+        "port": 23,
+        "open": true,
+        "response_time_ms": 15.53
+      },
+      "8080": {
+        "host": "192.168.100.1",
+        "port": 8080,
+        "open": false,
+        "response_time_ms": null
+      }
+    }
+  }
+}

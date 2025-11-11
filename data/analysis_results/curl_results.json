@@ -1,0 +1,81 @@
+{
+  "curl_tests": {
+    "basic_get": {
+      "status": 200,
+      "headers": {
+        "date": "Mon, 10 Nov 2025 10:05:11 GMT",
+        "content-type": "text/html; charset=utf-8",
+        "content-length": "2519",
+        "connection": "keep-alive",
+        "expires": "Mon, 10 Nov 2025 10:05:10 GMT",
+        "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
+        "x-frame-options": "SAMEORIGIN",
+        "x-content-type-options": "nosniff",
+        "x-xss-protection": "1; mode=block",
+        "pragma": "no-cache",
+        "x-download-options": "noopen",
+        "x-permitted-cross-domain-policies": "master-only",
+        "referrer-policy": "no-referrer-when-downgrade",
+        "accept-ranges": "bytes"
+      },
+      "body_length": 934
+    },
+    "head_request": {
+      "status": 200,
+      "headers": {
+        "date": "Mon, 10 Nov 2025 10:05:11 GMT",
+        "content-type": "text/html; charset=utf-8",
+        "content-length": "2519",
+        "connection": "keep-alive",
+        "expires": "Mon, 10 Nov 2025 10:05:10 GMT",
+        "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
+        "x-frame-options": "SAMEORIGIN",
+        "x-content-type-options": "nosniff",
+        "x-xss-protection": "1; mode=block",
+        "pragma": "no-cache",
+        "x-download-options": "noopen",
+        "x-permitted-cross-domain-policies": "master-only",
+        "referrer-policy": "no-referrer-when-downgrade",
+        "accept-ranges": "bytes"
+      }
+    },
+    "empty_post": {
+      "status": 405,
+      "headers": {
+        "date": "Mon, 10 Nov 2025 10:05:11 GMT",
+        "content-type": "text/html; charset=utf-8",
+        "content-length": "150",
+        "connection": "keep-alive",
+        "x-frame-options": "SAMEORIGIN",
+        "x-content-type-options": "nosniff",
+        "x-xss-protection": "1; mode=block",
+        "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
+        "pragma": "no-cache",
+        "x-download-options": "noopen",
+        "x-permitted-cross-domain-policies": "master-only",
+        "referrer-policy": "no-referrer-when-downgrade"
+      },
+      "body_length": 150
+    },
+    "mozilla_get": {
+      "status": 200,
+      "headers": {
+        "date": "Mon, 10 Nov 2025 10:05:11 GMT",
+        "content-type": "text/html; charset=utf-8",
+        "content-length": "2519",
+        "connection": "keep-alive",
+        "expires": "Mon, 10 Nov 2025 10:05:10 GMT",
+        "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
+        "x-frame-options": "SAMEORIGIN",
+        "x-content-type-options": "nosniff",
+        "x-xss-protection": "1; mode=block",
+        "pragma": "no-cache",
+        "x-download-options": "noopen",
+        "x-permitted-cross-domain-policies": "master-only",
+        "referrer-policy": "no-referrer-when-downgrade",
+        "accept-ranges": "bytes"
+      },
+      "body_length": 934
+    }
+  }
+}

@@ -1,0 +1,142 @@
+{
+  "metadata": {
+    "date": "2025-11-10T12:24:49.121310",
+    "host": "192.168.100.1",
+    "model": "MOD001",
+    "serial_number": "FHTTC1166D5C",
+    "device_name": "HG6145F1",
+    "operator": "MEX_TP"
+  },
+  "tests": {
+    "PWD_PASS": {
+      "name": "PWD_PASS",
+      "status": "PASS",
+      "details": {
+        "serial_number": "FHTTC1166D5C",
+        "operator": "MEX_TP",
+        "method": "AJAX get_operator"
+      }
+    },
+    "FACTORY_RESET_PASS": {
+      "name": "FACTORY_RESET_PASS",
+      "status": "SKIP",
+      "details": {
+        "reason": "Test no destructivo - requiere verificacion manual"
+      }
+    },
+    "PING_CONNECTIVITY": {
+      "name": "PING_CONNECTIVITY",
+      "status": "PASS",
+      "details": {
+        "reachable": true,
+        "avg_latency_ms": 3
+      }
+    },
+    "HTTP_CONNECTIVITY": {
+      "name": "HTTP_CONNECTIVITY",
+      "status": "PASS",
+      "details": {
+        "http_accessible": true,
+        "response_time_ms": 26.93,
+        "status_code": 200
+      }
+    },
+    "PORT_SCAN": {
+      "name": "PORT_SCAN",
+      "status": "PASS",
+      "details": {
+        "ports": {
+          "80": {
+            "open": true,
+            "response_time_ms": 19.3
+          },
+          "443": {
+            "open": false,
+            "response_time_ms": null
+          },
+          "22": {
+            "open": false,
+            "response_time_ms": null
+          },
+          "23": {
+            "open": true,
+            "response_time_ms": 16.44
+          },
+          "8080": {
+            "open": false,
+            "response_time_ms": null
+          }
+        }
+      }
+    },
+    "DNS_RESOLUTION": {
+      "name": "DNS_RESOLUTION",
+      "status": "PASS",
+      "details": {
+        "resolved_hosts": [
+          {
+            "domain": "google.com",
+            "ip": "172.217.2.142",
+            "success": true
+          },
+          {
+            "domain": "cloudflare.com",
+            "ip": "104.16.133.229",
+            "success": true
+          }
+        ],
+        "dns_working": true
+      }
+    },
+    "USB_PORT": {
+      "name": "USB_PORT",
+      "status": "FAIL",
+      "details": {
+        "error": "Requiere session valida (login completo)",
+        "note": "Basic Auth insuficiente para este metodo"
+      }
+    },
+    "SOFTWARE_PASS": {
+      "name": "SOFTWARE_PASS",
+      "status": "PASS",
+      "details": {
+        "model_name": "HG6145F1",
+        "method": "AJAX get_device_name",
+        "operator": "MEX_TP",
+        "serial": "FHTTC1166D5C"
+      }
+    },
+    "TX_POWER": {
+      "name": "TX_POWER",
+      "status": "FAIL",
+      "details": {
+        "error": "Requiere session valida (login completo)",
+        "note": "Basic Auth insuficiente - necesita do_login"
+      }
+    },
+    "RX_POWER": {
+      "name": "RX_POWER",
+      "status": "FAIL",
+      "details": {
+        "error": "Requiere session valida (login completo)",
+        "note": "Basic Auth insuficiente - necesita do_login"
+      }
+    },
+    "WIFI_24GHZ": {
+      "name": "WIFI_24GHZ",
+      "status": "FAIL",
+      "details": {
+        "error": "Requiere session valida (login completo)",
+        "note": "Basic Auth insuficiente - necesita do_login"
+      }
+    },
+    "WIFI_5GHZ": {
+      "name": "WIFI_5GHZ",
+      "status": "FAIL",
+      "details": {
+        "error": "Requiere session valida (login completo)",
+        "note": "Basic Auth insuficiente - necesita do_login"
+      }
+    }
+  }
+}

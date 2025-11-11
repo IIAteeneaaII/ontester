@@ -1,0 +1,55 @@
+{
+  "metadata": {
+    "date": "2025-11-10T10:47:21.011182",
+    "host": "192.168.100.1",
+    "model": "MOD005",
+    "serial_number": "UNKNOWN"
+  },
+  "tests": {
+    "PWD_PASS": {
+      "name": "PWD_PASS",
+      "status": "PASS",
+      "details": {
+        "credentials": "root:admin",
+        "authenticated": true
+      }
+    },
+    "FACTORY_RESET_PASS": {
+      "name": "FACTORY_RESET_PASS",
+      "status": "SKIP",
+      "details": {
+        "reason": "Test no destructivo, solo verificacion"
+      }
+    },
+    "USB_PORT": {
+      "name": "USB_PORT",
+      "status": "FAIL",
+      "details": {}
+    },
+    "SOFTWARE_PASS": {
+      "name": "SOFTWARE_PASS",
+      "status": "FAIL",
+      "details": {}
+    },
+    "TX_POWER": {
+      "name": "TX_POWER",
+      "status": "FAIL",
+      "details": {}
+    },
+    "RX_POWER": {
+      "name": "RX_POWER",
+      "status": "FAIL",
+      "details": {}
+    },
+    "WIFI_24GHZ": {
+      "name": "WIFI_24GHZ",
+      "status": "FAIL",
+      "details": {}
+    },
+    "WIFI_5GHZ": {
+      "name": "WIFI_5GHZ",
+      "status": "FAIL",
+      "details": {}
+    }
+  }
+}
