@@ -10,13 +10,15 @@ Sistema automatizado para testing, diagnóstico y análisis de dispositivos ONT 
 
 ## 🎯 Características Principales
 
-- ✅ **12 Tests Automatizados**: Suite completa de validación
-- ✅ **Auto-detección de Modelo**: Identifica automáticamente el dispositivo
+- ✅ **15 Tests Automatizados**: Suite completa de validación ONT + ATA
+- ✅ **Auto-detección Inteligente**: Identifica automáticamente tipo y modelo
 - ✅ **3 Modos de Operación**: Test / Retest / Label
-- ✅ **Cálculo de SN Físico**: Algoritmo automático para MOD001
-- ✅ **Reportes Detallados**: JSON + TXT con toda la información
+- ✅ **Soporte Multi-dispositivo**: ONTs (fibra óptica) + ATAs (VoIP)
+- ✅ **Extracción Exhaustiva**: 7 métodos para Grandstream HT818
+- ✅ **Reportes Organizados**: Automáticamente por fecha (dd_mm_yy)
 - ✅ **Etiquetas Imprimibles**: Generación de labels identificativos
-- ✅ **Multi-fabricante**: Soporte para Fiberhome, Huawei, ZTE
+- ✅ **Multi-fabricante**: Fiberhome, Huawei, ZTE, Grandstream
+- ✅ **Visualización**: Script para estadísticas y últimos reportes
 
 ---
 
@@ -24,27 +26,46 @@ Sistema automatizado para testing, diagnóstico y análisis de dispositivos ONT 
 
 | Métrica | Valor |
 |---------|-------|
-| **Tests Implementados** | 12/12 (100%) |
-| **Tests Passing** | 6/12 (50%) |
-| **RF Completados** | 9/31 (29%) |
-| **Modelos Soportados** | 5 |
+| **Tests Implementados** | 15/15 (100%) |
+| **Modelos Soportados** | 6 (MOD001-006) |
+| **Tipos de Dispositivos** | ONT + ATA |
+| **Reportes Generados** | 20+ |
+| **Python Version** | 3.8+ |
 
-**Resultado Actual**: `6 PASS | 5 FAIL | 1 SKIP`
+**Dispositivos Soportados**:
+- 🔵 ONT: Fiberhome, ZTE, Huawei (5 modelos)
+- 🟢 ATA: Grandstream HT818 (1 modelo)
 
 ---
 
 ## 🚀 Inicio Rápido
+
+### Requisitos
+
+- **Python**: 3.8 o superior
+- **Sistema Operativo**: Windows, Linux, macOS
+- **Red**: Acceso al dispositivo por HTTP/HTTPS
 
 ### Instalación
 
 ```bash
 # Clonar repositorio
 git clone <repo-url>
-cd "ONT Tester"
+cd ontester
+
+# Verificar dependencias
+python check_dependencies.py
 
 # Instalar dependencias
 pip install -r requirements.txt
 ```
+
+**Dependencias principales:**
+- `requests >= 2.32.0` - Cliente HTTP/HTTPS
+- `beautifulsoup4 >= 4.14.0` - Parser HTML
+- `paramiko >= 4.0.0` - Cliente SSH
+- `telnetlib3 >= 2.0.8` - Protocolo Telnet
+- `pyserial >= 3.5` - Comunicación serial
 
 ### Uso Básico
 

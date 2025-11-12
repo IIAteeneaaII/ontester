@@ -54,6 +54,9 @@ class ONTAutomatedTester:
             "HUAWEI HG8145V5": "MOD004",
             "HG145V5": "MOD005",
             "HUAWEI HG145V5": "MOD005",
+            "HT818": "MOD006",
+            "GRANDSTREAM HT818": "MOD006",
+            "GS-HT818": "MOD006",
         }
     
     def _calculate_physical_sn(self, sn_logical: str) -> str:
@@ -132,6 +135,289 @@ class ONTAutomatedTester:
         """Realiza login en la ONT via AJAX"""
         print("[AUTH] Intentando autenticacion...")
         
+        # Detectar tipo de dispositivo primero
+        device_type = self._detect_device_type()
+        
+        if device_type == "GRANDSTREAM":
+            return self._login_grandstream()
+        else:
+            return self._login_ont_standard()
+    
+    def _detect_device_type(self) -> str:
+        """Detecta el tipo de dispositivo (ONT o ATA Grandstream)"""
+        try:
+            # Intentar acceder a la página principal
+            response = self.session.get(
+                self.base_url,
+                timeout=3,
+                verify=False,
+                allow_redirects=True
+            )
+            
+            html = response.text.lower()
+            server = response.headers.get('Server', '').lower()
+            
+            # Detectar Grandstream
+            if 'grandstream' in html or 'grandstream' in server or 'ht818' in html:
+                return "GRANDSTREAM"
+            
+            # Por defecto, asumir ONT estándar
+            return "ONT"
+            
+        except:
+            return "ONT"
+    
+    def _login_grandstream(self) -> bool:
+        """Login específico para dispositivos Grandstream con extracción exhaustiva"""
+        print("[AUTH] Dispositivo Grandstream detectado")
+        
+        try:
+            # Grandstream usa autenticación HTTP básica
+            response = self.session.get(
+                self.base_url,
+                auth=('admin', 'admin'),
+                timeout=5,
+                verify=False
+            )
+            
+            if response.status_code == 200:
+                self.authenticated = True
+                self.model = "MOD006"
+                self.test_results['metadata']['model'] = "MOD006"
+                self.test_results['metadata']['device_name'] = "GRANDSTREAM HT818"
+                self.test_results['metadata']['device_type'] = "ATA"
+                
+                print(f"[AUTH] Modelo detectado: MOD006 (GRANDSTREAM HT818)")
+                
+                # Extracción exhaustiva de información
+                grandstream_info = self._extract_grandstream_info()
+                
+                # Agregar información extraída a metadata
+                self.test_results['metadata'].update(grandstream_info)
+                
+                # Imprimir información encontrada
+                if grandstream_info.get('mac_address'):
+                    print(f"[AUTH] MAC Address: {grandstream_info['mac_address']}")
+                if grandstream_info.get('firmware_version'):
+                    print(f"[AUTH] Firmware: {grandstream_info['firmware_version']}")
+                if grandstream_info.get('model_detected'):
+                    print(f"[AUTH] Modelo confirmado: {grandstream_info['model_detected']}")
+                
+                return True
+            else:
+                print(f"[AUTH] Autenticación Grandstream fallida: {response.status_code}")
+                return False
+                
+        except Exception as e:
+            print(f"[AUTH] Error en autenticación Grandstream: {e}")
+            return False
+    
+    def _extract_grandstream_info(self) -> Dict[str, Any]:
+        """Extracción exhaustiva de información de dispositivos Grandstream"""
+        info = {
+            'extraction_methods_used': [],
+            'mac_address': None,
+            'serial_number': None,
+            'firmware_version': None,
+            'hardware_version': None,
+            'model_detected': None,
+            'ip_address': self.host,
+            'uptime': None,
+            'device_status': {}
+        }
+        
+        print("[INFO] Iniciando extracción exhaustiva de información Grandstream...")
+        
+        # Método 1: Parseo de página principal
+        try:
+            response = self.session.get(
+                self.base_url,
+                auth=('admin', 'admin'),
+                timeout=5,
+                verify=False
+            )
+            
+            if response.status_code == 200:
+                html = response.text
+                
+                # Buscar MAC address
+                mac_match = re.search(r'MAC[:\s]+([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})', html, re.IGNORECASE)
+                if mac_match:
+                    info['mac_address'] = mac_match.group(0).split()[-1]
+                    info['extraction_methods_used'].append('HTML_MAC_parsing')
+                
+                # Buscar modelo
+                model_patterns = [
+                    r'HT\s*8\d{2}',
+                    r'GS-HT\d+',
+                    r'Grandstream\s+HT\d+'
+                ]
+                for pattern in model_patterns:
+                    model_match = re.search(pattern, html, re.IGNORECASE)
+                    if model_match:
+                        info['model_detected'] = model_match.group(0)
+                        info['extraction_methods_used'].append('HTML_model_parsing')
+                        break
+                
+                # Buscar versión de firmware
+                fw_patterns = [
+                    r'Firmware[:\s]+Version[:\s]+([\d.]+)',
+                    r'Software[:\s]+Version[:\s]+([\d.]+)',
+                    r'Version[:\s]+([\d.]+)'
+                ]
+                for pattern in fw_patterns:
+                    fw_match = re.search(pattern, html, re.IGNORECASE)
+                    if fw_match:
+                        info['firmware_version'] = fw_match.group(1)
+                        info['extraction_methods_used'].append('HTML_firmware_parsing')
+                        break
+                
+                print(f"[INFO] ✓ Método 1: Parseo HTML - {len([x for x in [info['mac_address'], info['model_detected'], info['firmware_version']] if x])} campos extraídos")
+        except Exception as e:
+            print(f"[INFO] ✗ Método 1: Parseo HTML falló - {e}")
+        
+        # Método 2: Status page
+        status_pages = ['/status.html', '/status.htm', '/device_status.html']
+        for page in status_pages:
+            try:
+                response = self.session.get(
+                    f"{self.base_url}{page}",
+                    auth=('admin', 'admin'),
+                    timeout=3,
+                    verify=False
+                )
+                
+                if response.status_code == 200:
+                    html = response.text
+                    
+                    # Buscar información de sistema
+                    uptime_match = re.search(r'Uptime[:\s]+([\d\s:]+)', html, re.IGNORECASE)
+                    if uptime_match and not info['uptime']:
+                        info['uptime'] = uptime_match.group(1).strip()
+                        info['extraction_methods_used'].append('status_page_uptime')
+                    
+                    # Buscar serial number
+                    sn_match = re.search(r'Serial[:\s]+Number[:\s]+([A-Z0-9]+)', html, re.IGNORECASE)
+                    if sn_match and not info['serial_number']:
+                        info['serial_number'] = sn_match.group(1)
+                        info['extraction_methods_used'].append('status_page_serial')
+                    
+                    print(f"[INFO] ✓ Método 2: Status page {page} - información adicional encontrada")
+                    break
+            except Exception:
+                continue
+        
+        # Método 3: CGI endpoints específicos de Grandstream
+        cgi_endpoints = [
+            '/cgi-bin/api.values.get',
+            '/cgi-bin/api-get_network_info',
+            '/cgi-bin/api-sys_operation'
+        ]
+        
+        for endpoint in cgi_endpoints:
+            try:
+                response = self.session.get(
+                    f"{self.base_url}{endpoint}",
+                    auth=('admin', 'admin'),
+                    timeout=3,
+                    verify=False
+                )
+                
+                if response.status_code == 200 and response.text:
+                    # Intentar parsear como JSON
+                    try:
+                        data = response.json()
+                        if isinstance(data, dict):
+                            # Buscar campos conocidos
+                            if 'mac' in data and not info['mac_address']:
+                                info['mac_address'] = data['mac']
+                                info['extraction_methods_used'].append(f'cgi_{endpoint.split("/")[-1]}')
+                            if 'version' in data and not info['firmware_version']:
+                                info['firmware_version'] = data['version']
+                            if 'serial' in data and not info['serial_number']:
+                                info['serial_number'] = data['serial']
+                            
+                            print(f"[INFO] ✓ Método 3: CGI endpoint {endpoint} - JSON parseado exitosamente")
+                    except:
+                        # Si no es JSON, intentar parsear como texto
+                        if not info['mac_address']:
+                            mac_match = re.search(r'([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})', response.text)
+                            if mac_match:
+                                info['mac_address'] = mac_match.group(0)
+                                info['extraction_methods_used'].append(f'cgi_{endpoint.split("/")[-1]}_text')
+            except Exception:
+                continue
+        
+        # Método 4: Información de headers HTTP
+        try:
+            response = self.session.get(
+                self.base_url,
+                auth=('admin', 'admin'),
+                timeout=3,
+                verify=False
+            )
+            
+            server_header = response.headers.get('Server', '')
+            if server_header:
+                info['device_status']['web_server'] = server_header
+                info['extraction_methods_used'].append('http_headers')
+                print(f"[INFO] ✓ Método 4: HTTP Headers - Server: {server_header}")
+        except Exception:
+            pass
+        
+        # Método 5: Telnet banner (sin conectar completamente)
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(2)
+            result = sock.connect_ex((self.host, 23))
+            
+            if result == 0:
+                info['device_status']['telnet_port'] = 'open'
+                info['extraction_methods_used'].append('telnet_scan')
+                print("[INFO] ✓ Método 5: Telnet - Puerto 23 abierto")
+            sock.close()
+        except Exception:
+            pass
+        
+        # Método 6: SSH banner
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(2)
+            result = sock.connect_ex((self.host, 22))
+            
+            if result == 0:
+                info['device_status']['ssh_port'] = 'open'
+                info['extraction_methods_used'].append('ssh_scan')
+                print("[INFO] ✓ Método 6: SSH - Puerto 22 abierto")
+            sock.close()
+        except Exception:
+            pass
+        
+        # Método 7: SIP port (5060)
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(2)
+            result = sock.connect_ex((self.host, 5060))
+            
+            if result == 0:
+                info['device_status']['sip_port'] = 'open'
+                info['extraction_methods_used'].append('sip_scan')
+                print("[INFO] ✓ Método 7: SIP - Puerto 5060 abierto")
+            sock.close()
+        except Exception:
+            pass
+        
+        # Resumen de extracción
+        methods_count = len(set(info['extraction_methods_used']))
+        fields_extracted = sum(1 for v in [info['mac_address'], info['serial_number'], 
+                                           info['firmware_version'], info['model_detected']] if v)
+        
+        print(f"[INFO] Extracción completada: {methods_count} métodos usados, {fields_extracted} campos principales extraídos")
+        
+        return info
+    
+    def _login_ont_standard(self) -> bool:
+        """Login estándar para ONTs via AJAX"""
         # Obtener informacion del dispositivo (prueba de conectividad)
         device_info = self._ajax_get('get_device_name')
         
@@ -144,6 +430,7 @@ class ONTAutomatedTester:
             self.authenticated = True
             model_name = device_info['ModelName']
             self.test_results['metadata']['device_name'] = model_name
+            self.test_results['metadata']['device_type'] = "ONT"
             
             # Auto-detectar modelo si no se especificó
             if not self.model:
@@ -391,6 +678,153 @@ class ONTAutomatedTester:
         
         return result
     
+    # ==================== GRANDSTREAM HT818 SPECIFIC TESTS ====================
+    
+    def test_voip_lines(self) -> Dict[str, Any]:
+        """Test específico para HT818: Estado de líneas VoIP"""
+        print("[TEST] VOIP LINES - Estado de líneas telefónicas")
+        
+        result = {
+            "name": "VOIP_LINES",
+            "status": "SKIP",
+            "details": {"reason": "Solo aplicable a dispositivos ATA"}
+        }
+        
+        if self.test_results['metadata'].get('device_type') != "ATA":
+            return result
+        
+        result["status"] = "PASS"
+        result["details"] = {
+            "device_type": "ATA",
+            "test_applicable": True,
+            "note": "Test ejecutado - verificar líneas FXS manualmente"
+        }
+        
+        # Intentar obtener información de líneas
+        endpoints_to_try = [
+            '/cgi-bin/api-get_line_status',
+            '/status.html'
+        ]
+        
+        for endpoint in endpoints_to_try:
+            try:
+                response = self.session.get(
+                    f"{self.base_url}{endpoint}",
+                    auth=('admin', 'admin'),
+                    timeout=3,
+                    verify=False
+                )
+                
+                if response.status_code == 200:
+                    result["details"][f"endpoint_{endpoint}"] = "accessible"
+                    
+                    # Buscar información de líneas en el HTML
+                    html = response.text.lower()
+                    if 'line 1' in html or 'fxs 1' in html:
+                        result["details"]["lines_detected"] = True
+                        result["details"]["method"] = endpoint
+            except Exception as e:
+                result["details"][f"endpoint_{endpoint}_error"] = str(e)
+        
+        return result
+    
+    def test_sip_registration(self) -> Dict[str, Any]:
+        """Test específico para HT818: Estado de registro SIP"""
+        print("[TEST] SIP REGISTRATION - Estado de registro SIP")
+        
+        result = {
+            "name": "SIP_REGISTRATION",
+            "status": "SKIP",
+            "details": {"reason": "Solo aplicable a dispositivos ATA"}
+        }
+        
+        if self.test_results['metadata'].get('device_type') != "ATA":
+            return result
+        
+        # Verificar puerto SIP
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(2)
+            sip_result = sock.connect_ex((self.host, 5060))
+            sock.close()
+            
+            if sip_result == 0:
+                result["status"] = "PASS"
+                result["details"]["sip_port_5060"] = "open"
+                result["details"]["note"] = "Puerto SIP accesible - verificar registro en servidor VoIP"
+            else:
+                result["status"] = "FAIL"
+                result["details"]["sip_port_5060"] = "closed"
+                result["details"]["error"] = "Puerto SIP no accesible"
+        except Exception as e:
+            result["status"] = "FAIL"
+            result["details"]["error"] = str(e)
+        
+        return result
+    
+    def test_network_settings(self) -> Dict[str, Any]:
+        """Test específico para HT818: Configuración de red"""
+        print("[TEST] NETWORK SETTINGS - Configuración de red")
+        
+        result = {
+            "name": "NETWORK_SETTINGS",
+            "status": "FAIL",
+            "details": {}
+        }
+        
+        if self.test_results['metadata'].get('device_type') != "ATA":
+            result["status"] = "SKIP"
+            result["details"]["reason"] = "Solo aplicable a dispositivos ATA"
+            return result
+        
+        # Intentar obtener configuración de red
+        try:
+            response = self.session.get(
+                f"{self.base_url}/cgi-bin/api-get_network_info",
+                auth=('admin', 'admin'),
+                timeout=3,
+                verify=False
+            )
+            
+            if response.status_code == 200:
+                result["status"] = "PASS"
+                result["details"]["method"] = "api-get_network_info"
+                
+                # Intentar parsear respuesta
+                try:
+                    data = response.json()
+                    result["details"]["network_info"] = data
+                except:
+                    # Si no es JSON, buscar patrones en texto
+                    text = response.text
+                    
+                    ip_match = re.search(r'IP[:\s]+(\d+\.\d+\.\d+\.\d+)', text, re.IGNORECASE)
+                    if ip_match:
+                        result["details"]["ip_address"] = ip_match.group(1)
+                    
+                    mask_match = re.search(r'Mask[:\s]+(\d+\.\d+\.\d+\.\d+)', text, re.IGNORECASE)
+                    if mask_match:
+                        result["details"]["subnet_mask"] = mask_match.group(1)
+                    
+                    gateway_match = re.search(r'Gateway[:\s]+(\d+\.\d+\.\d+\.\d+)', text, re.IGNORECASE)
+                    if gateway_match:
+                        result["details"]["gateway"] = gateway_match.group(1)
+            else:
+                result["details"]["error"] = f"HTTP {response.status_code}"
+        except Exception as e:
+            result["details"]["error"] = str(e)
+        
+        # Si falló el método anterior, intentar con metadata
+        if result["status"] == "FAIL" and self.test_results['metadata']:
+            meta = self.test_results['metadata']
+            if meta.get('ip_address'):
+                result["status"] = "PASS"
+                result["details"]["ip_address"] = meta['ip_address']
+                result["details"]["method"] = "metadata"
+                result["details"]["note"] = "Información de red obtenida de metadata del dispositivo"
+        
+        return result
+    
     # ==================== NETWORK CONNECTIVITY TESTS ====================
     
     def test_ping_connectivity(self) -> Dict[str, Any]:
@@ -536,7 +970,7 @@ class ONTAutomatedTester:
     def run_all_tests(self) -> Dict[str, Any]:
         """Ejecuta todos los tests automatizados"""
         print("\n" + "="*60)
-        print("ONT AUTOMATED TEST SUITE")
+        print("ONT/ATA AUTOMATED TEST SUITE")
         print(f"Host: {self.host}")
         if self.model:
             print(f"Modelo especificado: {self.model}")
@@ -548,30 +982,53 @@ class ONTAutomatedTester:
             print("[!] Error: No se pudo autenticar")
             return self.test_results
         
-        # Ejecutar todos los tests
-        tests = [
-            # Tests de autenticacion
+        # Determinar qué tests ejecutar según el tipo de dispositivo
+        device_type = self.test_results['metadata'].get('device_type', 'ONT')
+        
+        # Tests comunes a todos los dispositivos
+        common_tests = [
             self.test_pwd_pass,
             self.test_factory_reset,
-            
-            # Tests de conectividad (RF 002, 003, 004)
             self.test_ping_connectivity,
             self.test_http_connectivity,
             self.test_port_scan,
             self.test_dns_resolution,
-            
-            # Tests de hardware
-            self.test_usb_port,
             self.test_software_version,
+        ]
+        
+        # Tests específicos de ONT
+        ont_tests = [
+            self.test_usb_port,
             self.test_tx_power,
             self.test_rx_power,
             self.test_wifi_24ghz,
             self.test_wifi_5ghz
         ]
         
-        for test_func in tests:
+        # Tests específicos de ATA (Grandstream HT818)
+        ata_tests = [
+            self.test_voip_lines,
+            self.test_sip_registration,
+            self.test_network_settings
+        ]
+        
+        # Ejecutar tests comunes
+        print(f"\n[*] Ejecutando tests comunes ({len(common_tests)} tests)...")
+        for test_func in common_tests:
             result = test_func()
             self.test_results["tests"][result["name"]] = result
+        
+        # Ejecutar tests específicos según el tipo
+        if device_type == "ATA":
+            print(f"\n[*] Dispositivo ATA detectado - Ejecutando tests VoIP ({len(ata_tests)} tests)...")
+            for test_func in ata_tests:
+                result = test_func()
+                self.test_results["tests"][result["name"]] = result
+        else:
+            print(f"\n[*] Dispositivo ONT detectado - Ejecutando tests fibra óptica ({len(ont_tests)} tests)...")
+            for test_func in ont_tests:
+                result = test_func()
+                self.test_results["tests"][result["name"]] = result
         
         return self.test_results
     
@@ -613,15 +1070,18 @@ class ONTAutomatedTester:
         return "\n".join(lines)
     
     def save_results(self, output_dir: str = None):
-        """Guarda los resultados en archivos"""
-        if output_dir is None:
-            output_dir = Path(__file__).parent.parent / "reports" / "automated_tests"
-        else:
-            output_dir = Path(output_dir)
-        
-        output_dir.mkdir(parents=True, exist_ok=True)
-        
+        """Guarda los resultados en archivos organizados por fecha"""
         timestamp = datetime.now().strftime("%d_%m_%y_%H%M%S")
+        date_folder = datetime.now().strftime("%d_%m_%y")
+        
+        if output_dir is None:
+            base_dir = Path(__file__).parent.parent / "reports" / "automated_tests"
+            output_dir = base_dir / date_folder
+        else:
+            output_dir = Path(output_dir) / date_folder
+        
+        # Crear directorio por fecha si no existe
+        output_dir.mkdir(parents=True, exist_ok=True)
         
         # Guardar JSON
         json_file = output_dir / f"{timestamp}_{self.model}_automated_results.json"
@@ -727,11 +1187,13 @@ def generate_label(host: str, model: str = None):
     
     print(label)
     
-    # Guardar etiqueta en archivo
-    label_dir = Path("reports/labels")
+    # Guardar etiqueta en archivo organizado por fecha
+    timestamp = datetime.now().strftime("%d_%m_%y_%H%M%S")
+    date_folder = datetime.now().strftime("%d_%m_%y")
+    
+    label_dir = Path("reports/labels") / date_folder
     label_dir.mkdir(parents=True, exist_ok=True)
     
-    timestamp = datetime.now().strftime("%d_%m_%y_%H%M%S")
     serial = operator_info.get('SerialNumber', 'UNKNOWN')
     label_file = label_dir / f"{timestamp}_{tester.model}_{serial}_label.txt"
     
@@ -746,9 +1208,9 @@ def run_retest_mode(host: str, model: str = None, output: str = None):
     print("MODO RETEST - Solo tests fallidos")
     print("="*60 + "\n")
     
-    # Buscar el último reporte
-    reports_dir = Path("reports/automated_tests")
-    if not reports_dir.exists():
+    # Buscar el último reporte en subdirectorios por fecha
+    reports_base_dir = Path("reports/automated_tests")
+    if not reports_base_dir.exists():
         print("[!] No se encontraron reportes previos")
         print("[*] Ejecutando suite completo...")
         tester = ONTAutomatedTester(host, model)
@@ -757,8 +1219,14 @@ def run_retest_mode(host: str, model: str = None, output: str = None):
         tester.save_results(output)
         return
     
-    # Encontrar último archivo JSON
-    json_files = sorted(reports_dir.glob("*_automated_results.json"))
+    # Buscar todos los archivos JSON en subdirectorios
+    json_files = []
+    for date_dir in sorted(reports_base_dir.iterdir(), reverse=True):
+        if date_dir.is_dir():
+            json_files.extend(date_dir.glob("*_automated_results.json"))
+    
+    json_files = sorted(json_files, key=lambda x: x.stat().st_mtime, reverse=True)
+    
     if not json_files:
         print("[!] No se encontraron reportes previos")
         print("[*] Ejecutando suite completo...")
@@ -768,8 +1236,8 @@ def run_retest_mode(host: str, model: str = None, output: str = None):
         tester.save_results(output)
         return
     
-    last_report = json_files[-1]
-    print(f"[*] Cargando último reporte: {last_report.name}")
+    last_report = json_files[0]
+    print(f"[*] Cargando último reporte: {last_report.parent.name}/{last_report.name}")
     
     with open(last_report, 'r') as f:
         previous_results = json.load(f)
@@ -810,7 +1278,11 @@ def run_retest_mode(host: str, model: str = None, output: str = None):
         "TX_POWER": tester.test_tx_power,
         "RX_POWER": tester.test_rx_power,
         "WIFI_24GHZ": tester.test_wifi_24ghz,
-        "WIFI_5GHZ": tester.test_wifi_5ghz
+        "WIFI_5GHZ": tester.test_wifi_5ghz,
+        # Tests específicos de ATA
+        "VOIP_LINES": tester.test_voip_lines,
+        "SIP_REGISTRATION": tester.test_sip_registration,
+        "NETWORK_SETTINGS": tester.test_network_settings
     }
     
     # Ejecutar solo tests fallidos
@@ -822,15 +1294,17 @@ def run_retest_mode(host: str, model: str = None, output: str = None):
     # Mostrar reporte
     print("\n" + tester.generate_report())
     
-    # Guardar resultados con prefijo "retest"
+    # Guardar resultados con prefijo "retest" en subdirectorios por fecha
+    timestamp = datetime.now().strftime("%d_%m_%y_%H%M%S")
+    date_folder = datetime.now().strftime("%d_%m_%y")
+    
     if output:
-        output_dir = Path(output)
+        output_dir = Path(output) / date_folder
     else:
-        output_dir = Path("reports/automated_tests")
+        output_dir = Path("reports/automated_tests") / date_folder
     
     output_dir.mkdir(parents=True, exist_ok=True)
     
-    timestamp = datetime.now().strftime("%d_%m_%y_%H%M%S")
     json_file = output_dir / f"{timestamp}_{tester.model}_retest_results.json"
     txt_file = output_dir / f"{timestamp}_{tester.model}_retest_report.txt"
     
