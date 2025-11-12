@@ -1,0 +1,7 @@
+{
+  "timestamp": "2025-11-11T16:37:19.193779",
+  "method": "get_pon_info",
+  "data": {
+    "session_valid": 0
+  }
+}

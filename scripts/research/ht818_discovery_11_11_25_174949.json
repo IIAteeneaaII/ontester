@@ -1,0 +1,181 @@
+{
+  "timestamp": "2025-11-11T17:49:49.013381",
+  "host": "192.168.2.1",
+  "device_info": {
+    "model": "HT818",
+    "manufacturer": "Grandstream"
+  },
+  "ports": {
+    "80": true,
+    "443": false,
+    "8080": false,
+    "8443": false,
+    "5060": false,
+    "5061": false,
+    "69": false,
+    "161": false,
+    "22": true,
+    "23": false
+  },
+  "endpoints": {
+    "/": {
+      "accessible": true,
+      "status": 200,
+      "content_type": "text/html",
+      "size": 1894,
+      "has_json": false,
+      "has_html": true
+    },
+    "/index.html": {
+      "accessible": true,
+      "status": 200,
+      "content_type": "text/html",
+      "size": 1894,
+      "has_json": false,
+      "has_html": true
+    },
+    "/login.html": {
+      "accessible": false,
+      "status": 404
+    },
+    "/main.html": {
+      "accessible": false,
+      "status": 404
+    },
+    "/status.html": {
+      "accessible": false,
+      "status": 404
+    },
+    "/info.html": {
+      "accessible": false,
+      "status": 404
+    },
+    "/cgi-bin/login": {
+      "accessible": true,
+      "status": 200,
+      "content_type": "text/html; charset=utf-8",
+      "size": 2168,
+      "has_json": false,
+      "has_html": true
+    },
+    "/cgi-bin/dologin": {
+      "accessible": true,
+      "status": 200,
+      "content_type": "text/html; charset=utf-8",
+      "size": 2441,
+      "has_json": false,
+      "has_html": true
+    },
+    "/cgi-bin/api.values.get": {
+      "accessible": false,
+      "status": 404
+    },
+    "/cgi-bin/api.values.set": {
+      "accessible": false,
+      "status": 404
+    },
+    "/cgi-bin/api-sys_operation": {
+      "accessible": false,
+      "status": 404
+    },
+    "/cgi-bin/api-get_profile_name": {
+      "accessible": false,
+      "status": 404
+    },
+    "/cgi-bin/api-get_line_status": {
+      "accessible": false,
+      "status": 404
+    },
+    "/api": {
+      "accessible": false,
+      "status": 404
+    },
+    "/api/status": {
+      "accessible": false,
+      "status": 404
+    },
+    "/api/info": {
+      "accessible": false,
+      "status": 404
+    },
+    "/api/config": {
+      "accessible": false,
+      "status": 404
+    },
+    "/goform/login": {
+      "accessible": false,
+      "status": 404
+    },
+    "/manager": {
+      "accessible": false,
+      "status": 404
+    },
+    "/cfg": {
+      "accessible": false,
+      "status": 404
+    },
+    "/config.xml": {
+      "accessible": false,
+      "status": 404
+    },
+    "/config": {
+      "accessible": false,
+      "status": 404
+    },
+    "/ajax": {
+      "accessible": false,
+      "status": 404
+    },
+    "/json": {
+      "accessible": false,
+      "status": 404
+    },
+    "/data.json": {
+      "accessible": false,
+      "status": 404
+    },
+    "/images": {
+      "accessible": false,
+      "status": 404
+    },
+    "/js": {
+      "accessible": false,
+      "status": 404
+    },
+    "/css": {
+      "accessible": false,
+      "status": 404
+    }
+  },
+  "api_results": {
+    "Get Values": {
+      "success": false,
+      "status": 404
+    },
+    "System Operation": {
+      "success": false,
+      "status": 404
+    },
+    "Line Status": {
+      "success": false,
+      "status": 404
+    },
+    "Profile Name": {
+      "success": false,
+      "status": 404
+    }
+  },
+  "summary": {
+    "accessible_endpoints": [
+      "/",
+      "/index.html",
+      "/cgi-bin/login",
+      "/cgi-bin/dologin"
+    ],
+    "working_apis": [],
+    "open_ports": [
+      80,
+      22
+    ]
+  }
+}

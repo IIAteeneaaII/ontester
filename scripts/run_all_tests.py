@@ -14,7 +14,8 @@ class ONTTesterSuite:
         'MOD002': 'ZTE F670L',
         'MOD003': 'HUAWEI HG8145X6-10',
         'MOD004': 'HUAWEI HG8145V5',
-        'MOD005': 'HUAWEI HG145V5 SMALL'
+        'MOD005': 'HUAWEI HG145V5 SMALL',
+        'MOD006': 'GRANDSTREAM HT818'
     }
 
     def __init__(self, host, model):

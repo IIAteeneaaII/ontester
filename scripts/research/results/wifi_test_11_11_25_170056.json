@@ -1,0 +1,23 @@
+{
+  "timestamp": "2025-11-11T17:00:56.129509",
+  "host": "192.168.100.1",
+  "sessionid": "bQQZRao2",
+  "wifi_24g": {
+    "detected": false,
+    "enabled": false,
+    "working": false,
+    "reason": "No se pudo obtener información de WiFi 2.4G"
+  },
+  "wifi_5g": {
+    "detected": false,
+    "enabled": false,
+    "working": false,
+    "reason": "No se pudo obtener información de WiFi 5G"
+  },
+  "summary": {
+    "wifi_24g_working": false,
+    "wifi_5g_working": false,
+    "both_working": false,
+    "at_least_one_working": false
+  }
+}
