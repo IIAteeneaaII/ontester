@@ -19,10 +19,15 @@ def test_ajax_method(host: str, method: str, params: dict = None) -> dict:
     params['_'] = str(datetime.now().timestamp())
     
     try:
+        headers = {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
         response = requests.get(
             ajax_url,
             params=params,
             auth=('root', 'admin'),
+            headers=headers,
             timeout=5,
             verify=False
         )
