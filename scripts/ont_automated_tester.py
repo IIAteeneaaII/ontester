@@ -761,7 +761,7 @@ class ONTAutomatedTester:
             username_field.clear()
             username_field.send_keys('root')
             password_field.clear()
-            password_field.send_keys('Jaim3SeLaCome')
+            password_field.send_keys('admin')
             
             # Buscar y hacer clic en botón de login
             button_selectors = [
