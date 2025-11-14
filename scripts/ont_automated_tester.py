@@ -2296,6 +2296,48 @@ class ONTAutomatedTester:
         print(f"    - JSON: {json_file}")
         print(f"    - TXT: {txt_file}")
 
+        print("\n" + "+"*60)
+        print("REPORTE DE INFO \n")
+        sn = self.test_results['metadata'].get('serial_number_physical')
+        mac = self.test_results['metadata'].get('mac_address')
+        modelo = self.test_results['metadata'].get('model')
+        dn = self.test_results['metadata'].get('device_name')
+        sft = self.test_results['metadata']['base_info'].get('software_version')
+        w2 = self.test_results['metadata']['base_info']['wifi_info'].get('ssid_24ghz')
+        w5 = self.test_results['metadata']['base_info']['wifi_info'].get('ssid_5ghz')
+        print("El numero de serie es: ", sn)
+        print("La mac es: ", mac)
+        print("El modelo es (nuestra nomenclatura): ",modelo)
+        print("El modelo es (real): ",dn)
+        print("La versión de software es: ",sft)
+        print("El nombre de la red wifi 2.4 es: ", w2)
+        print("El nombre de la red wifi 5 es: ", w5)
+
+        print("\nREPORTE DE PRUEBAS \n")
+        ping = self.test_results['tests']['PING_CONNECTIVITY'].get('status')
+        factory_reset = self.test_results['tests']['FACTORY_RESET_PASS'].get('status')
+        sftUpdate = "SKIP"
+        usb_port = self.test_results['tests']['USB_PORT']['details'].get('usb_status')
+        tx = self.test_results['tests']['TX_POWER']['details'].get('tx_power_dbm') # VALORES BUENOS => mientras sea positivo  """
+        rx = self.test_results['tests']['RX_POWER']['details'].get('rx_power_dbm') # FALTA CONFIRMACION DE VALORES (entre -8 y -28)"""
+        wifi2 = self.test_results['tests']['WIFI_24GHZ'].get('status')
+        wifi5 = self.test_results['tests']['WIFI_5GHZ'].get('status')
+        print("Prueba de ping: ", ping)
+        print("Factory reset: ",factory_reset)
+        print("Software update: ", sftUpdate)
+        print("Prueba de puertos usb: ",usb_port)
+        txpass = False
+        rxpass = False
+        if(float(tx) > 0):
+            txpass = True
+        if(float(rx) > -28): # ASEGURARSE DEL VALOR """
+            rxpass = True
+        print("Prueba tx: ", txpass)
+        print("Prueba rx: ", rxpass)
+        print("Prueba wifi 2.4: ", wifi2)
+        print("Prueba wifi 5: ",wifi5)
+        print("\n" + "+"*60)
+
 def main():
     parser = argparse.ArgumentParser(description="ONT Automated Test Suite")
     parser.add_argument("--host", required=True, help="IP de la ONT")
@@ -2324,6 +2366,7 @@ def main():
         
         # Guardar resultados
         tester.save_results(args.output)
+    
 
 def generate_label(host: str, model: str = None):
     """RF 031: Genera etiqueta imprimible con información del ONT"""
