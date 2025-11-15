@@ -38,6 +38,7 @@ class ONTAutomatedTester:
         self.model = model  # Puede ser None, se detectará automáticamente
         self.base_url = f"http://{host}"
         self.ajax_url = f"http://{host}/cgi-bin/ajax"
+        self.type_url = f"http://{host}/?_type=menuData&_tag="
         self.session = requests.Session()
         self.authenticated = False
         self.session_id = None
@@ -205,6 +206,8 @@ class ONTAutomatedTester:
         
         if device_type == "GRANDSTREAM":
             return self._login_grandstream()
+        elif (self.model == "MOD002"):
+            return self._login_zte()
         else:
             return self._login_ont_standard()
     
@@ -938,6 +941,181 @@ class ONTAutomatedTester:
         print(f"[AUTH] Todas las estrategias de login POST fallaron")
         return False
     
+    def _login_zte(self) -> bool:
+        #TODO funcion de inicio de sesión zte (ip diferente -> 192.168.1.1)
+        # Este login / peticiones no se hacen mediante ajax ya que el modelo no lo soporta
+
+        # Vereficar selenium (prob se usará siemr}pre, es sencillo de usar)
+        if SELENIUM_AVAILABLE:
+            #Login con selenium, pero sin acceder a cookies
+            driver = None
+            headless = True
+            timeout = 5
+            try:
+                print(f"[SELENIUM] Iniciando login automático a {self.host}...")
+                
+                # Configurar opciones de Chrome
+                chrome_options = Options()
+                if headless:
+                    chrome_options.add_argument('--headless=new')  # Modo headless moderno
+                chrome_options.add_argument('--no-sandbox')
+                chrome_options.add_argument('--disable-dev-shm-usage')
+                chrome_options.add_argument('--disable-gpu')
+                chrome_options.add_argument('--log-level=3')  # Suprimir logs verbosos
+                chrome_options.add_argument(f'--host-resolver-rules=MAP {self.host} 192.168.1.1')
+                
+                # Deshabilitar warnings de certificado
+                chrome_options.add_argument('--ignore-certificate-errors')
+                chrome_options.add_argument('--allow-insecure-localhost')
+                
+                # Inicializar driver con WebDriver Manager
+                print("[SELENIUM] Descargando/verificando ChromeDriver...")
+                service = Service(ChromeDriverManager().install())
+                driver = webdriver.Chrome(service=service, options=chrome_options)
+                driver.set_page_load_timeout(timeout)
+                
+                # Navegar a la página principal (el router redirigirá al login)
+                # Usar IP directa en lugar de login.html para evitar bloqueo de nginx
+                base_url = f"http://{self.host}/"
+                print(f"[SELENIUM] Navegando a {base_url}...")
+                
+                try:
+                    driver.get(base_url)
+                except Exception as e:
+                    print(f"[ERROR] No se pudo cargar {base_url}: {e}")
+                    driver.quit()
+                    return False
+                
+                # Esperar breve a que cargue la página
+                time.sleep(2)
+                
+                # Verificar si la página cargó correctamente
+                if "400" in driver.title or "error" in driver.page_source.lower()[:500]:
+                    print("[ERROR] La página retornó error 400 - El router bloqueó la petición")
+                    driver.quit()
+                    return False
+                
+                # Esperar a que cargue el formulario
+                wait = WebDriverWait(driver, timeout)
+                
+                # Buscar campos de login (intentar varios selectores comunes)
+                # NOTA: Fiberhome usa 'user_name' y 'loginpp' (NO es type=password!)
+                username_selectors = [
+                    (By.ID, 'user_name'),           # Fiberhome específico
+                    (By.NAME, 'user_name'),         # Fiberhome específico
+                    (By.ID, 'username'),
+                    (By.NAME, 'username'),
+                    (By.ID, 'user'),
+                    (By.NAME, 'user'),
+                    (By.ID, 'userName'),
+                    (By.NAME, 'userName'),
+                    (By.CSS_SELECTOR, 'input[type="text"]'),
+                    (By.CSS_SELECTOR, 'input.username'),
+                    (By.XPATH, '//input[@placeholder="Username" or @placeholder="Usuario"]')
+                ]
+                
+                password_selectors = [
+                    (By.ID, 'loginpp'),             # Fiberhome específico (type=text con clase especial!)
+                    (By.NAME, 'loginpp'),           # Fiberhome específico
+                    (By.CSS_SELECTOR, 'input.fh-text-security-inter'),  # Fiberhome clase especial
+                    (By.ID, 'password'),
+                    (By.NAME, 'password'),
+                    (By.ID, 'pass'),
+                    (By.NAME, 'pass'),
+                    (By.ID, 'userPassword'),
+                    (By.NAME, 'userPassword'),
+                    (By.CSS_SELECTOR, 'input[type="password"]'),
+                    (By.CSS_SELECTOR, 'input.password'),
+                    (By.XPATH, '//input[@placeholder="Password" or @placeholder="Contraseña"]'),
+                    (By.XPATH, '//input[@type="password"]')
+                ]
+                
+                username_field = None
+                password_field = None
+                
+                # Encontrar campo de usuario
+                for by, selector in username_selectors:
+                    try:
+                        username_field = wait.until(EC.presence_of_element_located((by, selector)))
+                        print(f"[SELENIUM] Campo username encontrado: {by}='{selector}'")
+                        break
+                    except:
+                        continue
+                
+                if not username_field:
+                    print("[ERROR] No se encontro campo de usuario en el formulario")
+                    driver.quit()
+                    return False
+                
+                # Encontrar campo de contrasena
+                for by, selector in password_selectors:
+                    try:
+                        password_field = driver.find_element(by, selector)
+                        print(f"[SELENIUM] Campo password encontrado: {by}='{selector}'")
+                        break
+                    except:
+                        continue
+                
+                if not password_field:
+                    print("[ERROR] No se encontro campo de contrasena. Guardando screenshot...")
+                    try:
+                        screenshot_path = Path("C:/Users/Admin/Documents/GitHub/ontester/reports/selenium_debug.png")
+                        driver.save_screenshot(str(screenshot_path))
+                        print(f"[DEBUG] Screenshot guardado: {screenshot_path}")
+                    except:
+                        pass
+                    driver.quit()
+                    return False
+                
+                # Ingresar credenciales
+                print("[SELENIUM] Ingresando credenciales...")
+                username_field.clear()
+                username_field.send_keys('root')
+                password_field.clear()
+                password_field.send_keys('admin')
+                
+                # Buscar y hacer clic en botón de login
+                button_selectors = [
+                    (By.ID, 'login_btn'),           # Fiberhome específico
+                    (By.ID, 'loginBtn'),
+                    (By.NAME, 'login'),
+                    (By.CSS_SELECTOR, 'button[type="submit"]'),
+                    (By.CSS_SELECTOR, 'input[type="submit"]'),
+                    (By.XPATH, '//button[contains(text(), "Login")]'),
+                    (By.XPATH, '//button[contains(text(), "Entrar")]')
+                ]
+                
+                login_button = None
+                for by, selector in button_selectors:
+                    try:
+                        login_button = driver.find_element(by, selector)
+                        print(f"[SELENIUM] Botón login encontrado: {by}='{selector}'")
+                        break
+                    except:
+                        continue
+                
+                if login_button:
+                    login_button.click()
+                    print("[SELENIUM] Click en botón de login...")
+                else:
+                    # Si no hay botón, enviar formulario con Enter
+                    print("[SELENIUM] Enviando formulario con Enter...")
+                    from selenium.webdriver.common.keys import Keys
+                    password_field.send_keys(Keys.RETURN)
+                
+                # Esperar a que cargue la página principal (varios indicadores posibles)
+                time.sleep(3)  # Dar tiempo para procesar login
+
+                return True
+            except Exception as e:
+                print(f"[ERROR] Selenium login falló: {type(e).__name__} - {e}")
+                if driver:
+                    try:
+                        driver.quit()
+                    except:
+                        pass
+                return False
+        return False
     def _login_ont_standard(self) -> bool:
         """Login estándar para ONTs via AJAX"""
         selenium_success = False
@@ -2152,11 +2330,19 @@ class ONTAutomatedTester:
         print(f"Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
         print("="*60 + "\n")
         
-        # Intentar login primero (obtiene serial y model name, auto-detecta modelo)
-        if not self.login():
-            print("[!] Error: No se pudo autenticar")
-            return self.test_results
-        
+        # A partir de aqui es donde se tiene que hacer la verificacion de modelos
+        # Primero el login 
+        if (self.model == "MOD001"):
+            #FIBER
+            # Intentar login primero (obtiene serial y model name, auto-detecta modelo)
+            if not self.login():
+                print("[!] Error: No se pudo autenticar")
+                return self.test_results
+        elif (self.model == "MOD002"):
+            #ZTE
+            if not self.login():
+                print("[X] ERROR: No se inició sesion en modelo ZTE")
+
         # Determinar qué tests ejecutar según el tipo de dispositivo
         device_type = self.test_results['metadata'].get('device_type', 'ONT')
         
@@ -2187,12 +2373,16 @@ class ONTAutomatedTester:
             self.test_network_settings
         ]
         
-        # Ejecutar tests comunes
-        print(f"\n[*] Ejecutando tests comunes ({len(common_tests)} tests)...")
-        for test_func in common_tests:
-            result = test_func()
-            self.test_results["tests"][result["name"]] = result
-        
+        # De momento solo para fiber, se puede agregar condiciones con el operador or "||"
+        if(self.model == "MOD001"):
+            # Ejecutar tests comunes
+            print(f"\n[*] Ejecutando tests comunes ({len(common_tests)} tests)...")
+            for test_func in common_tests:
+                result = test_func()
+                self.test_results["tests"][result["name"]] = result
+        elif (self.model == "MOD002"):
+            # Extraer info primero
+            self.zte_info()
         # Ejecutar tests específicos según el tipo
         if device_type == "ATA":
             print(f"\n[*] Dispositivo ATA detectado - Ejecutando tests VoIP ({len(ata_tests)} tests)...")
@@ -2207,6 +2397,24 @@ class ONTAutomatedTester:
         
         return self.test_results
     
+    def zte_info(self):
+        # TODO acceder a la info de zte prueba 1
+        info = "devmgr_statusmgr_lua.lua"
+        try:
+            response = self.session.get(
+                self.type_url,
+                params=info,
+                auth=('root', 'admin'),
+                timeout=5
+            )
+
+            print("Estás intentando acceder a la url= " + self.type_url + info)
+            if response.status_code == 200:
+                print("EXITO: ", response.text)
+        except Exception as e:
+            print("No success :c")
+        
+
     def generate_report(self) -> str:
         """Genera reporte en formato texto"""
         lines = []
