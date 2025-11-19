@@ -2963,16 +2963,32 @@ class ONTAutomatedTester:
                 resultado_prueba["tests"][nombre] = parsed
 
             # Si quieres verlo en consola ya combinado:
-            print(json.dumps(resultado_prueba, indent=2, ensure_ascii=False))
+            # print(json.dumps(resultado_prueba, indent=2, ensure_ascii=False))
 
             #Guardar a archivo
 
-            nombre_archivo = f"zte_prueba_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            now = datetime.now()
 
-            with open(nombre_archivo, "w", encoding="utf-8") as f:
+            # 1) Carpeta raíz de pruebas
+            base_dir = "test_mod002"
+
+            # 2) Carpeta del día (ej. 20251119)
+            day_folder = now.strftime("%Y%m%d")
+            day_dir = os.path.join(base_dir, day_folder)
+
+            # 3) Crear carpetas si no existen
+            os.makedirs(day_dir, exist_ok=True)
+
+            # 4) Nombre del archivo del reporte (por hora/minuto/segundo)
+            file_ts = now.strftime("%H%M%S")  # ej. 134502
+            file_name = f"zte_prueba_{file_ts}.json"
+            file_path = os.path.join(day_dir, file_name)
+
+            # 5) Guardar el JSON en esa ruta
+            with open(file_path, "w", encoding="utf-8") as f:
                 json.dump(resultado_prueba, f, ensure_ascii=False, indent=2)
 
-            print("Prueba guardada en:", nombre_archivo)
+            print("Reporte guardado en:", file_path)
             # print(xml)
             # print("\nopcion 2:\n")
             
