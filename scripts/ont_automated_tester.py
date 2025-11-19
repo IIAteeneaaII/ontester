@@ -2945,22 +2945,39 @@ class ONTAutomatedTester:
         try:
             print("Opcion 1:\n")
             xml_final = ""
-            for nombre, func, url in pruebas:
-                # 1) Navegación con Selenium
+            for name, func, url in pruebas:
+                # 1) Navegación con Selenium para habilitar el endpoint
                 func(driver)
 
-                # 2) Obtener XML (si sigues usando Selenium)
+                # 2) Obtener el XML (como ya lo hacías)
                 driver.get(url)
                 raw = driver.page_source
                 start = raw.find("<ajax_response_xml_root")
                 end   = raw.rfind("</ajax_response_xml_root>") + len("</ajax_response_xml_root>")
                 xml_final = raw[start:end]
 
-                # 3) Parsear XML
+                # 3) Parsear XML con tu función
                 parsed = self.parse_zte_status_xml(xml_final)
 
-                # 4) Guardar el resultado bajo el nombre de la prueba
-                resultado_prueba["tests"][nombre] = parsed
+                # 4) Actualizar metadata (modelo y serie) si vienen en DEVINFO
+                devinfo = parsed.get("DEVINFO")
+                if devinfo:
+                    sn = devinfo.get("SerialNumber")
+                    model_from_xml = devinfo.get("ModelName")
+                    if sn:
+                        self.test_results["metadata"]["serial_number"] = sn
+                    if model_from_xml:
+                        self.test_results["metadata"]["model"] = model_from_xml
+
+                # 5) Armar el objeto resultado de esta prueba
+                result = {
+                    "name": name,
+                    "status": parsed.get("error", {}).get("str") == "SUCC",
+                    "details": parsed,          # aquí va TODO el json parseado de ese XML
+                }
+
+                # 6) Guardarlo en self.test_results (igual que tu patrón test_func)
+                self.test_results["tests"][result["name"]] = result
 
             # Si quieres verlo en consola ya combinado:
             # print(json.dumps(resultado_prueba, indent=2, ensure_ascii=False))
@@ -2969,24 +2986,17 @@ class ONTAutomatedTester:
 
             now = datetime.now()
 
-            # 1) Carpeta raíz de pruebas
             base_dir = "test_mod002"
-
-            # 2) Carpeta del día (ej. 20251119)
             day_folder = now.strftime("%Y%m%d")
             day_dir = os.path.join(base_dir, day_folder)
-
-            # 3) Crear carpetas si no existen
             os.makedirs(day_dir, exist_ok=True)
 
-            # 4) Nombre del archivo del reporte (por hora/minuto/segundo)
-            file_ts = now.strftime("%H%M%S")  # ej. 134502
+            file_ts = now.strftime("%H%M%S")
             file_name = f"zte_prueba_{file_ts}.json"
             file_path = os.path.join(day_dir, file_name)
 
-            # 5) Guardar el JSON en esa ruta
             with open(file_path, "w", encoding="utf-8") as f:
-                json.dump(resultado_prueba, f, ensure_ascii=False, indent=2)
+                json.dump(self.test_results, f, ensure_ascii=False, indent=2)
 
             print("Reporte guardado en:", file_path)
             # print(xml)
@@ -3099,13 +3109,33 @@ class ONTAutomatedTester:
 
         print("\n" + "+"*60)
         print("REPORTE DE INFO \n")
-        sn = self.test_results['metadata'].get('serial_number_physical')
-        mac = self.test_results['metadata'].get('mac_address')
-        modelo = self.test_results['metadata'].get('model')
-        dn = self.test_results['metadata'].get('device_name')
-        sft = self.test_results['metadata']['base_info'].get('software_version')
-        w2 = self.test_results['metadata']['base_info']['wifi_info'].get('ssid_24ghz')
-        w5 = self.test_results['metadata']['base_info']['wifi_info'].get('ssid_5ghz')
+        #Inicializar variables:
+        sn = ""
+        mac = ""
+        modelo = ""
+        dn = ""
+        sft = ""
+        w2 = ""
+        w5 = ""
+        # Obtencion de valores para mostrarlo en corto:
+        if (self.model == "MOD001"):
+            sn = self.test_results['metadata'].get('serial_number_physical')
+            mac = self.test_results['metadata'].get('mac_address')
+            modelo = self.test_results['metadata'].get('model')
+            dn = self.test_results['metadata'].get('device_name')
+            sft = self.test_results['metadata']['base_info'].get('software_version')
+            w2 = self.test_results['metadata']['base_info']['wifi_info'].get('ssid_24ghz')
+            w5 = self.test_results['metadata']['base_info']['wifi_info'].get('ssid_5ghz')
+        elif (self.model == "MOD002"):
+            # TODO; la información está muy dispersa
+            # sn = self.test_results['metadata'].get('serial_number')
+            # mac = self.test_results['metadata']['tests']['mac']['details']['WAN_COMFIG'].get('WorkIFMac')
+            # modelo = "MOD002"
+            # dn = self.test_results['metadata'].get('model')
+            # sft = self.test_results['metadata']['tests'].get('SoftwareVer')
+            # w2 = self.test_results['metadata']['base_info']['wifi_info'].get('ssid_24ghz')
+            # w5 = self.test_results['metadata']['base_info']['wifi_info'].get('ssid_5ghz')
+            print("En proceso\n")
         print("El numero de serie es: ", sn)
         print("La mac es: ", mac)
         print("El modelo es (nuestra nomenclatura): ",modelo)
@@ -3114,29 +3144,30 @@ class ONTAutomatedTester:
         print("El nombre de la red wifi 2.4 es: ", w2)
         print("El nombre de la red wifi 5 es: ", w5)
 
-        print("\nREPORTE DE PRUEBAS \n")
-        ping = self.test_results['tests']['PING_CONNECTIVITY'].get('status')
-        factory_reset = self.test_results['tests']['FACTORY_RESET_PASS'].get('status')
-        sftUpdate = "SKIP"
-        usb_port = self.test_results['tests']['USB_PORT']['details'].get('usb_status')
-        tx = self.test_results['tests']['TX_POWER']['details'].get('tx_power_dbm') # VALORES BUENOS => mientras sea positivo  """
-        rx = self.test_results['tests']['RX_POWER']['details'].get('rx_power_dbm') # FALTA CONFIRMACION DE VALORES (entre -8 y -28)"""
-        wifi2 = self.test_results['tests']['WIFI_24GHZ'].get('status')
-        wifi5 = self.test_results['tests']['WIFI_5GHZ'].get('status')
-        print("Prueba de ping: ", ping)
-        print("Factory reset: ",factory_reset)
-        print("Software update: ", sftUpdate)
-        print("Prueba de puertos usb: ",usb_port)
-        txpass = False
-        rxpass = False
-        if(float(tx) > 0):
-            txpass = True
-        if(float(rx) > -28): # ASEGURARSE DEL VALOR """
-            rxpass = True
-        print("Prueba tx: ", txpass)
-        print("Prueba rx: ", rxpass)
-        print("Prueba wifi 2.4: ", wifi2)
-        print("Prueba wifi 5: ",wifi5)
+        if (self.model == "MOD001"):
+            print("\nREPORTE DE PRUEBAS \n")
+            ping = self.test_results['tests']['PING_CONNECTIVITY'].get('status')
+            factory_reset = self.test_results['tests']['FACTORY_RESET_PASS'].get('status')
+            sftUpdate = "SKIP"
+            usb_port = self.test_results['tests']['USB_PORT']['details'].get('usb_status')
+            tx = self.test_results['tests']['TX_POWER']['details'].get('tx_power_dbm') # VALORES BUENOS => mientras sea positivo  """
+            rx = self.test_results['tests']['RX_POWER']['details'].get('rx_power_dbm') # FALTA CONFIRMACION DE VALORES (entre -8 y -28)"""
+            wifi2 = self.test_results['tests']['WIFI_24GHZ'].get('status')
+            wifi5 = self.test_results['tests']['WIFI_5GHZ'].get('status')
+            print("Prueba de ping: ", ping)
+            print("Factory reset: ",factory_reset)
+            print("Software update: ", sftUpdate)
+            print("Prueba de puertos usb: ",usb_port)
+            txpass = False
+            rxpass = False
+            if(float(tx) > 0):
+                txpass = True
+            if(float(rx) > -28): # ASEGURARSE DEL VALOR """
+                rxpass = True
+            print("Prueba tx: ", txpass)
+            print("Prueba rx: ", rxpass)
+            print("Prueba wifi 2.4: ", wifi2)
+            print("Prueba wifi 5: ",wifi5)
         print("\n" + "+"*60)
 
 def main():
@@ -3197,36 +3228,36 @@ def generate_label(host: str, model: str = None):
     
     # Generar etiqueta
     label = f"""
-╔══════════════════════════════════════════════════════════════╗
-║                  ETIQUETA DE IDENTIFICACION ONT              ║
-╠══════════════════════════════════════════════════════════════╣
-║                                                              ║
-║  MODELO:          {device_info.get('ModelName', 'N/A'):40} ║
-║  CODIGO:          {tester.model:40} ║
-║  SN LOGICO:       {serial_logical:40} ║
-║  SN FISICO/PON:   {sn_physical_line} ║
-║  OPERADOR:        {operator_info.get('operator_name', 'N/A'):40} ║
-║  IP:              {host:40} ║
-║  FECHA:           {datetime.now().strftime('%d/%m/%Y %H:%M'):40} ║
-║                                                              ║
-╠══════════════════════════════════════════════════════════════╣
-║  CONECTIVIDAD:                                               ║
-║    • HTTP:        ✓ DISPONIBLE                               ║
-║    • Telnet:      Puerto 23 abierto                          ║
-║    • Web UI:      http://{host:30}         ║
-║    • Usuario:     root                                       ║
-║                                                              ║
-╠══════════════════════════════════════════════════════════════╣
-║  NOTA: {note:<57} ║
-║        (16 caracteres hexadecimales)                         ║
-║                                                              ║
-║  NOTAS ADICIONALES:                                          ║
-║  ___________________________________________________________  ║
-║  ___________________________________________________________  ║
-║  ___________________________________________________________  ║
-║                                                              ║
-╚══════════════════════════════════════════════════════════════╝
-"""
+    ╔══════════════════════════════════════════════════════════════╗
+    ║                  ETIQUETA DE IDENTIFICACION ONT              ║
+    ╠══════════════════════════════════════════════════════════════╣
+    ║                                                              ║
+    ║  MODELO:          {device_info.get('ModelName', 'N/A'):40} ║
+    ║  CODIGO:          {tester.model:40} ║
+    ║  SN LOGICO:       {serial_logical:40} ║
+    ║  SN FISICO/PON:   {sn_physical_line} ║
+    ║  OPERADOR:        {operator_info.get('operator_name', 'N/A'):40} ║
+    ║  IP:              {host:40} ║
+    ║  FECHA:           {datetime.now().strftime('%d/%m/%Y %H:%M'):40} ║
+    ║                                                              ║
+    ╠══════════════════════════════════════════════════════════════╣
+    ║  CONECTIVIDAD:                                               ║
+    ║    • HTTP:        ✓ DISPONIBLE                               ║
+    ║    • Telnet:      Puerto 23 abierto                          ║
+    ║    • Web UI:      http://{host:30}         ║
+    ║    • Usuario:     root                                       ║
+    ║                                                              ║
+    ╠══════════════════════════════════════════════════════════════╣
+    ║  NOTA: {note:<57} ║
+    ║        (16 caracteres hexadecimales)                         ║
+    ║                                                              ║
+    ║  NOTAS ADICIONALES:                                          ║
+    ║  ___________________________________________________________  ║
+    ║  ___________________________________________________________  ║
+    ║  ___________________________________________________________  ║
+    ║                                                              ║
+    ╚══════════════════════════════════════════════════════════════╝
+    """
     
     print(label)
     
