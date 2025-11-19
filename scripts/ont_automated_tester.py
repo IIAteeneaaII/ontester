@@ -211,6 +211,8 @@ class ONTAutomatedTester:
             return self._login_grandstream()
         elif (self.model == "MOD002"):
             return self._login_zte() # self._login_zte()
+        elif (self.model == "MOD004"):
+            return self._login_huawei() # El que no es ni small ni x6
         else:
             return self._login_ont_standard()
     
@@ -994,7 +996,7 @@ class ONTAutomatedTester:
         return None
 
     def _login_zte(self) -> bool:
-        #TODO funcion de inicio de sesión zte (ip diferente -> 192.168.1.1)
+        # funcion de inicio de sesión zte (ip diferente -> 192.168.1.1)
         # Este login / peticiones no se hacen mediante ajax ya que el modelo no lo soporta
 
         # Vereficar selenium (prob se usará siemr}pre, es sencillo de usar)
@@ -1292,6 +1294,200 @@ class ONTAutomatedTester:
                 # driver.quit()
                 # return False
                 # """
+            except Exception as e:
+                print(f"[ERROR] Selenium login falló: {type(e).__name__} - {e}")
+                if driver:
+                    try:
+                        driver.quit()
+                    except:
+                        pass
+                return False
+
+    def _login_huawei(self) -> bool:
+        #  función de inicio de sesión para huawei
+        if SELENIUM_AVAILABLE:
+            #login con selenium
+            driver = None
+            headless = True
+            timeout = 5
+
+            try:
+                print(f"[SELENIUM] Iniciando login automático a {self.host}...")
+
+                # Configurar opciones de Chrome
+                chrome_options = Options()
+                if headless:
+                    chrome_options.add_argument('--headless=new')  # Modo headless moderno
+                chrome_options.add_argument('--no-sandbox')
+                chrome_options.add_argument('--disable-dev-shm-usage')
+                chrome_options.add_argument('--disable-gpu')
+                chrome_options.add_argument('--log-level=3')  # Suprimir logs verbosos
+                chrome_options.add_argument(f'--host-resolver-rules=MAP {self.host} 192.168.100.1')
+                chrome_options.page_load_strategy = "eager"  # <- No esperar recursos innecesarios, solo con el DOM principal
+                
+                # Deshabilitar warnings de certificado
+                chrome_options.add_argument('--ignore-certificate-errors')
+                chrome_options.add_argument('--allow-insecure-localhost')
+
+                # Inicializar driver con WebDriver Manager
+                print("[SELENIUM] Descargando/verificando ChromeDriver...")
+                service = Service(ChromeDriverManager().install())
+                driver = webdriver.Chrome(service=service, options=chrome_options)
+                driver.set_page_load_timeout(timeout)
+                
+                # Navegar a la página principal (el router redirigirá al login)
+                # Usar IP directa en lugar de login.html para evitar bloqueo de nginx
+                base_url = f"http://{self.host}/"
+                print(f"[SELENIUM] Navegando a {base_url}...")
+                
+                try:
+                    driver.get(base_url)
+                except Exception as e:
+                    print(f"[ERROR] No se pudo cargar {base_url}: {e} ")
+                    driver.quit()
+                    return False
+
+                # Esperar a que cargue la pagina
+                time.sleep(2)
+                # Verificar si la página cargó correctamente
+                if "400" in driver.title or "error" in driver.page_source.lower()[:500]:
+                    print("[ERROR] La página retornó error 400 - El router bloqueó la petición")
+                    driver.quit()
+                    return False
+                
+                # Esperar a que cargue el formulario
+                wait = WebDriverWait(driver, timeout)
+
+                # Buscar campos de login (intentar varios selectores comunes)
+                username_selectors = [
+                    (By.ID, 'user_name'),           # Fiberhome específico
+                    (By.NAME, 'user_name'),         # Fiberhome específico
+                    (By.ID, 'username'),
+                    (By.ID, 'Frm_Username'),        #ZTE
+                    (By.NAME, 'Frm_Username'),      #ZTE
+                    (By.ID, 'txt_Username'),        #HUAWEI
+                    (By.NAME, 'txt_Username'),      #HUAWEI
+                    (By.NAME, 'username'),
+                    (By.ID, 'user'),
+                    (By.NAME, 'user'),
+                    (By.ID, 'userName'),
+                    (By.NAME, 'userName'),
+                    (By.CSS_SELECTOR, 'input[type="text"]'),
+                    (By.CSS_SELECTOR, 'input.username'),
+                    (By.XPATH, '//input[@placeholder="Username" or @placeholder="Usuario"]')
+                ]
+                
+                password_selectors = [
+                    (By.ID, 'loginpp'),             # Fiberhome específico (type=text con clase especial!)
+                    (By.NAME, 'loginpp'),           # Fiberhome específico
+                    (By.CSS_SELECTOR, 'input.fh-text-security-inter'),  # Fiberhome clase especial
+                    (By.ID, 'Frm_Password'),        #ZTE
+                    (By.NAME, 'Frm_Password'),      #ZTE
+                    (By.ID, 'txt_Password'),        #HUAWEI
+                    (By.NAME, 'txt_Password'),      #HUAWEI
+                    (By.ID, 'password'),
+                    (By.NAME, 'password'),
+                    (By.ID, 'pass'),
+                    (By.NAME, 'pass'),
+                    (By.ID, 'userPassword'),
+                    (By.NAME, 'userPassword'),
+                    (By.CSS_SELECTOR, 'input[type="password"]'),
+                    (By.CSS_SELECTOR, 'input.password'),
+                    (By.XPATH, '//input[@placeholder="Password" or @placeholder="Contraseña"]'),
+                    (By.XPATH, '//input[@type="password"]')
+                ]
+
+                username_fiel = None
+                password_fiel = None
+
+                # Encontrar campo de usuario
+                for by, selector in username_selectors:
+                    try:
+                        username_field = wait.until(EC.presence_of_element_located((by, selector)))
+                        print(f"[SELENIUM] Campo username encontrado: {by}='{selector}'")
+                        break
+                    except:
+                        continue
+                
+                if not username_field:
+                    print("[ERROR] No se encontro campo de usuario en el formulario")
+                    driver.quit()
+                    return False
+                
+                # Encontrar campo de contrasena
+                for by, selector in password_selectors:
+                    try:
+                        password_field = driver.find_element(by, selector)
+                        print(f"[SELENIUM] Campo password encontrado: {by}='{selector}'")
+                        break
+                    except:
+                        continue
+                
+                if not password_field:
+                    print("[ERROR] No se encontro campo de contrasena. Guardando screenshot...")
+                    driver.quit()
+                    return False
+
+                # Ingresar credenciales
+                print("[SELENIUM] Ingresando credenciales...")
+                username_field.clear()
+                username_field.send_keys('root')
+                password_field.clear()
+                password_field.send_keys('admin')
+
+                # Buscar y hacer clic en botón de login
+                button_selectors = [
+                    (By.ID, 'login_btn'),           # Fiberhome específico
+                    (By.ID, 'LoginId'),             #ZTE
+                    (By.ID, 'loginbutton'),         #HUAWEI
+                    (By.NAME, 'login'),
+                    (By.CSS_SELECTOR, 'button[type="submit"]'),
+                    (By.CSS_SELECTOR, 'input[type="submit"]'),
+                    (By.XPATH, '//button[contains(text(), "Login")]'),
+                    (By.XPATH, '//button[contains(text(), "Entrar")]')
+                ]
+
+                login_button = None
+                for by, selector in button_selectors:
+                    try:
+                        login_button = driver.find_element(by, selector)
+                        print(f"[SELENIUM] Botón login encontrado: {by}='{selector}'")
+                        break
+                    except:
+                        continue
+                
+                if login_button:
+                    driver.execute_script("arguments[0].click();", login_button)
+                    login_button.click()
+                    print("[SELENIUM] Click en botón de login...")
+                else:
+                    # Si no hay botón, enviar formulario con Enter
+                    print("[SELENIUM] Enviando formulario con Enter...")
+                    from selenium.webdriver.common.keys import Keys
+                    password_field.send_keys(Keys.RETURN)
+                
+                # Esperar a que cargue la página principal (varios indicadores posibles)
+                time.sleep(5)  # Dar tiempo para procesar login
+                cookies = {c["name"]: c["value"] for c in driver.get_cookies()}
+                print("[SELENIUM] Cookies obtenidas:", cookies)
+
+                self.session.headers.update({
+                    "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                                "Chrome/142.0.0.0 Safari/537.36"),
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                    "Referer": "http://192.168.1.1/",
+                    "Connection": "keep-alive",
+                    "X-Requested-With": "XMLHttpRequest",
+                })
+                self.session.cookies.update(cookies)
+
+                # Peticiones desde aqui para no cerrar el driver
+                
+                self.huawei_info(driver)
+
+                driver.quit()
+                return True
             except Exception as e:
                 print(f"[ERROR] Selenium login falló: {type(e).__name__} - {e}")
                 if driver:
@@ -2528,6 +2724,8 @@ class ONTAutomatedTester:
             if not self.login():
                 print("[X] ERROR: No se inició sesion en modelo ZTE")
 
+        if not self.login():
+                print("[!] Error: No se pudo autenticar (modelo general)")
         # Determinar qué tests ejecutar según el tipo de dispositivo
         device_type = self.test_results['metadata'].get('device_type', 'ONT')
         
@@ -2891,6 +3089,282 @@ class ONTAutomatedTester:
             raise RuntimeError("No se pudo hacer click en USB Devices")
 
         print("[SELENIUM] USB Devices debería estar habilitado ahora")
+
+    # FUNCIONES PARA NAVEGACION DE HUAWEI
+    def nav_hw_info(self, driver):
+        """System Information -> Device (información básica)"""
+
+        # 1) Menú principal "System Information"
+        self.click_anywhere(
+            driver,
+            [
+                (By.ID, "name_Systeminfo"),
+                (By.NAME, "m1div_deviceinfo"),
+                (By.XPATH, "//div[contains(@class,'menuContTitle') and normalize-space(.)='System Information']"),
+            ],
+            "Huawei System Information (menú principal)",
+        )
+
+        # 2) Submenú "Device"
+        self.click_anywhere(
+            driver,
+            [
+                (By.ID, "name_deviceinfo"),
+                (By.XPATH, "//div[@id='name_deviceinfo']"),
+                (By.XPATH, "//div[contains(@class,'SecondMenuTitle') and normalize-space(.)='Device']"),
+            ],
+            "Huawei Device (System Information)",
+        )
+
+    def nav_hw_optical(self, driver):
+        """System Information -> Optical (fibra)"""
+
+        self.click_anywhere(
+            driver,
+            [
+                (By.ID, "name_Systeminfo"),
+                (By.NAME, "m1div_deviceinfo"),
+                (By.XPATH, "//div[contains(@class,'menuContTitle') and normalize-space(.)='System Information']"),
+            ],
+            "Huawei System Information (menú principal)",
+        )
+
+        self.click_anywhere(
+            driver,
+            [
+                (By.ID, "name_opticinfo"),
+                (By.XPATH, "//div[@id='name_opticinfo']"),
+                (By.XPATH, "//div[contains(@class,'SecondMenuTitle') and normalize-space(.)='Optical']"),
+            ],
+            "Huawei Optical",
+        )
+
+    def nav_hw_lan(self, driver):
+        """System Information -> Eth Port (información de puertos LAN)"""
+
+        self.click_anywhere(
+            driver,
+            [
+                (By.ID, "name_Systeminfo"),
+                (By.NAME, "m1div_deviceinfo"),
+                (By.XPATH, "//div[contains(@class,'menuContTitle') and normalize-space(.)='System Information']"),
+            ],
+            "Huawei System Information (menú principal)",
+        )
+
+        self.click_anywhere(
+            driver,
+            [
+                (By.ID, "name_ethinfo"),
+                (By.XPATH, "//div[@id='name_ethinfo']"),
+                (By.XPATH, "//div[contains(@class,'SecondMenuTitle') and normalize-space(.)='Eth Port']"),
+            ],
+            "Huawei Eth Port",
+        )
+
+    def nav_hw_wifi_24(self, driver):
+        """System Information -> WLAN (2.4 GHz)"""
+
+        # Ir a WLAN
+        self.click_anywhere(
+            driver,
+            [
+                (By.ID, "name_Systeminfo"),
+                (By.NAME, "m1div_deviceinfo"),
+                (By.XPATH, "//div[contains(@class,'menuContTitle') and normalize-space(.)='System Information']"),
+            ],
+            "Huawei System Information (menú principal)",
+        )
+
+        self.click_anywhere(
+            driver,
+            [
+                (By.ID, "name_wlaninfo"),
+                (By.XPATH, "//div[@id='name_wlaninfo']"),
+                (By.XPATH, "//div[contains(@class,'SecondMenuTitle') and normalize-space(.)='WLAN']"),
+            ],
+            "Huawei WLAN (menú WLAN)",
+        )
+
+        # Seleccionar radio 2.4G (value=1)
+        self.click_anywhere(
+            driver,
+            [
+                (By.CSS_SELECTOR, "input[name='WlanMethod'][value='1']"),
+                (By.XPATH, "//input[@name='WlanMethod' and @value='1']"),
+            ],
+            "Huawei WLAN 2.4G (radio)",
+        )
+
+    def nav_hw_wifi_5(self, driver):
+        """System Information -> WLAN (5 GHz)"""
+
+        self.click_anywhere(
+            driver,
+            [
+                (By.ID, "name_Systeminfo"),
+                (By.NAME, "m1div_deviceinfo"),
+                (By.XPATH, "//div[contains(@class,'menuContTitle') and normalize-space(.)='System Information']"),
+            ],
+            "Huawei System Information (menú principal)",
+        )
+
+        self.click_anywhere(
+            driver,
+            [
+                (By.ID, "name_wlaninfo"),
+                (By.XPATH, "//div[@id='name_wlaninfo']"),
+                (By.XPATH, "//div[contains(@class,'SecondMenuTitle') and normalize-space(.)='WLAN']"),
+            ],
+            "Huawei WLAN (menú WLAN)",
+        )
+
+        # Seleccionar radio 5G (value=2)
+        self.click_anywhere(
+            driver,
+            [
+                (By.CSS_SELECTOR, "input[name='WlanMethod'][value='2']"),
+                (By.XPATH, "//input[@name='WlanMethod' and @value='2']"),
+            ],
+            "Huawei WLAN 5G (radio)",
+        )
+
+    def nav_hw_mac(self, driver):
+        """System Information -> Home Network (tabla de MAC / clientes)"""
+
+        self.click_anywhere(
+            driver,
+            [
+                (By.ID, "name_Systeminfo"),
+                (By.NAME, "m1div_deviceinfo"),
+                (By.XPATH, "//div[contains(@class,'menuContTitle') and normalize-space(.)='System Information']"),
+            ],
+            "Huawei System Information (menú principal)",
+        )
+
+        self.click_anywhere(
+            driver,
+            [
+                (By.ID, "name_wlancoverinfo"),
+                (By.XPATH, "//div[@id='name_wlancoverinfo']"),
+                (By.XPATH, "//div[contains(@class,'SecondMenuTitle') and normalize-space(.)='Home Network']"),
+            ],
+            "Huawei Home Network",
+        )
+
+    def nav_hw_show_pass_24(self, driver):
+        """Advanced -> WLAN -> 2.4G Basic Network Settings, mostrar contraseña"""
+
+        # Menú Advanced (WAN)
+        self.click_anywhere(
+            driver,
+            [
+                (By.ID, "name_addconfig"),
+                (By.NAME, "m1div_wan"),
+                (By.XPATH, "//div[@id='name_addconfig' or @name='m1div_wan' or normalize-space(.)='Advanced']"),
+            ],
+            "Huawei Advanced (WAN)",
+        )
+
+        # Submenú WLAN
+        self.click_anywhere(
+            driver,
+            [
+                (By.ID, "name_wlanconfig"),
+                (By.XPATH, "//div[@id='name_wlanconfig']"),
+                (By.XPATH, "//div[contains(@class,'SecondMenuTitle') and normalize-space(.)='WLAN']"),
+            ],
+            "Huawei Advanced WLAN config",
+        )
+
+        # Tercer nivel: 2.4G Basic Network...
+        self.click_anywhere(
+            driver,
+            [
+                (By.ID, "wlan2basic"),
+                (By.NAME, "m3div_WlanBasic2G"),
+                (By.XPATH, "//div[@id='wlan2basic' or @name='m3div_WlanBasic2G']"),
+            ],
+            "Huawei 2.4G Basic Network",
+        )
+
+        # Checkbox de mostrar/ocultar pass
+        self.click_anywhere(
+            driver,
+            [
+                (By.ID, "hidewlWpaPsk"),
+                (By.NAME, "hidewlWpaPsk"),
+                (By.XPATH, "//input[@id='hidewlWpaPsk' and @type='checkbox']"),
+            ],
+            "Huawei mostrar contraseña 2.4G",
+        )
+
+    def nav_hw_show_pass_5(self, driver):
+        """Advanced -> WLAN -> 5G Basic Network Settings, mostrar contraseña"""
+
+        # Menú Advanced (WAN)
+        self.click_anywhere(
+            driver,
+            [
+                (By.ID, "name_addconfig"),
+                (By.NAME, "m1div_wan"),
+                (By.XPATH, "//div[@id='name_addconfig' or @name='m1div_wan' or normalize-space(.)='Advanced']"),
+            ],
+            "Huawei Advanced (WAN)",
+        )
+
+        # Submenú WLAN
+        self.click_anywhere(
+            driver,
+            [
+                (By.ID, "name_wlanconfig"),
+                (By.XPATH, "//div[@id='name_wlanconfig']"),
+                (By.XPATH, "//div[contains(@class,'SecondMenuTitle') and normalize-space(.)='WLAN']"),
+            ],
+            "Huawei Advanced WLAN config",
+        )
+
+        # Tercer nivel: 5G Basic Network...
+        self.click_anywhere(
+            driver,
+            [
+                (By.ID, "wlan5basic"),
+                (By.NAME, "m3div_WlanBasic5G"),
+                (By.XPATH, "//div[@id='wlan5basic' or @name='m3div_WlanBasic5G']"),
+            ],
+            "Huawei 5G Basic Network",
+        )
+
+        # Checkbox de mostrar/ocultar pass
+        self.click_anywhere(
+            driver,
+            [
+                (By.ID, "hidewlWpaPsk"),
+                (By.NAME, "hidewlWpaPsk"),
+                (By.XPATH, "//input[@id='hidewlWpaPsk' and @type='checkbox']"),
+            ],
+            "Huawei mostrar contraseña 5G",
+        )
+
+    def huawei_info(self, driver):
+        # Funciones para dar los clicks necesarios para "desbloquear" la info
+        funciones = [
+            self.nav_hw_info,
+            self.nav_hw_optical,
+            self.nav_hw_lan,
+            self.nav_hw_wifi_24,
+            self.nav_hw_wifi_5,
+            self.nav_hw_mac,
+            self.nav_hw_show_pass_24,
+            self.nav_hw_show_pass_5,
+        ]
+        
+        # Recorrer todas las funciones de clicks + extraer el DOM
+        for func in funciones:
+            func(driver)
+            # TODO extracción masiva por DOM
+            src = driver.page_source
+            print(src+"\n")
 
     def zte_info(self, driver):
         # TODO acceder a la info de zte prueba 1
