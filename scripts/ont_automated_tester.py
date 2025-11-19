@@ -7,6 +7,7 @@ Fecha: 10/11/2025
 
 import argparse
 import json
+import os
 import sys
 import socket
 import subprocess
@@ -1161,7 +1162,7 @@ class ONTAutomatedTester:
                     password_field.send_keys(Keys.RETURN)
                 
                 # Esperar a que cargue la página principal (varios indicadores posibles)
-                time.sleep(10)  # Dar tiempo para procesar login
+                time.sleep(5)  # Dar tiempo para procesar login
 
                 #Petición extra:
                 # Utilizando selenium para darle click a un boton || Tactica extrema, no intentar en casa
@@ -1176,12 +1177,12 @@ class ONTAutomatedTester:
                 mgmt.click()
                 print("[SELENIUM] Click en Management & Diagnosis")
                 
-                time.sleep(5)
+                time.sleep(3)
 
                 # Debug EXTREMO
-                with open("zte_after_mgmt.html", "w", encoding="utf-8") as f:
-                    f.write(driver.page_source)
-                print("[DEBUG] HTML guardado como zte_after_mgmt.html")
+                # with open("zte_after_mgmt.html", "w", encoding="utf-8") as f:
+                #     f.write(driver.page_source)
+                # print("[DEBUG] HTML guardado como zte_after_mgmt.html")
                 # 2) Ahora buscar el Status
                 status = self.find_status_link(driver, timeout=10)
                 if status is None:
@@ -1191,6 +1192,9 @@ class ONTAutomatedTester:
                 driver.switch_to.default_content()  # por si el elemento está en un frame, Selenium ya sabe su contexto
                 status.click()
                 print("[SELENIUM] Click en Status")
+
+                # Hay que hacer click en todos los botones que llevan a los comandos 
+                
 
                 cookies = {c["name"]: c["value"] for c in driver.get_cookies()}
                 print("[SELENIUM] Cookies obtenidas:", cookies)
@@ -2585,7 +2589,7 @@ class ONTAutomatedTester:
 
         data = {}
 
-        # 1) Bloque de error
+        # 1) Bloque de error (igual que antes)
         data["error"] = {
             "param": root.findtext("IF_ERRORPARAM"),
             "type":  root.findtext("IF_ERRORTYPE"),
@@ -2593,21 +2597,32 @@ class ONTAutomatedTester:
             "id":    root.findtext("IF_ERRORID"),
         }
 
-        # 2) Bloques OBJ_*
-        for obj in root:
-            tag = obj.tag  # p.ej. 'OBJ_DEVINFO_ID'
-            if not tag.startswith("OBJ_"):
+        # 2) Cualquier nodo que tenga <Instance> lo tratamos como contenedor
+        for child in root:
+            # saltar tags IF_...
+            if child.tag.startswith("IF_"):
                 continue
 
-            # Normalizamos nombre: DEVINFO, CPUMEMUSAGE, POWERONTIME, etc.
-            obj_name = tag.replace("OBJ_", "").replace("_ID", "")
+            instances = child.findall("Instance")
+            if not instances:
+                continue  # este nodo no es de datos
 
-            instances_data = []
-            for inst in obj.findall("Instance"):
+            # Nombre lógico: para OBJ_DEVINFO_ID → DEVINFO
+            # para ID_WAN_COMFIG → WAN_COMFIG
+            tag_name = child.tag
+            name = (
+                tag_name
+                .replace("OBJ_", "")
+                .replace("_ID", "")
+                .replace("ID_", "")
+            )
+
+            inst_list = []
+            for inst in instances:
                 inst_dict = {}
-
                 children = list(inst)
-                # Recorremos de 2 en 2: ParaName, ParaValue, ParaName, ParaValue...
+
+                # Recorremos de 2 en 2: ParaName, ParaValue...
                 for i in range(0, len(children), 2):
                     name_el = children[i]
                     val_el  = children[i+1] if i+1 < len(children) else None
@@ -2618,40 +2633,346 @@ class ONTAutomatedTester:
                     key = (name_el.text or "").strip()
                     val = (val_el.text or "").strip()
 
-                    # Intento simple de castear números a int
+                    # intento simple de castear números
                     if val.isdigit():
                         val = int(val)
 
                     inst_dict[key] = val
 
                 if inst_dict:
-                    instances_data.append(inst_dict)
+                    inst_list.append(inst_dict)
 
-            # Si solo hay una Instance, la guardamos como dict; si hay varias, como lista
-            if len(instances_data) == 1:
-                data[obj_name] = instances_data[0]
-            elif len(instances_data) > 1:
-                data[obj_name] = instances_data
+            if not inst_list:
+                continue
+
+            # si solo hay una instancia → dict; si hay varias → lista
+            if len(inst_list) == 1:
+                data[name] = inst_list[0]
+            else:
+                data[name] = inst_list
 
         return data
+
+    # CLICKS MASIVOS PARA EL ZTE:
+    def click_anywhere(self, driver, selectors, desc, timeout=10):
+        """
+        Busca un elemento usando varios selectores, en el documento principal
+        y en todos los frames/iframes. Si lo encuentra, hace click.
+        selectors: lista de (By, selector)
+        desc: texto descriptivo para logs
+        """
+        end_time = time.time() + timeout
+
+        while time.time() < end_time:
+            # 1) Documento principal
+            driver.switch_to.default_content()
+            for by, sel in selectors:
+                try:
+                    el = driver.find_element(by, sel)
+                    if el.is_displayed():
+                        print(f"[SELENIUM] {desc} encontrado en documento principal con {by}='{sel}'")
+                        driver.execute_script("arguments[0].click();", el)
+                        return True
+                except NoSuchElementException:
+                    continue
+                except Exception as e:
+                    print(f"[SELENIUM] Error al buscar {desc} en documento principal ({by}='{sel}'): {e}")
+
+            # 2) Todos los frames/iframes
+            frames = driver.find_elements(By.CSS_SELECTOR, "frame, iframe")
+            for idx, frame in enumerate(frames):
+                try:
+                    driver.switch_to.default_content()
+                    driver.switch_to.frame(frame)
+                except Exception:
+                    continue
+
+                for by, sel in selectors:
+                    try:
+                        el = driver.find_element(by, sel)
+                        if el.is_displayed():
+                            print(f"[SELENIUM] {desc} encontrado en frame #{idx} con {by}='{sel}'")
+                            driver.execute_script("arguments[0].click();", el)
+                            driver.switch_to.default_content()
+                            return True
+                    except NoSuchElementException:
+                        continue
+                    except Exception as e:
+                        print(f"[SELENIUM] Error al buscar {desc} en frame #{idx} ({by}='{sel}'): {e}")
+            time.sleep(0.5)
+
+        print(f"[SELENIUM] No se encontró {desc} en {timeout}s")
+        return False
+
+    def nav_lan(self, driver):
+        # Volver a la interfaz principal (ya con sesión iniciada)
+        driver.get(self.base_url)  # http://192.168.1.1
+        ok = self.click_anywhere(
+            driver,
+            selectors=[
+                (By.ID, "localnet"),
+                (By.CSS_SELECTOR, "a[menupage='localNetStatus']"),
+                (By.LINK_TEXT, "Local Network"),
+            ],
+            desc="Local Network (LAN)",
+            timeout=10
+        )
+        if not ok:
+            raise RuntimeError("No se pudo navegar a Local Network (LAN)")
+        
+        # Paso 2: Status
+        ok = self.click_anywhere(
+            driver,
+            selectors=[
+                (By.ID, "localNetStatus"),
+                (By.CSS_SELECTOR, "a[menupage='localNetStatus']"),
+                (By.LINK_TEXT, "Status"),
+                (By.CSS_SELECTOR, "a[title='Status']"),
+            ],
+            desc="WLAN menu",
+            timeout=10
+        )
+        if not ok:
+            raise RuntimeError("No se pudo hacer click en WLAN")
+        print("[SELENIUM] LAN debería estar habilitado ahora")
+
+    def info_zte_basic(self, driver):
+        print("Esta sobra c:\n")
+
+    def nav_fibra(self, driver):
+        # Volver a la interfaz principal (ya con sesión iniciada)
+        driver.get(self.base_url)  # http://192.168.1.1
+        # Paso 1: Internet (la sección padre)
+        ok = self.click_anywhere(
+            driver,
+            selectors=[
+                (By.ID, "internet"),
+                (By.CSS_SELECTOR, "a[menupage='ponopticalinfo']"),
+                (By.LINK_TEXT, "Internet"),
+            ],
+            desc="Internet (padre de PON)",
+            timeout=10
+        )
+        if not ok:
+            raise RuntimeError("No se pudo hacer click en Internet (para PON)")
+
+        # Paso 2: PON Inform
+        ok = self.click_anywhere(
+            driver,
+            selectors=[
+                (By.ID, "ponopticalinfo"),
+                (By.CSS_SELECTOR, "p[menupage='ponopticalinfo']"),
+                (By.XPATH, "//p[contains(text(),'PON Inform')]"),
+            ],
+            desc="PON Inform",
+            timeout=10
+        )
+        if not ok:
+            raise RuntimeError("No se pudo hacer click en PON Inform")
+        print("[SELENIUM] PON/Fibra debería estar habilitado ahora")
+
+    def nav_mac(self, driver):
+        # Volver a la interfaz principal (ya con sesión iniciada)
+        driver.get(self.base_url)  # http://192.168.1.1
+        print("La url es: ",self.base_url)
+        # Paso 1: Internet (igual que en fibra)
+        ok = self.click_anywhere(
+            driver,
+            selectors=[
+                (By.ID, "internet"),
+                (By.CSS_SELECTOR, "a[title='Internet']"),
+                (By.LINK_TEXT, "Internet"),
+            ],
+            desc="Internet (padre de WAN)",
+            timeout=10
+        )
+        if not ok:
+            raise RuntimeError("No se pudo hacer click en Internet (para WAN)")
+
+        # Paso 2: WAN
+        ok = self.click_anywhere(
+            driver,
+            selectors=[
+                (By.ID, "ethWanStatus"),
+                (By.CSS_SELECTOR, "p[menupage='ethWanStatus']"),
+                (By.XPATH, "//p[contains(text(),'WAN')]"),
+            ],
+            desc="WAN (ethWanStatus)",
+            timeout=10
+        )
+        if not ok:
+            raise RuntimeError("No se pudo hacer click en WAN")
+
+        # Paso 3: expandir "WAN Connection Status" (si aplica)
+        self.click_anywhere(
+            driver,
+            selectors=[
+                (By.ID, "EthStateDevBar"),
+                (By.XPATH, "//h1[contains(text(),'WAN Connection Status')]"),
+            ],
+            desc="WAN Connection Status",
+            timeout=5
+        )
+        print("[SELENIUM] WAN/MAC debería estar habilitado ahora")
+
+    def nav_wifi(self, driver):
+        # Volver a la interfaz principal (ya con sesión iniciada)
+        driver.get(self.base_url)  # http://192.168.1.1
+        # Paso 1: Local Network
+        ok = self.click_anywhere(
+            driver,
+            selectors=[
+                (By.ID, "localnet"),
+                (By.CSS_SELECTOR, "a[menupage='localNetStatus']"),
+                (By.LINK_TEXT, "Local Network"),
+            ],
+            desc="Local Network (para WLAN)",
+            timeout=10
+        )
+        if not ok:
+            raise RuntimeError("No se pudo hacer click en Local Network (para WLAN)")
+
+        # Paso 2: WLAN
+        ok = self.click_anywhere(
+            driver,
+            selectors=[
+                (By.ID, "wlanConfig"),
+                (By.CSS_SELECTOR, "a[menupage='wlanBasic']"),
+                (By.LINK_TEXT, "WLAN"),
+                (By.CSS_SELECTOR, "a[title='WLAN']"),
+            ],
+            desc="WLAN menu",
+            timeout=10
+        )
+        if not ok:
+            raise RuntimeError("No se pudo hacer click en WLAN")
+
+        # Paso 3: expandir "WLAN SSID Configuration" (si aplica)
+        self.click_anywhere(
+            driver,
+            selectors=[
+                (By.ID, "WLANSSIDConfBar"),
+                (By.XPATH, "//h1[contains(text(),'WLAN SSID Configuration')]"),
+            ],
+            desc="WLAN SSID Configuration",
+            timeout=5
+        )
+        print("[SELENIUM] WLAN/SSID debería estar habilitado ahora")
+
+    def nav_usb(self, driver):
+        # Volver a la interfaz principal (ya con sesión iniciada)
+        driver.get(self.base_url)  # http://192.168.1.1
+        # Paso 1: Home
+        ok = self.click_anywhere(
+            driver,
+            selectors=[
+                (By.ID, "homePage"),
+                (By.CSS_SELECTOR, "a[menupage='homePage']"),
+                (By.LINK_TEXT, "Home"),
+            ],
+            desc="Home (para USB)",
+            timeout=10
+        )
+        if not ok:
+            raise RuntimeError("No se pudo hacer click en Home (para USB)")
+
+        # Paso 2: USB Devices
+        ok = self.click_anywhere(
+            driver,
+            selectors=[
+                (By.ID, "home_category_usb"),
+                (By.CSS_SELECTOR, "#home_category_usb a"),
+                (By.XPATH, "//div[@id='home_category_usb']//a[contains(text(),'USB Devices')]"),
+            ],
+            desc="USB Devices (home_category_usb)",
+            timeout=10
+        )
+        if not ok:
+            raise RuntimeError("No se pudo hacer click en USB Devices")
+
+        print("[SELENIUM] USB Devices debería estar habilitado ahora")
 
     def zte_info(self, driver):
         # TODO acceder a la info de zte prueba 1
         guid = str(int(time.time() * 1000))
         info = f"{self.base_url}/?_type=menuData&_tag=devmgr_statusmgr_lua.lua&_={guid}"
+        # Sft version, model name, SN
         xml_url = f"{self.base_url}/?_type=menuData&_tag=devmgr_statusmgr_lua.lua&_={guid}"
-        # Para el modelo ZTE hay que hacer una llamada antes de acceder a lo que queremos
+        # USB
+        xml_usb = f"{self.base_url}/?_type=menuData&_tag=usb_homepage_lua.lua&_={guid}"
+        # LAN
+        xml_lan = f"{self.base_url}/?_type=menuData&_tag=status_lan_info_lua.lua&_={guid}"
+        # wifi
+        xml_wifi = f"{self.base_url}/?_type=menuData&_tag=wlan_wlansssidconf_lua.lua&_={guid}"
+        # fibra optica
+        xml_fibra = f"{self.base_url}/?_type=menuData&_tag=optical_info_lua.lua&_={guid}"
+        # MAC
+        xml_mac = f"{self.base_url}/?_type=menuData&_tag=wan_internetstatus_lua.lua&TypeUplink=2&pageType=1&_={guid}"
+
+        urls_xml = [
+            xml_url,   # devmgr_statusmgr_lua
+            xml_usb,   # usb_homepage_lua
+            xml_lan,   # status_lan_info_lua
+            xml_wifi,  # wlan_wlansssidconf_lua
+            xml_fibra, # optical_info_lua
+            xml_mac,   # wan_internetstatus_lua
+        ]
+
+        funciones = [
+            self.info_zte_basic,
+            self.nav_usb,
+            self.nav_lan,
+            self.nav_wifi,
+            self.nav_fibra,
+            self.nav_mac,
+        ]
         
+        #Update para generar reportes
+        pruebas = [
+            ("basic", self.info_zte_basic, xml_url),
+            ("usb",   self.nav_usb,        xml_usb),
+            ("lan",   self.nav_lan,        xml_lan),
+            ("wifi",  self.nav_wifi,       xml_wifi),
+            ("fibra", self.nav_fibra,      xml_fibra),
+            ("mac",   self.nav_mac,        xml_mac),
+        ]
+
+        resultado_prueba = {
+            "router_ip": self.base_url,
+            "timestamp": datetime.now().isoformat(timespec="seconds"),
+            "tests": {}  # aquí vamos a meter basic, usb, lan, wifi, fibra, mac
+        }
         try:
             print("Opcion 1:\n")
-            driver.get(xml_url)
-            raw = driver.page_source
-            start = raw.find("<ajax_response_xml_root")
-            end   = raw.rfind("</ajax_response_xml_root>") + len("</ajax_response_xml_root>")
-            xml = raw[start:end]
+            xml_final = ""
+            for nombre, func, url in pruebas:
+                # 1) Navegación con Selenium
+                func(driver)
 
-            parsed = self.parse_zte_status_xml(xml)
-            print(json.dumps(parsed, indent=2, ensure_ascii=False))
+                # 2) Obtener XML (si sigues usando Selenium)
+                driver.get(url)
+                raw = driver.page_source
+                start = raw.find("<ajax_response_xml_root")
+                end   = raw.rfind("</ajax_response_xml_root>") + len("</ajax_response_xml_root>")
+                xml_final = raw[start:end]
+
+                # 3) Parsear XML
+                parsed = self.parse_zte_status_xml(xml_final)
+
+                # 4) Guardar el resultado bajo el nombre de la prueba
+                resultado_prueba["tests"][nombre] = parsed
+
+            # Si quieres verlo en consola ya combinado:
+            print(json.dumps(resultado_prueba, indent=2, ensure_ascii=False))
+
+            #Guardar a archivo
+
+            nombre_archivo = f"zte_prueba_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+
+            with open(nombre_archivo, "w", encoding="utf-8") as f:
+                json.dump(resultado_prueba, f, ensure_ascii=False, indent=2)
+
+            print("Prueba guardada en:", nombre_archivo)
             # print(xml)
             # print("\nopcion 2:\n")
             
