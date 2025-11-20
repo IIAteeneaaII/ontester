@@ -30,6 +30,7 @@ try:
     from selenium.webdriver.chrome.options import Options
     from webdriver_manager.chrome import ChromeDriverManager
     from selenium.common.exceptions import TimeoutException, NoSuchElementException
+    from selenium.common.exceptions import StaleElementReferenceException
     SELENIUM_AVAILABLE = True
 except ImportError:
     SELENIUM_AVAILABLE = False
@@ -1435,6 +1436,8 @@ class ONTAutomatedTester:
                 password_field.clear()
                 password_field.send_keys('admin')
 
+                # Pequeña pausa para que el JS termine de armar el DOM
+                time.sleep(0.5)
                 # Buscar y hacer clic en botón de login
                 button_selectors = [
                     (By.ID, 'login_btn'),           # Fiberhome específico
@@ -1447,24 +1450,40 @@ class ONTAutomatedTester:
                     (By.XPATH, '//button[contains(text(), "Entrar")]')
                 ]
 
-                login_button = None
-                for by, selector in button_selectors:
-                    try:
-                        login_button = driver.find_element(by, selector)
-                        print(f"[SELENIUM] Botón login encontrado: {by}='{selector}'")
-                        break
-                    except:
-                        continue
-                
-                if login_button:
-                    driver.execute_script("arguments[0].click();", login_button)
-                    login_button.click()
-                    print("[SELENIUM] Click en botón de login...")
-                else:
-                    # Si no hay botón, enviar formulario con Enter
-                    print("[SELENIUM] Enviando formulario con Enter...")
-                    from selenium.webdriver.common.keys import Keys
-                    password_field.send_keys(Keys.RETURN)
+                # 4) Comprobar si realmente existe el botón en el HTML
+                page_html = driver.page_source
+                if 'id="loginbutton"' not in page_html and "loginbutton" not in page_html:
+                    # Guardamos HTML para inspección
+                    debug_path = Path("debug_huawei_login_notfound.html")
+                    debug_path.write_text(page_html, encoding="utf-8")
+                    print("[SELENIUM] No se encontró ningún 'loginbutton' en el HTML.")
+                    print(f"[SELENIUM] HTML guardado en {debug_path}")
+                    # return False
+
+                # 5) Click al botón con JS directamente
+                driver.execute_script("""
+                    var btn = document.getElementById('loginbutton');
+                    if (btn) { btn.click(); } else { console.log('loginbutton no encontrado'); }
+                """)
+                print("[SELENIUM] Click en botón login vía JS")
+
+                # 6) Esperar a que cargue el menú principal
+                try:
+                    wait.until(
+                        EC.presence_of_element_located((By.ID, "name_Systeminfo"))
+                    )
+                    print("[SELENIUM] Login HG8145V5 completado, menú System Information visible.")
+                    # return True
+                except TimeoutException:
+                    print("[SELENIUM] WARNING: No apareció 'name_Systeminfo' tras login (puede que el login haya fallado).")
+                    # Guardamos la pantalla resultante para revisar
+                    after_path = Path("debug_huawei_after_login.html")
+                    after_path.write_text(driver.page_source, encoding="utf-8")
+                    print(f"[SELENIUM] HTML tras login guardado en {after_path}")
+                    # return False
+
+                # return True
+
                 
                 # Esperar a que cargue la página principal (varios indicadores posibles)
                 time.sleep(5)  # Dar tiempo para procesar login
@@ -3090,6 +3109,266 @@ class ONTAutomatedTester:
 
         print("[SELENIUM] USB Devices debería estar habilitado ahora")
 
+    # Funcion para buscar en todos los frames para Huawei
+    def find_element_anywhere(self, driver, by, sel, desc="", timeout=10):
+        """
+        Busca UN elemento en el documento principal y en todos los frames/iframes.
+        Devuelve el WebElement o lanza NoSuchElementException si no aparece.
+
+        by:   estrategia (By.ID, By.CSS_SELECTOR, etc)
+        sel:  selector
+        desc: texto descriptivo para logs
+        """
+        end_time = time.time() + timeout
+        last_exc = None
+
+        while time.time() < end_time:
+            # 1) Documento principal
+            driver.switch_to.default_content()
+            try:
+                el = driver.find_element(by, sel)
+                # Si se ve, lo regresamos
+                if el.is_displayed():
+                    if desc:
+                        print(f"[SELENIUM] {desc} encontrado en documento principal con {by}='{sel}'")
+                    return el
+            except NoSuchElementException as e:
+                last_exc = e
+
+            # 2) Buscar en todos los frames/iframes
+            frames = driver.find_elements(By.CSS_SELECTOR, "frame, iframe")
+            for idx, frame in enumerate(frames):
+                try:
+                    driver.switch_to.default_content()
+                    driver.switch_to.frame(frame)
+                except Exception:
+                    continue
+
+                try:
+                    el = driver.find_element(by, sel)
+                    if el.is_displayed():
+                        if desc:
+                            print(f"[SELENIUM] {desc} encontrado en frame #{idx} con {by}='{sel}'")
+                        return el
+                except NoSuchElementException as e:
+                    last_exc = e
+                    continue
+
+            time.sleep(0.3)
+
+        # Si llegamos aquí, no se encontró en ningún lado
+        msg = f"No se encontró {desc or sel} en ningún frame ni en el documento principal"
+        raise NoSuchElementException(msg) from last_exc
+
+    #Funciones de parseo de info Huawei
+    def parse_table_label_value(self, driver, table_selector):
+        """
+        Parsea una tabla simple de 2 columnas (label / value) en un dict.
+        table_selector: CSS selector del <table> que quieres leer.
+        """
+        table = driver.find_element(By.CSS_SELECTOR, table_selector)
+        rows = table.find_elements(By.TAG_NAME, "tr")
+
+        result = {}
+        for row in rows:
+            cells = row.find_elements(By.TAG_NAME, "td")
+            if len(cells) >= 2:
+                label = cells[0].text.strip().rstrip(":")
+                value = cells[1].text.strip()
+                if label:  # evita filas vacías
+                    result[label] = value
+        return result
+
+    def parse_hw_device(self, driver):
+        # Usamos el helper para encontrar los <td> en el frame correcto
+        model_el = self.find_element_anywhere(
+            driver, By.ID, "td1_2", desc="Modelo (td1_2)"
+        )
+        sn_el = self.find_element_anywhere(
+            driver, By.ID, "td3_2", desc="Serial (td3_2)"
+        )
+        sw_el = self.find_element_anywhere(
+            driver, By.ID, "td5_2", desc="Software version (td5_2)"
+        )
+
+        model = model_el.text.strip()
+
+        sn_raw = sn_el.text.strip()
+        serial_number = sn_raw.split()[0] if sn_raw else sn_raw
+
+        sw_version = sw_el.text.strip()
+
+        # Actualizar metadata global
+        self.test_results["metadata"]["model"] = model
+        self.test_results["metadata"]["serial_number"] = serial_number
+
+        return {
+            "model": model,
+            "serial_number": serial_number,
+            "serial_raw": sn_raw,
+            "software_version": sw_version,
+        }
+
+
+    def parse_hw_optical(self, driver):
+        def get_optical(bindtext_value):
+            td_title = self.find_element_anywhere(
+                driver,
+                By.XPATH, f"//td[@bindtext='{bindtext_value}']",
+                desc="TX and RX"
+            )
+            td_val = td_title.find_element(By.XPATH, "following-sibling::td[1]")
+            return td_val.text.strip()
+
+        tx = get_optical("amp_optic_txpower")   # "-- dBm" ó " -20.5 dBm", etc.
+        rx = get_optical("amp_optic_rxpower")
+
+        return {
+            "tx_optical_power": tx,
+            "rx_optical_power": rx,
+        }
+
+
+    def parse_hw_lan(self, driver):
+        # Asegurarse de que la tabla de LAN esté cargada completamente
+        try:
+            WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.XPATH, "//tr[contains(@class,'tabal_01')]"))
+            )
+
+            # Ahora buscamos las filas de la tabla de puertos LAN
+            rows = driver.find_elements(By.XPATH, "//tr[contains(@class,'tabal_01')]")
+            ports = []
+
+            for row in rows:
+                cells = row.find_elements(By.TAG_NAME, "td")
+                if len(cells) >= 4:
+                    port_info = {
+                        "port": cells[0].text.strip(),
+                        "mode": cells[1].text.strip(),
+                        "speed": cells[2].text.strip(),
+                        "status": cells[3].text.strip(),
+                    }
+                    ports.append(port_info)
+
+            return {"ports": ports}
+        except TimeoutException:
+            print("[SELENIUM] No se pudo cargar la tabla de puertos LAN.")
+            return {"ports": []}
+
+
+    def parse_hw_wifi_band(self, driver, band_label):
+        # 1) Siempre buscamos el SSID; sabemos que este id existe
+        ssid_el = self.find_element_anywhere(
+            driver,
+            By.ID,
+            "wlan_ssidinfo_table_0_1",
+            desc=f"SSID {band_label}",
+        )
+        ssid = ssid_el.text.strip()
+
+        # 2) Intento 1: status por id=LANStatusVal
+        try:
+            status_el = self.find_element_anywhere(
+                driver,
+                By.ID,
+                "LANStatusVal",
+                desc=f"Status {band_label}",
+            )
+            status_txt = status_el.text.strip()
+        except NoSuchElementException:
+            # 3) Fallback: tomar la celda anterior en la misma fila del SSID
+            try:
+                row = ssid_el.find_element(By.XPATH, "./ancestor::tr[1]")
+                tds = row.find_elements(By.TAG_NAME, "td")
+                status_txt = ""
+                if len(tds) >= 2:
+                    # Asumimos que la última columna es el SSID
+                    # y la penúltima es el status (Enabled/Disabled)
+                    status_txt = tds[-2].text.strip()
+                print(f"[WARN] Status id='LANStatusVal' no encontrado, usando columna vecina ({band_label})")
+            except Exception as e:
+                print(f"[WARN] No se pudo derivar status para {band_label}: {e}")
+                status_txt = ""
+
+        return {
+            "band": band_label,
+            "status": status_txt,
+            "ssid": ssid,
+        }
+
+    def parse_hw_wifi24(self, driver):
+        return self.parse_hw_wifi_band(driver, "2.4GHz")
+
+
+    def parse_hw_wifi5(self, driver):
+        return self.parse_hw_wifi_band(driver, "5GHz")
+
+
+    def parse_hw_wifi24_pass(self, driver):
+        # Asegúrate de que el checkbox para mostrar la contraseña 2.4GHz esté siendo clickeado
+        try:
+            show_pass_el = self.find_element_anywhere(
+                driver,
+                By.ID,
+                "hidewlWpaPsk",  # id correcto para mostrar la contraseña
+                desc="Checkbox de mostrar contraseña 2.4GHz"
+            )
+            driver.execute_script("arguments[0].click();", show_pass_el)
+
+            # Esperar el campo de contraseña
+            pwd_el = WebDriverWait(driver, 10).until(
+                EC.visibility_of_element_located((By.ID, "twlWpaPsk"))
+            )
+            password = pwd_el.get_attribute("value").strip()
+
+            return {
+                "band": "2.4GHz",
+                "password": password,
+            }
+        except TimeoutException:
+            print("[SELENIUM] No se pudo encontrar la contraseña WiFi 2.4GHz")
+            return {"band": "2.4GHz", "password": "N/A"}
+
+    def parse_hw_wifi5_pass(self, driver):
+        # Asegúrate de que el checkbox para mostrar la contraseña 5GHz esté siendo clickeado
+        try:
+            show_pass_el = self.find_element_anywhere(
+                driver,
+                By.ID,
+                "hidewlWpaPsk",  # id correcto para mostrar la contraseña
+                desc="Checkbox de mostrar contraseña 5GHz"
+            )
+            driver.execute_script("arguments[0].click();", show_pass_el)
+
+            # Esperar el campo de contraseña
+            pwd_el = WebDriverWait(driver, 10).until(
+                EC.visibility_of_element_located((By.ID, "twlWpaPsk"))
+            )
+            password = pwd_el.get_attribute("value").strip()
+
+            return {
+                "band": "5GHz",
+                "password": password,
+            }
+        except TimeoutException:
+            print("[SELENIUM] No se pudo encontrar la contraseña WiFi 5GHz")
+            return {"band": "5GHz", "password": "N/A"}
+
+    def parse_hw_mac(self, driver):
+        # Buscar todas las direcciones MAC en los divs de clase FirstMacStr
+        mac_divs = driver.find_elements(By.XPATH, "//div[contains(@class, 'FirstMacStr')]")
+
+        macs = []
+        for mac_div in mac_divs:
+            mac = mac_div.text.strip().split("MAC:")[-1]  # Extraemos la MAC del texto
+            macs.append(mac)
+
+        return {"mac_addresses": macs}
+
+
+
+
     # FUNCIONES PARA NAVEGACION DE HUAWEI
     def nav_hw_info(self, driver):
         """System Information -> Device (información básica)"""
@@ -3140,8 +3419,9 @@ class ONTAutomatedTester:
         )
 
     def nav_hw_lan(self, driver):
-        """System Information -> Eth Port (información de puertos LAN)"""
+        """System Information -> Eth Port (información de LAN / conexiones Ethernet)"""
 
+        # 1) Navegar a "System Information"
         self.click_anywhere(
             driver,
             [
@@ -3152,6 +3432,7 @@ class ONTAutomatedTester:
             "Huawei System Information (menú principal)",
         )
 
+        # 2) Submenú "Eth Port"
         self.click_anywhere(
             driver,
             [
@@ -3161,6 +3442,16 @@ class ONTAutomatedTester:
             ],
             "Huawei Eth Port",
         )
+
+        # Esperar que la tabla de LAN esté cargada
+        try:
+            WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.XPATH, "//tr[contains(@class,'tabal_01')]"))
+            )
+            print("[SELENIUM] LAN / Ethernet data disponible")
+        except TimeoutException:
+            print("[SELENIUM] LAN / Ethernet data no disponible después de 10s")
+
 
     def nav_hw_wifi_24(self, driver):
         """System Information -> WLAN (2.4 GHz)"""
@@ -3186,15 +3477,7 @@ class ONTAutomatedTester:
             "Huawei WLAN (menú WLAN)",
         )
 
-        # Seleccionar radio 2.4G (value=1)
-        self.click_anywhere(
-            driver,
-            [
-                (By.CSS_SELECTOR, "input[name='WlanMethod'][value='1']"),
-                (By.XPATH, "//input[@name='WlanMethod' and @value='1']"),
-            ],
-            "Huawei WLAN 2.4G (radio)",
-        )
+        
 
     def nav_hw_wifi_5(self, driver):
         """System Information -> WLAN (5 GHz)"""
@@ -3335,17 +3618,6 @@ class ONTAutomatedTester:
             "Huawei 5G Basic Network",
         )
 
-        # Checkbox de mostrar/ocultar pass
-        self.click_anywhere(
-            driver,
-            [
-                (By.ID, "hidewlWpaPsk"),
-                (By.NAME, "hidewlWpaPsk"),
-                (By.XPATH, "//input[@id='hidewlWpaPsk' and @type='checkbox']"),
-            ],
-            "Huawei mostrar contraseña 5G",
-        )
-
     def huawei_info(self, driver):
         # Funciones para dar los clicks necesarios para "desbloquear" la info
         funciones = [
@@ -3358,13 +3630,30 @@ class ONTAutomatedTester:
             self.nav_hw_show_pass_24,
             self.nav_hw_show_pass_5,
         ]
+
+        # Descripcion || navegacion (clicks) || extracción
+        tests = [
+            ("hw_device",  self.nav_hw_info,       self.parse_hw_device),
+            ("hw_optical", self.nav_hw_optical,    self.parse_hw_optical),
+            ("hw_lan",     self.nav_hw_lan,        self.parse_hw_lan),
+            ("hw_wifi24",  self.nav_hw_wifi_24,    self.parse_hw_wifi24),
+            ("hw_wifi5",   self.nav_hw_wifi_5,     self.parse_hw_wifi5),
+            ("hw_mac",     self.nav_hw_mac,        self.parse_hw_mac),
+            ("hw_wifi24_pass", self.nav_hw_show_pass_24, self.parse_hw_wifi24_pass),
+            ("hw_wifi5_pass",  self.nav_hw_show_pass_5,  self.parse_hw_wifi5_pass),
+        ]
         
         # Recorrer todas las funciones de clicks + extraer el DOM
-        for func in funciones:
-            func(driver)
-            # TODO extracción masiva por DOM
-            src = driver.page_source
-            print(src+"\n")
+        for name, nav_func, parse_func in tests:
+            nav_func(driver)             # hace los clicks
+            data = parse_func(driver)    # lee sólo lo que nos interesa
+            self.test_results["tests"][name] = { # Pasar al test_results
+                "name": name,
+                "data": data,
+            }
+
+        self.save_results2("test_hg8145v5")
+        #print(self.test_results)
 
     def zte_info(self, driver):
         # TODO acceder a la info de zte prueba 1
@@ -3458,21 +3747,7 @@ class ONTAutomatedTester:
 
             #Guardar a archivo
 
-            now = datetime.now()
-
-            base_dir = "test_mod002"
-            day_folder = now.strftime("%Y%m%d")
-            day_dir = os.path.join(base_dir, day_folder)
-            os.makedirs(day_dir, exist_ok=True)
-
-            file_ts = now.strftime("%H%M%S")
-            file_name = f"zte_prueba_{file_ts}.json"
-            file_path = os.path.join(day_dir, file_name)
-
-            with open(file_path, "w", encoding="utf-8") as f:
-                json.dump(self.test_results, f, ensure_ascii=False, indent=2)
-
-            print("Reporte guardado en:", file_path)
+            self.save_results2("test_mod002")
             # print(xml)
             # print("\nopcion 2:\n")
             
@@ -3644,6 +3919,35 @@ class ONTAutomatedTester:
             print("Prueba wifi 5: ",wifi5)
         print("\n" + "+"*60)
 
+    def save_results2(self, base_dir: str):
+        """
+        Guarda self.test_results en:
+            base_dir/YYYY-MM-DD/HHMMSS_model_sn.json
+
+        - base_dir: carpeta raíz del modelo (p.ej. 'test_mod002', 'test_hg8145v5')
+        """
+        meta = self.test_results.get("metadata", {})
+
+        today = datetime.now().strftime("%Y-%m-%d")
+        out_dir = Path(base_dir) / today
+        out_dir.mkdir(parents=True, exist_ok=True)
+
+        ts    = datetime.now().strftime("%H%M%S")
+        model = meta.get("model", "unknown_model")
+        sn    = meta.get("serial_number") or "noSN"
+
+        # Limpiar SN para que no meta espacios / caracteres raros en el filename
+        sn_clean = "".join(c for c in sn if c.isalnum() or c in ("-", "_"))
+
+        filename = f"{ts}_{model}_{sn_clean}.json"
+        out_file = out_dir / filename
+
+        with out_file.open("w", encoding="utf-8") as f:
+            json.dump(self.test_results, f, indent=2, ensure_ascii=False)
+
+        print(f"[RESULT] Reporte guardado en: {out_file}")
+        return str(out_file)
+
 def main():
     parser = argparse.ArgumentParser(description="ONT Automated Test Suite")
     parser.add_argument("--host", required=True, help="IP de la ONT")
@@ -3668,10 +3972,12 @@ def main():
         tester.run_all_tests()
         
         # Mostrar reporte en consola
-        print("\n" + tester.generate_report())
+        if(args.model != "MOD004"):
+            print("\n" + tester.generate_report())
         
         # Guardar resultados
-        tester.save_results(args.output)
+        if (args.model != "MOD004"):
+            tester.save_results(args.output)
     
 
 def generate_label(host: str, model: str = None):
