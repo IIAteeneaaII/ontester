@@ -19,7 +19,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, List
 import xml.etree.ElementTree as ET
-
+MAC_REGEX = re.compile(r"([0-9A-Fa-f]{2}(?:(?::|-)?[0-9A-Fa-f]{2}){5})")
 # Selenium para login automático
 try:
     from selenium import webdriver
@@ -3209,7 +3209,6 @@ class ONTAutomatedTester:
             "software_version": sw_version,
         }
 
-
     def parse_hw_optical(self, driver):
         def get_optical(bindtext_value):
             td_title = self.find_element_anywhere(
@@ -3228,33 +3227,78 @@ class ONTAutomatedTester:
             "rx_optical_power": rx,
         }
 
-
     def parse_hw_lan(self, driver):
-        # Asegurarse de que la tabla de LAN esté cargada completamente
+        """
+        Lee la tabla de puertos LAN (Eth Port).
+        Busca filas <tr class="tabal_01"> en el frame que tenga la tabla.
+        """
+        ports = []
+
+        # Siempre empezamos desde el documento principal
+        driver.switch_to.default_content()
+
+        # Revisamos primero el documento principal
         try:
-            WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.XPATH, "//tr[contains(@class,'tabal_01')]"))
-            )
-
-            # Ahora buscamos las filas de la tabla de puertos LAN
             rows = driver.find_elements(By.XPATH, "//tr[contains(@class,'tabal_01')]")
-            ports = []
+            if rows:
+                print(f"[SELENIUM] Fila LAN encontrada en documento principal ({len(rows)} filas)")
+                for row in rows:
+                    try:
+                        tds = row.find_elements(By.TAG_NAME, "td")
+                        if len(tds) >= 4:
+                            ports.append({
+                                "port":   tds[0].text.strip(),
+                                "mode":   tds[1].text.strip(),
+                                "speed":  tds[2].text.strip(),
+                                "status": tds[3].text.strip(),
+                            })
+                    except Exception as e:
+                        print(f"[SELENIUM] Error leyendo una fila LAN (doc principal): {e}")
+                driver.switch_to.default_content()
+                return {"ports": ports}
+        except Exception:
+            pass  # si falla, probamos en frames
 
-            for row in rows:
-                cells = row.find_elements(By.TAG_NAME, "td")
-                if len(cells) >= 4:
-                    port_info = {
-                        "port": cells[0].text.strip(),
-                        "mode": cells[1].text.strip(),
-                        "speed": cells[2].text.strip(),
-                        "status": cells[3].text.strip(),
-                    }
-                    ports.append(port_info)
+        # Si no hubo nada en el doc principal, probamos en todos los frames
+        frames = driver.find_elements(By.CSS_SELECTOR, "frame, iframe")
+        for idx, frame in enumerate(frames):
+            try:
+                driver.switch_to.default_content()
+                driver.switch_to.frame(frame)
 
-            return {"ports": ports}
-        except TimeoutException:
+                rows = driver.find_elements(By.XPATH, "//tr[contains(@class,'tabal_01')]")
+                if not rows:
+                    continue
+
+                print(f"[SELENIUM] Fila LAN encontrada en frame #{idx} ({len(rows)} filas)")
+                for row in rows:
+                    try:
+                        tds = row.find_elements(By.TAG_NAME, "td")
+                        if len(tds) >= 4:
+                            ports.append({
+                                "port":   tds[0].text.strip(),
+                                "mode":   tds[1].text.strip(),  # Full-duplex / Half-duplex
+                                "speed":  tds[2].text.strip(),  # 1000 Mbit/s, etc.
+                                "status": tds[3].text.strip(),  # Up / Down
+                            })
+                    except Exception as e:
+                        print(f"[SELENIUM] Error leyendo una fila LAN en frame #{idx}: {e}")
+
+                # Si ya encontramos y parseamos filas en este frame, salimos del bucle
+                driver.switch_to.default_content()
+                break
+
+            except Exception as e:
+                print(f"[SELENIUM] Error al procesar frame #{idx} para LAN: {e}")
+                driver.switch_to.default_content()
+                continue
+
+        driver.switch_to.default_content()
+
+        if not ports:
             print("[SELENIUM] No se pudo cargar la tabla de puertos LAN.")
-            return {"ports": []}
+        return {"ports": ports}
+
 
 
     def parse_hw_wifi_band(self, driver, band_label):
@@ -3299,7 +3343,6 @@ class ONTAutomatedTester:
 
     def parse_hw_wifi24(self, driver):
         return self.parse_hw_wifi_band(driver, "2.4GHz")
-
 
     def parse_hw_wifi5(self, driver):
         return self.parse_hw_wifi_band(driver, "5GHz")
@@ -3356,18 +3399,137 @@ class ONTAutomatedTester:
             return {"band": "5GHz", "password": "N/A"}
 
     def parse_hw_mac(self, driver):
-        # Buscar todas las direcciones MAC en los divs de clase FirstMacStr
-        mac_divs = driver.find_elements(By.XPATH, "//div[contains(@class, 'FirstMacStr')]")
+        """
+        Lee la MAC mostrada en la pantalla 'Home Network Information'
+        (Home Network -> wlancoverinfo.asp).
+        Devuelve la MAC como string 'XX:XX:XX:XX:XX:XX' o None.
+        """
+        timeout = 10
+        try:
+            # Asegúrate de estar en el documento principal
+            driver.switch_to.default_content()
 
-        macs = []
-        for mac_div in mac_divs:
-            mac = mac_div.text.strip().split("MAC:")[-1]  # Extraemos la MAC del texto
-            macs.append(mac)
+            # 1) Cambiar al iframe donde se carga la página de Home Network
+            frame = WebDriverWait(driver, timeout).until(
+                EC.frame_to_be_available_and_switch_to_it((By.ID, "menuIframe"))
+            )
+            print("[SELENIUM] Cambiado a iframe 'menuIframe' para leer Home Network / MAC.")
 
-        return {"mac_addresses": macs}
+            # 2) Esperar a que al menos exista el título de la página
+            try:
+                WebDriverWait(driver, timeout).until(
+                    EC.presence_of_element_located(
+                        (By.XPATH, "//*[contains(normalize-space(text()), 'Home Network Information')]")
+                    )
+                )
+            except Exception:
+                # No es crítico, algunos firmwares pueden no mostrar exactamente ese texto
+                print("[SELENIUM] No se encontró el título 'Home Network Information', continúo de todos modos.")
 
+            # 3) Intentar varias veces leer una MAC válida del texto renderizado
+            mac_regex = re.compile(r"MAC[:：]\s*([0-9A-Fa-f]{2}(?::[0-9A-Fa-f]{2}){5})")
+            mac_value = None
 
+            for attempt in range(6):  # ~6 intentos x 2s ≈ 12s
+                try:
+                    body_text = driver.find_element(By.TAG_NAME, "body").text
+                except Exception:
+                    body_text = ""
 
+                match = mac_regex.search(body_text or "")
+                if match:
+                    candidate = match.group(1).upper()
+                    print(f"[SELENIUM] MAC candidata encontrada en texto renderizado: {candidate}")
+
+                    # Filtrar MAC de plantilla (todo ceros)
+                    if candidate != "00:00:00:00:00:00":
+                        mac_value = candidate
+                        break
+                    else:
+                        print("[SELENIUM] MAC es 00:00:00:00:00:00 (valor por defecto), reintentando...")
+
+                time.sleep(2)
+
+            if mac_value:
+                print(f"[SELENIUM] MAC final leída en Home Network: {mac_value}")
+                return mac_value
+
+            print("[SELENIUM] No se pudo obtener una MAC distinta de 00:00:00:00:00:00 en Home Network.")
+            return None
+
+        except Exception as e:
+            print(f"[SELENIUM] Error leyendo MAC en Home Network: {e}")
+            return None
+        finally:
+            # Volver al documento principal por si el flujo sigue
+            try:
+                driver.switch_to.default_content()
+            except Exception:
+                pass
+
+    def read_hw_usb_status(self, driver, timeout=10):
+        """
+        Lee el estado de USB en la página 'USB Application'.
+
+        Devuelve un dict con:
+        {
+            "connected": True/False,
+            "status": "usb conectado" | "usb desconectado",
+            "value": "<valor del option>",
+            "label": "<texto del option>"
+        }
+        """
+
+        try:
+            # Por si llegas desde otro flujo, garantizamos estar en el iframe correcto
+            driver.switch_to.default_content()
+            WebDriverWait(driver, timeout).until(
+                EC.frame_to_be_available_and_switch_to_it((By.ID, "menuIframe"))
+            )
+
+            select_el = WebDriverWait(driver, timeout).until(
+                EC.presence_of_element_located((By.ID, "SrvClDevType"))
+            )
+
+            # Primer <option> del select (es el que muestra el estado actual)
+            option_el = select_el.find_element(By.XPATH, "./option[1]")
+            value = (option_el.get_attribute("value") or "").strip()
+            label = (option_el.text or "").strip()
+
+            print(f"[SELENIUM] USB option leída: value='{value}', text='{label}'")
+
+            # Lógica de estado:
+            # - Sin USB: value == "" y texto contiene "No USB Device"
+            # - Con USB: cualquier otro caso (nombre de dispositivo, /mnt/usb/..., etc.)
+            if (not value) and ("no usb device" in label.lower()):
+                connected = False
+                status_str = "usb desconectado"
+            else:
+                connected = True
+                status_str = "usb conectado"
+
+            print(f"[SELENIUM] Estado USB: {status_str}")
+
+            return {
+                "connected": connected,
+                "status": status_str,
+                "value": value,
+                "label": label,
+            }
+
+        except Exception as e:
+            print(f"[SELENIUM] Error leyendo estado USB: {e}")
+            return {
+                "connected": None,
+                "status": "error",
+                "value": None,
+                "label": None,
+            }
+        finally:
+            try:
+                driver.switch_to.default_content()
+            except Exception:
+                pass
 
     # FUNCIONES PARA NAVEGACION DE HUAWEI
     def nav_hw_info(self, driver):
@@ -3452,7 +3614,6 @@ class ONTAutomatedTester:
         except TimeoutException:
             print("[SELENIUM] LAN / Ethernet data no disponible después de 10s")
 
-
     def nav_hw_wifi_24(self, driver):
         """System Information -> WLAN (2.4 GHz)"""
 
@@ -3475,9 +3636,7 @@ class ONTAutomatedTester:
                 (By.XPATH, "//div[contains(@class,'SecondMenuTitle') and normalize-space(.)='WLAN']"),
             ],
             "Huawei WLAN (menú WLAN)",
-        )
-
-        
+        )    
 
     def nav_hw_wifi_5(self, driver):
         """System Information -> WLAN (5 GHz)"""
@@ -3571,17 +3730,6 @@ class ONTAutomatedTester:
             "Huawei 2.4G Basic Network",
         )
 
-        # Checkbox de mostrar/ocultar pass
-        self.click_anywhere(
-            driver,
-            [
-                (By.ID, "hidewlWpaPsk"),
-                (By.NAME, "hidewlWpaPsk"),
-                (By.XPATH, "//input[@id='hidewlWpaPsk' and @type='checkbox']"),
-            ],
-            "Huawei mostrar contraseña 2.4G",
-        )
-
     def nav_hw_show_pass_5(self, driver):
         """Advanced -> WLAN -> 5G Basic Network Settings, mostrar contraseña"""
 
@@ -3618,6 +3766,55 @@ class ONTAutomatedTester:
             "Huawei 5G Basic Network",
         )
 
+    def nav_hw_usb(self, driver, timeout=15):
+        """
+        Navega en el HG8145V5 a:
+        Advanced  ->  Application  ->  USB Application
+
+        Deja el driver dentro del iframe 'menuIframe' donde está la página
+        'USB Application', listo para leer el select SrvClDevType.
+        """
+        try:
+            driver.switch_to.default_content()
+            wait = WebDriverWait(driver, timeout)
+
+            # 1) Menú principal: Advanced
+            adv_menu = wait.until(EC.element_to_be_clickable((
+                By.XPATH,
+                "//div[@id='name_addconfig' or @name='m1div_wan' or normalize-space(.)='Advanced']"
+            )))
+            print("[SELENIUM] Huawei Advanced (WAN) encontrado en documento principal.")
+            adv_menu.click()
+
+            # 2) Menú secundario: Application
+            app_menu = wait.until(EC.element_to_be_clickable((By.ID, "name_application")))
+            print("[SELENIUM] Huawei Application encontrado en documento principal con id='name_application'")
+            app_menu.click()
+
+            # 3) Menú terciario: USB Application
+            usb_menu = wait.until(EC.element_to_be_clickable((By.ID, "usbapplication")))
+            print("[SELENIUM] Huawei USB Application encontrado en documento principal con id='usbapplication'")
+            usb_menu.click()
+
+            # 4) Cambiar al iframe del contenido
+            driver.switch_to.default_content()
+            wait.until(EC.frame_to_be_available_and_switch_to_it((By.ID, "menuIframe")))
+            print("[SELENIUM] iframe 'menuIframe' disponible para USB Application.")
+
+            # 5) Esperar el select de USB
+            wait.until(EC.presence_of_element_located((By.ID, "SrvClDevType")))
+            print("[SELENIUM] Select USB 'SrvClDevType' encontrado en página USB Application.")
+
+            # return True
+
+        except Exception as e:
+            print(f"[SELENIUM] Error navegando a USB Application: {e}")
+            try:
+                driver.switch_to.default_content()
+            except Exception:
+                pass
+            #return False
+
     def huawei_info(self, driver):
         # Funciones para dar los clicks necesarios para "desbloquear" la info
         funciones = [
@@ -3629,6 +3826,7 @@ class ONTAutomatedTester:
             self.nav_hw_mac,
             self.nav_hw_show_pass_24,
             self.nav_hw_show_pass_5,
+            self.nav_hw_usb,
         ]
 
         # Descripcion || navegacion (clicks) || extracción
@@ -3641,6 +3839,7 @@ class ONTAutomatedTester:
             ("hw_mac",     self.nav_hw_mac,        self.parse_hw_mac),
             ("hw_wifi24_pass", self.nav_hw_show_pass_24, self.parse_hw_wifi24_pass),
             ("hw_wifi5_pass",  self.nav_hw_show_pass_5,  self.parse_hw_wifi5_pass),
+            ("hw_usb",  self.nav_hw_usb, self.read_hw_usb_status)
         ]
         
         # Recorrer todas las funciones de clicks + extraer el DOM
