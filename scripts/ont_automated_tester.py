@@ -19,6 +19,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, List
 import xml.etree.ElementTree as ET
+from bs4 import BeautifulSoup
 MAC_REGEX = re.compile(r"([0-9A-Fa-f]{2}(?:(?::|-)?[0-9A-Fa-f]{2}){5})")
 # Selenium para login automático
 try:
@@ -212,8 +213,8 @@ class ONTAutomatedTester:
             return self._login_grandstream()
         elif (self.model == "MOD002"):
             return self._login_zte() # self._login_zte()
-        elif (self.model == "MOD004"):
-            return self._login_huawei() # El que no es ni small ni x6
+        elif (self.model == "MOD003" or self.model == "MOD004" or self.model == "MOD005"):
+            return self._login_huawei() # A priori todos los huawei son iguales por lo que se usará el mismo metodo
         else:
             return self._login_ont_standard()
     
@@ -249,7 +250,6 @@ class ONTAutomatedTester:
             # Paso 1: Obtener página de login para extraer gnkey
             response = self.session.get(self.base_url, timeout=5, verify=False)
             
-            from bs4 import BeautifulSoup
             soup = BeautifulSoup(response.text, 'html.parser')
             gnkey_input = soup.find('input', {'name': 'gnkey'})
             gnkey = gnkey_input['value'] if gnkey_input else '0b82'
@@ -1501,6 +1501,14 @@ class ONTAutomatedTester:
                 })
                 self.session.cookies.update(cookies)
 
+                # Antes de hacer la extraccion hay que confirmar si no es la primera vez conectando el Huawei
+                salto = self.hw_maybe_skip_initial_guide(driver)
+                if(salto):
+                    print("[INFO] Se saltó la pagina de configuración inicial")
+                    #hacer sesion otra vez
+                    #temp_bool = self._login_huawei()
+                else:
+                    print("[INFO] No se saltó la página de configuración inicial o no se encontraron los skips")
                 # Peticiones desde aqui para no cerrar el driver
                 
                 self.huawei_info(driver)
@@ -2800,7 +2808,7 @@ class ONTAutomatedTester:
         
         return self.test_results
     
-    # Parsear a json
+    # Parsear a json ZTE
     def parse_zte_status_xml(self, xml_text: str) -> dict:
         root = ET.fromstring(xml_text)
 
@@ -3109,6 +3117,75 @@ class ONTAutomatedTester:
 
         print("[SELENIUM] USB Devices debería estar habilitado ahora")
 
+    # Función en caso de que sea la primera vez conectando un Huawei
+    def hw_maybe_skip_initial_guide(self, driver, timeout=10):
+        """+
+        Intenta saltar el wizard de configuración inicial del Huawei HG8145X6-10.
+
+        Estrategia:
+        1) Detectar si estamos en la página de guía inicial (guideframebody).
+        2) Si la guía está presente:
+            - Intentar llamar a la función JS onchangestep() simulando el paso "Configuration completion".
+            - Si falla, abrir directamente la URL userguidecfgdone.asp.
+        Devuelve True si intentó saltar el wizard, False si no detectó wizard.
+        """
+
+        print("[SELENIUM] Buscando wizard de configuración inicial (Huawei)...")
+
+        # Esperar a que cargue el DOM actual
+        try:
+            WebDriverWait(driver, 5).until(
+                lambda d: d.execute_script("return document.readyState") == "complete"
+            )
+        except Exception:
+            pass
+
+        html = driver.page_source
+
+        # Heurística para detectar que estamos en la guía inicial
+        if "guideframebody" not in html or "userguidecfgdone.asp" not in html:
+            print("[INFO] No se detectó el wizard de configuración inicial (o el modelo usa otra pantalla).")
+            return False
+
+        print("[SELENIUM] Wizard Huawei detectado, intentando saltarlo...")
+
+        # 1) Intentar usar la función JS onchangestep del propio router
+        try:
+            result = driver.execute_script("""
+                try {
+                    if (typeof onchangestep === 'function') {
+                        // Simulamos el clic en el paso final "Configuration completion"
+                        onchangestep({id: 'guidecfgdone', name: 'userguidecfgdone.asp'});
+                        return 'js-ok';
+                    }
+                    return 'no-func';
+                } catch (e) {
+                    return 'js-error: ' + e;
+                }
+            """)
+            print(f"[SELENIUM] Resultado de onchangestep: {result}")
+            time.sleep(2)  # darle tiempo a que el iframe/redirección se procese
+        except Exception as e:
+            print(f"[SELENIUM] Error ejecutando onchangestep: {e}")
+            result = "exception"
+
+        # 2) Fallback: ir directamente a la URL final del wizard
+        try:
+            current_url = driver.current_url or ""
+        except Exception:
+            current_url = ""
+
+        if "userguidecfgdone.asp" not in current_url:
+            try:
+                final_url = self.base_url.rstrip("/") + "/html/ssmp/cfgguide/userguidecfgdone.asp"
+                print(f"[SELENIUM] Abriendo directamente {final_url} para cerrar wizard...")
+                driver.get(final_url)
+                time.sleep(2)
+            except Exception as e:
+                print(f"[SELENIUM] Error al abrir userguidecfgdone.asp: {e}")
+
+        print("[SELENIUM] Se intentó cerrar el wizard de configuración inicial (Huawei).")
+        return True
     # Funcion para buscar en todos los frames para Huawei
     def find_element_anywhere(self, driver, by, sel, desc="", timeout=10):
         """
@@ -3239,7 +3316,11 @@ class ONTAutomatedTester:
 
         # Revisamos primero el documento principal
         try:
-            rows = driver.find_elements(By.XPATH, "//tr[contains(@class,'tabal_01')]")
+            # tabal_01 y tabal_02
+            rows = driver.find_elements(
+                By.XPATH,
+                "//tr[contains(@class,'tabal_01') or contains(@class,'tabal_02')]"
+            )
             if rows:
                 print(f"[SELENIUM] Fila LAN encontrada en documento principal ({len(rows)} filas)")
                 for row in rows:
@@ -3266,7 +3347,11 @@ class ONTAutomatedTester:
                 driver.switch_to.default_content()
                 driver.switch_to.frame(frame)
 
-                rows = driver.find_elements(By.XPATH, "//tr[contains(@class,'tabal_01')]")
+                # tabal_01 y tabal_02
+                rows = driver.find_elements(
+                    By.XPATH,
+                    "//tr[contains(@class,'tabal_01') or contains(@class,'tabal_02')]"
+                )
                 if not rows:
                     continue
 
@@ -3298,8 +3383,6 @@ class ONTAutomatedTester:
         if not ports:
             print("[SELENIUM] No se pudo cargar la tabla de puertos LAN.")
         return {"ports": ports}
-
-
 
     def parse_hw_wifi_band(self, driver, band_label):
         # 1) Siempre buscamos el SSID; sabemos que este id existe
@@ -3346,7 +3429,6 @@ class ONTAutomatedTester:
 
     def parse_hw_wifi5(self, driver):
         return self.parse_hw_wifi_band(driver, "5GHz")
-
 
     def parse_hw_wifi24_pass(self, driver):
         # Asegúrate de que el checkbox para mostrar la contraseña 2.4GHz esté siendo clickeado
@@ -3965,7 +4047,6 @@ class ONTAutomatedTester:
         except Exception as e:
             print("No success :c", e)
         
-
     def generate_report(self) -> str:
         """Genera reporte en formato texto"""
         lines = []
@@ -4171,12 +4252,9 @@ def main():
         tester.run_all_tests()
         
         # Mostrar reporte en consola
-        if(args.model != "MOD004"):
+        if(args.model != "MOD003" and args.model != "MOD004" and args.model != "MOD005"):
             print("\n" + tester.generate_report())
-        
-        # Guardar resultados
-        if (args.model != "MOD004"):
-            tester.save_results(args.output)
+            tester.save_results(args.output) # Guardar resultados
     
 
 def generate_label(host: str, model: str = None):
