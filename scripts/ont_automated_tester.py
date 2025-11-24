@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Dict, Any, List
 import xml.etree.ElementTree as ET
 from bs4 import BeautifulSoup
+from urllib.parse import urljoin
 MAC_REGEX = re.compile(r"([0-9A-Fa-f]{2}(?:(?::|-)?[0-9A-Fa-f]{2}){5})")
 # Selenium para login automático
 try:
@@ -3119,73 +3120,62 @@ class ONTAutomatedTester:
 
     # Función en caso de que sea la primera vez conectando un Huawei
     def hw_maybe_skip_initial_guide(self, driver, timeout=10):
-        """+
-        Intenta saltar el wizard de configuración inicial del Huawei HG8145X6-10.
-
-        Estrategia:
-        1) Detectar si estamos en la página de guía inicial (guideframebody).
-        2) Si la guía está presente:
-            - Intentar llamar a la función JS onchangestep() simulando el paso "Configuration completion".
-            - Si falla, abrir directamente la URL userguidecfgdone.asp.
-        Devuelve True si intentó saltar el wizard, False si no detectó wizard.
         """
-
-        print("[SELENIUM] Buscando wizard de configuración inicial (Huawei)...")
-
-        # Esperar a que cargue el DOM actual
+        Si el wizard inicial de Huawei está presente, intenta completarlo/cerrarlo
+        y luego navega a la página principal (frame.asp).
+        """
         try:
-            WebDriverWait(driver, 5).until(
-                lambda d: d.execute_script("return document.readyState") == "complete"
-            )
-        except Exception:
-            pass
+            driver.switch_to.default_content()
 
-        html = driver.page_source
+            page_source = driver.page_source
+            current_url = driver.current_url
 
-        # Heurística para detectar que estamos en la guía inicial
-        if "guideframebody" not in html or "userguidecfgdone.asp" not in html:
-            print("[INFO] No se detectó el wizard de configuración inicial (o el modelo usa otra pantalla).")
-            return False
+            # Heurística: solo consideramos que hay wizard si vemos cosas típicas
+            # de guideframe.asp
+            if "guideframebody" not in page_source and "guideinternet.asp" not in page_source \
+            and "guidewificfg.asp" not in page_source and "userguidecfgdone.asp" not in current_url:
+                print("[INFO] No se detectó wizard de configuración inicial (Huawei).")
+                return
 
-        print("[SELENIUM] Wizard Huawei detectado, intentando saltarlo...")
+            print("[SELENIUM] Wizard Huawei detectado, intentando saltarlo...")
 
-        # 1) Intentar usar la función JS onchangestep del propio router
-        try:
-            result = driver.execute_script("""
-                try {
-                    if (typeof onchangestep === 'function') {
-                        // Simulamos el clic en el paso final "Configuration completion"
-                        onchangestep({id: 'guidecfgdone', name: 'userguidecfgdone.asp'});
-                        return 'js-ok';
-                    }
-                    return 'no-func';
-                } catch (e) {
-                    return 'js-error: ' + e;
-                }
-            """)
-            print(f"[SELENIUM] Resultado de onchangestep: {result}")
-            time.sleep(2)  # darle tiempo a que el iframe/redirección se procese
-        except Exception as e:
-            print(f"[SELENIUM] Error ejecutando onchangestep: {e}")
-            result = "exception"
-
-        # 2) Fallback: ir directamente a la URL final del wizard
-        try:
-            current_url = driver.current_url or ""
-        except Exception:
-            current_url = ""
-
-        if "userguidecfgdone.asp" not in current_url:
+            # 1) Intentar usar el botón de "Configuration completion"
             try:
-                final_url = self.base_url.rstrip("/") + "/html/ssmp/cfgguide/userguidecfgdone.asp"
-                print(f"[SELENIUM] Abriendo directamente {final_url} para cerrar wizard...")
-                driver.get(final_url)
-                time.sleep(2)
-            except Exception as e:
-                print(f"[SELENIUM] Error al abrir userguidecfgdone.asp: {e}")
+                btn_done = WebDriverWait(driver, 3).until(
+                    EC.presence_of_element_located((By.ID, "icoconfigdone"))
+                )
+                # Llamamos al handler JS original
+                driver.execute_script("onchangestep(arguments[0]);", btn_done)
+                print("[SELENIUM] Se hizo click en 'config done' del wizard (JS).")
+            except (NoSuchElementException, TimeoutException):
+                # 2) Si no existe el botón, vamos directo a la página de 'done'
+                done_url = urljoin(self.base_url, "/html/ssmp/cfgguide/userguidecfgdone.asp")
+                print(f"[SELENIUM] Abriendo directamente {done_url} para cerrar wizard...")
+                driver.get(done_url)
 
-        print("[SELENIUM] Se intentó cerrar el wizard de configuración inicial (Huawei).")
-        return True
+            # 3) Después de cerrar el wizard, ir SIEMPRE a la página principal
+            frame_url = urljoin(self.base_url, "")
+            print(f"[SELENIUM] Navegando a la página principal: {frame_url}")
+            driver.get(frame_url)
+
+            # Guardamos la pantalla resultante para revisar
+            after_path = Path("debug_huawei_after_skip.html")
+            after_path.write_text(driver.page_source, encoding="utf-8")
+            print(f"[SELENIUM] HTML tras skip guardado en {after_path}")
+            # Esperar a que aparezca el frame principal
+            try:
+                WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.ID, "name_Systeminfo"))
+                )
+                print("[INFO] Se saltó la página de configuración inicial y se cargó la UI normal.")
+                return True
+            except TimeoutException:
+                print("[WARN] No se encontró mainFrame después de cerrar wizard; "
+                    "puede que este modelo use otra página principal.")
+                return False
+
+        except Exception as e:
+            print(f"[WARN] Error intentando saltar wizard Huawei: {e}")
     # Funcion para buscar en todos los frames para Huawei
     def find_element_anywhere(self, driver, by, sel, desc="", timeout=10):
         """
