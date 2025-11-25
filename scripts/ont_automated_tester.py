@@ -362,7 +362,7 @@ class ONTAutomatedTester:
         elif device_type == "FIBERHOME" or self.model == "MOD001":
             return self._login_fiberhome()  # Fiberhome usa Selenium
         elif device_type == "ZTE" or self.model == "MOD002":
-            return self._login_zte()
+            return self._login_zte(False) # False para indicar que aun no se ha reseteado
         elif device_type == "HUAWEI" or self.model in ["MOD003", "MOD004", "MOD005"]:
             return self._login_huawei()
         else:
@@ -1180,10 +1180,10 @@ class ONTAutomatedTester:
 
         return None
 
-    def _login_zte(self) -> bool:
+    def _login_zte(self, reset) -> bool:
         # funcion de inicio de sesión zte (ip diferente -> 192.168.1.1)
         # Este login / peticiones no se hacen mediante ajax ya que el modelo no lo soporta
-
+        print("[DEBUG] El valor de reset recibido es: "+str(reset))
         # Vereficar selenium (prob se usará siemr}pre, es sencillo de usar)
         if SELENIUM_AVAILABLE:
             #Login con selenium, pero sin acceder a cookies
@@ -1351,6 +1351,19 @@ class ONTAutomatedTester:
                 # Esperar a que cargue la página principal (varios indicadores posibles)
                 time.sleep(5)  # Dar tiempo para procesar login
 
+                if (reset is False):
+                    # Antes de ejecutar las demás pruebas hay que resetear de fabrica
+                    resetZTE = self._reset_factory_zte(driver)
+                    print("[INFO] Esperando a que el ZTE reinicie tras Factory Reset...")
+                    time.sleep(100)  # espera
+                    if (resetZTE):
+                        reset = True
+                        self._login_zte(True) # Es necesario volver a loggearse después del reset
+                        return True
+                    else:
+                        print("[WARNING] No se pudo resetear, saltando pruebas")
+                        driver.quit()
+                        return False
                 #Petición extra:
                 # Utilizando selenium para darle click a un boton || Tactica extrema, no intentar en casa
                 button_selectors = [
@@ -1400,85 +1413,17 @@ class ONTAutomatedTester:
                 self.session.cookies.update(cookies)
 
                 #Mandar a llamar a las peticiones desde aqui para no cerrar el driver
-                guid = str(int(time.time() * 1000))
-                xml_url = f"{self.base_url}/?_type=menuData&_tag=devmgr_statusmgr_lua.lua&_={guid}"
 
+                self.zte_info(driver)
                 # driver.get(xml_url)
                 # raw = driver.page_source
                 # start = raw.find("<ajax_response_xml_root")
                 # end   = raw.rfind("</ajax_response_xml_root>") + len("</ajax_response_xml_root>")
                 # xml = raw[start:end]
                 # print(xml)
-                self.zte_info(driver)
-
-                # for cookie in cookies:
-                #     self.session_id = cookie['value']
-                #     print(f"[SELENIUM] OK - SessionID extraido de cookie: {self.session_id[:8]}...")
-                    
-                #     # Agregar cookie a requests.Session
-                #     self.session.cookies.set(
-                #         cookie['name'],
-                #         cookie['value'],
-                #         domain=cookie.get('domain', self.host),
-                #         path=cookie.get('path', '/')
-                #     )
+                
                 driver.quit()
                 return True
-                # A PARTIR DE AQUI ESTÁ EL FALLO TODO revisar cookies
-                
-                # Extraer cookies
-                # cookies = driver.get_cookies()
-                # print(f"[SELENIUM] Cookies obtenidas: {len(cookies)}")
-                
-                # # Buscar sessionid en cookies
-                # for cookie in cookies:
-                #     if 'sessionid' in cookie.get('name', '').lower():
-                #         self.session_id = cookie['value']
-                #         print(f"[SELENIUM] OK - SessionID extraido de cookie: {self.session_id[:8]}...")
-                        
-                #         # Agregar cookie a requests.Session
-                #         self.session.cookies.set(
-                #             cookie['name'],
-                #             cookie['value'],
-                #             domain=cookie.get('domain', self.host),
-                #             path=cookie.get('path', '/')
-                #         )
-                #         driver.quit()
-                #         return True
-                
-                # # Si no está en cookies, intentar extraer del HTML
-                # print("[SELENIUM] SessionID no encontrado en cookies, buscando en HTML...")
-                # page_source = driver.page_source
-                # sessionid_match = re.search(r'sessionid["\'\'\s:=]+([a-zA-Z0-9]+)', page_source)
-                
-                # if sessionid_match:
-                #     self.session_id = sessionid_match.group(1)
-                #     print(f"[SELENIUM] OK - SessionID extraido del HTML: {self.session_id[:8]}...")
-                #     driver.quit()
-                #     return True
-                
-                # # Ultimo intento: hacer request AJAX para obtener sessionid
-                # print("[SELENIUM] Intentando obtener sessionid via AJAX desde navegador...")
-                # ajax_script = f'''
-                #     return fetch('{self.ajax_url}?ajaxmethod=get_base_info', {{
-                #         credentials: 'include'
-                #     }})
-                #     .then(r => r.json())
-                #     .then(data => data.sessionid || null)
-                #     .catch(() => null);
-                # '''
-                
-                # sessionid_from_ajax = driver.execute_script(ajax_script)
-                # if sessionid_from_ajax:
-                #     self.session_id = sessionid_from_ajax
-                #     print(f"[SELENIUM] OK - SessionID obtenido via AJAX: {self.session_id[:8]}...")
-                #     driver.quit()
-                #     return True
-                
-                # print("[ERROR] No se pudo extraer sessionid después del login")
-                # driver.quit()
-                # return False
-                # """
             except Exception as e:
                 print(f"[ERROR] Selenium login falló: {type(e).__name__} - {e}")
                 if driver:
@@ -3755,6 +3700,93 @@ class ONTAutomatedTester:
             print(f"[ERROR] Falló el proceso de Factory Reset: {e}")
             return False
 
+    def _reset_factory_zte(self, driver) -> bool:
+        print("[SELENIUM] Iniciando proceso de Factory Reset ZTE...")
+
+        wait = WebDriverWait(driver, 10)
+
+        def click_with_retry(locator, desc, retries=3, delay=1.0) -> bool:
+            for intento in range(1, retries + 1):
+                try:
+                    elem = wait.until(EC.element_to_be_clickable(locator))
+                    elem.click()
+                    return True
+                except StaleElementReferenceException:
+                    print(f"[SELENIUM] {desc}: StaleElementReference, reintentando "
+                        f"({intento}/{retries})...")
+                    time.sleep(delay)
+            return False
+
+        try:
+            driver.switch_to.default_content()
+
+            # 1) Top menu
+            print("[SELENIUM] Top Menu 'Management & Diagnosis'...")
+            if not click_with_retry((By.ID, "mgrAndDiag"),
+                                    "Top menu 'Management & Diagnosis'"):
+                print("[ERROR] No se pudo clicar el menú superior 'Management & Diagnosis'")
+                return False
+
+            # 2) Menú lateral
+            print("[SELENIUM] Buscando menú lateral 'System Management'...")
+            if not click_with_retry((By.ID, "devMgr"),
+                                    "Menú lateral 'System Management'"):
+                print("[ERROR] No se pudo clicar el menú lateral 'System Management'")
+                return False
+
+            # 3) Pestaña Device Management
+            print("[SELENIUM] Pestaña 'Device Management' encontrada. Haciendo click...")
+            if not click_with_retry((By.ID, "rebootAndReset"),
+                                    "Pestaña 'Device Management'"):
+                print("[ERROR] No se pudo clicar la pestaña 'Device Management'")
+                return False
+
+            # 4) Expandir sección Factory Reset (sin guardar el WebElement)
+            print("[SELENIUM] Esperando sección 'Factory Reset Management'...")
+            header_loc = (By.ID, "ResetManagBar")
+            wait.until(EC.presence_of_element_located(header_loc))
+
+            print("[SELENIUM] Sección 'Factory Reset Management' colapsada. Expandiendo...")
+            for intento in range(1, 4):
+                try:
+                    driver.find_element(*header_loc).click()
+                    break
+                except StaleElementReferenceException:
+                    print(f"[SELENIUM] Encabezado 'Factory Reset' stale, reintentando "
+                        f"({intento}/3)...")
+                    time.sleep(0.8)
+
+            # 5) Ahora esperamos directamente el botón Btn_reset como señal de que ya está expandido
+            print("[SELENIUM] Buscando botón 'Factory Reset' (Btn_reset)...")
+            if not click_with_retry((By.ID, "Btn_reset"), "Botón 'Factory Reset'"):
+                print("[ERROR] No se pudo localizar un botón 'Factory Reset' cliqueable.")
+                return False
+
+            # 6) Diálogo de confirmación (OK)
+            print("[SELENIUM] Esperando diálogo de confirmación 'Are you sure to restore factory defaults?'...")
+            confirm_loc = (By.ID, "confirmOK")
+            try:
+                confirm_btn = WebDriverWait(driver, 8).until(
+                    EC.element_to_be_clickable(confirm_loc)
+                )
+                confirm_btn.click()
+                print("[SELENIUM] Botón 'OK' de confirmación clickeado.")
+            except TimeoutException:
+                print("[ERROR] No apareció el botón de confirmación 'OK' (id=confirmOK).")
+                return False
+            except StaleElementReferenceException:
+                if not click_with_retry(confirm_loc, "Botón 'OK' de confirmación", retries=2):
+                    print("[ERROR] No se pudo hacer click en el botón 'OK' de confirmación (stale).")
+                    return False
+
+            print("[SELENIUM] Factory Reset enviado. El equipo empezará a reiniciarse.")
+            return True
+
+        except Exception as e:
+            print(f"[ERROR] Falló el proceso de Factory Reset ZTE: {e}")
+            return False
+
+
     # Funcion para buscar en todos los frames para Huawei (Recursiva)
     def find_element_anywhere(self, driver, by, sel, desc="", timeout=10):
         """
@@ -4522,7 +4554,7 @@ class ONTAutomatedTester:
         #print(self.test_results)
 
     def zte_info(self, driver):
-        # TODO acceder a la info de zte prueba 1
+        # acceder a la info de zte 
         guid = str(int(time.time() * 1000))
         info = f"{self.base_url}/?_type=menuData&_tag=devmgr_statusmgr_lua.lua&_={guid}"
         # Sft version, model name, SN
@@ -4571,14 +4603,14 @@ class ONTAutomatedTester:
             "timestamp": datetime.now().isoformat(timespec="seconds"),
             "tests": {}  # aquí vamos a meter basic, usb, lan, wifi, fibra, mac
         }
+        
         try:
             print("Opcion 1:\n")
             xml_final = ""
             for name, func, url in pruebas:
                 # 1) Navegación con Selenium para habilitar el endpoint
                 func(driver)
-
-                # 2) Obtener el XML (como ya lo hacías)
+                # 2) Obtener el XML 
                 driver.get(url)
                 raw = driver.page_source
                 start = raw.find("<ajax_response_xml_root")
@@ -4602,33 +4634,14 @@ class ONTAutomatedTester:
                 result = {
                     "name": name,
                     "status": parsed.get("error", {}).get("str") == "SUCC",
-                    "details": parsed,          # aquí va TODO el json parseado de ese XML
+                    "details": parsed,          # aquí va el json parseado de ese XML
                 }
 
                 # 6) Guardarlo en self.test_results (igual que tu patrón test_func)
                 self.test_results["tests"][result["name"]] = result
 
-            # Si quieres verlo en consola ya combinado:
-            # print(json.dumps(resultado_prueba, indent=2, ensure_ascii=False))
-
             #Guardar a archivo
-
             self.save_results2("test_mod002")
-            # print(xml)
-            # print("\nopcion 2:\n")
-            
-            # response = self.session.get(
-            #     info,
-            #     timeout=5
-            # )
-
-            # print("Estás intentando acceder a la url= "  + info)
-            # if response.status_code == 200:
-            #     if "<IF_ERRORSTR>SUCC</IF_ERRORSTR>" in response.text:
-            #         print("[OK] Sesión válida, XML completo")
-            # else:
-            #     print("[FAIL] Sigue SessionTimeout")
-            # print(response.text)
         except Exception as e:
             print("No success :c", e)
         
