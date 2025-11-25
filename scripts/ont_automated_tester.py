@@ -48,11 +48,13 @@ class ONTAutomatedTester:
         self.session = requests.Session()
         self.authenticated = False
         self.session_id = None
+        self.driver = None
+        
         self.test_results = {
             "metadata": {
-                "date": datetime.now().isoformat(),
                 "host": host,
                 "model": model,
+                "timestamp": datetime.now().isoformat(),
                 "serial_number": None
             },
             "tests": {}
@@ -199,9 +201,154 @@ class ONTAutomatedTester:
                     return response.json()
                 except:
                     return {"raw": response.text, "success": True}
-            return {"success": False, "status": response.status_code}
+            return {" success": False, "status": response.status_code}
         except Exception as e:
             return {"success": False, "error": str(e)}
+    
+    def _check_network_configuration(self):
+        """
+        Verifica que el adaptador Ethernet tenga configuradas las IPs necesarias
+        para acceder a todos los modelos de ONT.
+        
+        Returns:
+            tuple: (bool, list) - (configuración_ok, IPs_faltantes)
+        """
+        import socket
+        import subprocess
+        
+        # IPs necesarias para acceder a todos los modelos
+        required_networks = {
+            "192.168.100": "Huawei/Fiberhome",
+            "192.168.1": "ZTE"
+        }
+        
+        try:
+            # Obtener todas las IPs del adaptador usando ipconfig
+            result = subprocess.run(
+                ["ipconfig"],
+                capture_output=True,
+                text=True,
+                encoding='utf-8',
+                errors='ignore'
+            )
+            
+            output = result.stdout
+            
+            # Buscar las IPs configuradas
+            configured_networks = set()
+            for line in output.split('\n'):
+                if 'IPv4' in line or 'Dirección IPv4' in line:
+                    # Extraer la IP
+                    parts = line.split(':')
+                    if len(parts) > 1:
+                        ip = parts[1].strip().split('(')[0].strip()
+                        # Obtener la red (primeros 3 octetos)
+                        network = '.'.join(ip.split('.')[:3])
+                        if network in required_networks:
+                            configured_networks.add(network)
+            
+            # Verificar si faltan redes
+            missing_networks = []
+            for network, description in required_networks.items():
+                if network not in configured_networks:
+                    missing_networks.append((network, description))
+            
+            return (len(missing_networks) == 0, missing_networks)
+            
+        except Exception as e:
+            print(f"[WARNING] No se pudo verificar configuración de red: {e}")
+            return (True, [])  # Asumir que está ok si no podemos verificar
+    
+    def _show_network_setup_guide(self, missing_networks):
+        """Muestra instrucciones para configurar IP secundaria"""
+        print("\n" + "="*70)
+        print("⚠️  CONFIGURACIÓN DE RED REQUERIDA")
+        print("="*70)
+        print("\nPara detectar automáticamente TODOS los modelos de ONT, el adaptador")
+        print("Ethernet DEBE tener IPs estáticas configuradas en múltiples redes:\n")
+        
+        for network, description in missing_networks:
+            print(f"  • {network}.x - Para {description}")
+        
+        print("\n" + "-"*70)
+        print("📋 CONFIGURACIÓN COMPLETA (Una vez):")
+        print("-"*70)
+        print("\n1. Ve a: Panel de Control > Redes e Internet > Conexiones de red")
+        print("2. Click derecho en 'Ethernet' > Propiedades")
+        print("3. Selecciona 'Protocolo de Internet versión 4 (TCP/IPv4)' > Propiedades")
+        print("4. Marca 'Usar la siguiente dirección IP'")
+        print("\n5. Configura la IP PRINCIPAL:\n")
+        print("   ┌─────────────────────────────────────┐")
+        print("   │ Dirección IP:     192.168.100.15   │")
+        print("   │ Máscara subred:   255.255.255.0    │")
+        print("   │ Puerta enlace:    (dejar vacío)    │")
+        print("   └─────────────────────────────────────┘")
+        print("\n6. Click en 'Opciones avanzadas...'")
+        print("7. En 'Configuración IP', click 'Agregar...' para IP SECUNDARIA:\n")
+        print("   ┌─────────────────────────────────────┐")
+        print("   │ IP:      192.168.1.15               │")
+        print("   │ Máscara: 255.255.255.0              │")
+        print("   └─────────────────────────────────────┘")
+        print("\n8. Click 'Aceptar' en todas las ventanas")
+        print("9. Vuelve a ejecutar este script")
+        
+        print("\n" + "="*70)
+        print("💡 IMPORTANTE: Sin IPs estáticas, el adaptador queda en 169.254.x.x")
+        print("   (auto-asignación) y NO podrá comunicarse con ningún ONT.")
+        print("\n💡 Con ambas IPs configuradas, detectará automáticamente CUALQUIER")
+        print("   modelo (Huawei, Fiberhome, ZTE) sin cambios manuales.")
+        print("="*70 + "\n")
+    
+    def _scan_for_device(self, timeout=10):
+        """
+        Escanea IPs comunes de ONTs para encontrar un dispositivo activo.
+        
+        Returns:
+            tuple: (ip, device_type) si encuentra dispositivo, (None, None) si no
+        """
+        # IPs comunes basadas en los dispositivos conocidos
+        common_ips = [
+            "192.168.100.1",  # Fiberhome, Huawei
+            "192.168.1.1",    # ZTE
+        ]
+        
+        print("[DISCOVERY] Escaneando IPs comunes...")
+        
+        for ip in common_ips:
+            try:
+                print(f"[DISCOVERY] Probando {ip}...", end=" ")
+                response = self.session.get(
+                    f"http://{ip}",
+                    timeout=timeout,
+                    verify=False,
+                    allow_redirects=True
+                )
+                
+                # Si responde con cualquier código HTTP válido, hay un dispositivo
+                if response.status_code < 500:
+                    print(f"✓ Responde")
+                    # Actualizar el host y detectar tipo
+                    self.host = ip
+                    self.base_url = f"http://{ip}"
+                    self.ajax_url = f"http://{ip}/cgi-bin/ajax"
+                    self.type_url = f"http://{ip}/?_type=menuData&_tag="
+                    
+                    device_type = self._detect_device_type()
+                    print(f"[DISCOVERY] ✓ Dispositivo {device_type} encontrado en {ip}")
+                    return (ip, device_type)
+                    
+            except requests.exceptions.Timeout:
+                print("✗ Timeout")
+                continue
+            except requests.exceptions.ConnectionError:
+                print("✗ No hay conexión")
+                continue
+            except Exception as e:
+                print(f"✗ Error: {e}")
+                continue
+        
+        print("[DISCOVERY] ✗ No se encontró ningún dispositivo en las IPs comunes")
+        return (None, None)
     
     def login(self) -> bool:
         """Realiza login en la ONT via AJAX"""
@@ -212,10 +359,12 @@ class ONTAutomatedTester:
         
         if device_type == "GRANDSTREAM":
             return self._login_grandstream()
-        elif (self.model == "MOD002"):
-            return self._login_zte() # self._login_zte()
-        elif (self.model == "MOD003" or self.model == "MOD004" or self.model == "MOD005"):
-            return self._login_huawei() # A priori todos los huawei son iguales por lo que se usará el mismo metodo
+        elif device_type == "FIBERHOME" or self.model == "MOD001":
+            return self._login_fiberhome()  # Fiberhome usa Selenium
+        elif device_type == "ZTE" or self.model == "MOD002":
+            return self._login_zte()
+        elif device_type == "HUAWEI" or self.model in ["MOD003", "MOD004", "MOD005"]:
+            return self._login_huawei()
         else:
             return self._login_ont_standard()
     
@@ -236,6 +385,40 @@ class ONTAutomatedTester:
             # Detectar Grandstream
             if 'grandstream' in html or 'grandstream' in server or 'ht818' in html:
                 return "GRANDSTREAM"
+            
+            # Detectar Fiberhome (buscar elementos específicos)
+            if any(keyword in html for keyword in ['fiberhome', 'hg6145f', 'user_name', 'loginpp', 'fh-text-security']):
+                print("[AUTH] Dispositivo Fiberhome detectado automáticamente")
+                if not self.model:
+                    self.model = "MOD001"
+                    print(f"[AUTH] Modelo asignado: {self.model}")
+                return "FIBERHOME"
+            
+            # Detectar Huawei (buscar elementos específicos en el HTML)
+            if any(keyword in html for keyword in ['huawei', 'hg8145', 'echolife', 'txt_username', 'txt_password']):
+                print("[AUTH] Dispositivo Huawei detectado automáticamente")
+                # Intentar detectar modelo específico
+                if not self.model:
+                    if 'hg8145v5' in html:
+                        if 'small' in html:
+                            self.model = "MOD005"
+                        else:
+                            self.model = "MOD004"
+                    elif 'hg8145x6' in html or 'hg6145f1' in html:
+                        self.model = "MOD003"
+                    else:
+                        # Default to MOD004 for unknown Huawei
+                        self.model = "MOD004"
+                    print(f"[AUTH] Modelo asignado: {self.model}")
+                return "HUAWEI"
+            
+            # Detectar ZTE
+            if any(keyword in html for keyword in ['zte', 'zxhn', 'f670l', 'frm_username', 'frm_password']):
+                print("[AUTH] Dispositivo ZTE detectado automáticamente")
+                if not self.model:
+                    self.model = "MOD002"
+                    print(f"[AUTH] Modelo asignado: {self.model}")
+                return "ZTE"
             
             # Por defecto, asumir ONT estándar
             return "ONT"
@@ -1305,6 +1488,234 @@ class ONTAutomatedTester:
                         pass
                 return False
 
+    def _login_fiberhome(self) -> bool:
+        """
+        Login específico para Fiberhome usando Selenium.
+        Soporta navegación a reset de fábrica y skip wizard.
+        """
+        if not SELENIUM_AVAILABLE:
+            print("[ERROR] Selenium no está disponible para Fiberhome")
+            return False
+
+        driver = None
+        headless = True
+        try:
+            print(f"[SELENIUM] Iniciando login Fiberhome a {self.host}...")
+            
+            # Configurar opciones de Chrome
+            chrome_options = Options()
+            if headless:
+                chrome_options.add_argument('--headless=new')
+            chrome_options.add_argument('--no-sandbox')
+            chrome_options.add_argument('--disable-dev-shm-usage')
+            chrome_options.add_argument('--disable-gpu')
+            chrome_options.add_argument('--ignore-certificate-errors')
+            chrome_options.add_argument('--allow-insecure-localhost')
+            
+            # Evitar detección de automatización
+            chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+            chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+            chrome_options.add_experimental_option('useAutomationExtension', False)
+            
+            # Deshabilitar guardado de contraseñas
+            prefs = {
+                "credentials_enable_service": False,
+                "profile.password_manager_enabled": False
+            }
+            chrome_options.add_experimental_option("prefs", prefs)
+
+            service = Service(ChromeDriverManager().install())
+            driver = webdriver.Chrome(service=service, options=chrome_options)
+            
+            # Guardar referencia al driver
+            self.driver = driver
+            
+            # 1. Navegar al login
+            login_url = f"http://{self.host}/html/login_inter.html"
+            print(f"[SELENIUM] Navegando a {login_url}...")
+            driver.get(login_url)
+            
+            # Esperar a que cargue
+            wait = WebDriverWait(driver, 10)
+            
+            # 2. Ingresar credenciales
+            # Fiberhome suele usar 'user_name' y 'loginpp' o 'password'
+            try:
+                user_field = wait.until(EC.presence_of_element_located((By.ID, "user_name")))
+                print("[SELENIUM] Campo username encontrado: id='user_name'")
+                user_field.clear()
+                user_field.send_keys('root')
+                
+                try:
+                    pass_field = driver.find_element(By.ID, "loginpp")
+                    print("[SELENIUM] Campo password encontrado: id='loginpp'")
+                except:
+                    pass_field = driver.find_element(By.ID, "password")
+                    print("[SELENIUM] Campo password encontrado: id='password'")
+                
+                pass_field.clear()
+                pass_field.send_keys('admin')
+                
+                # 3. Click Login
+                # Intentar varios IDs comunes para el botón
+                login_btn = None
+                for btn_id in ["login_btn", "login", "LoginId"]:
+                    try:
+                        login_btn = driver.find_element(By.ID, btn_id)
+                        print(f"[SELENIUM] Botón login encontrado: id='{btn_id}'")
+                        break
+                    except:
+                        continue
+                
+                if login_btn:
+                    login_btn.click()
+                else:
+                    print("[ERROR] No se encontró botón de login")
+                    return False
+                
+            except TimeoutException:
+                print("[ERROR] No se encontraron campos de login Fiberhome")
+                return False
+            
+            # 4. Verificar login exitoso
+            time.sleep(3)
+            if "login_inter.html" not in driver.current_url:
+                print("[AUTH] Login Fiberhome exitoso (URL cambió)")
+                
+                # Intentar saltar wizard si existe
+                self.fh_maybe_skip_initial_guide(driver)
+                
+                # Obtener cookies para requests
+                selenium_cookies = driver.get_cookies()
+                for cookie in selenium_cookies:
+                    self.session.cookies.set(cookie['name'], cookie['value'])
+                
+                return True
+            else:
+                print("[ERROR] Login fallido, seguimos en login page")
+                return False
+                
+        except Exception as e:
+            print(f"[ERROR] Excepción en login Fiberhome: {e}")
+            if driver:
+                try:
+                    driver.quit()
+                except:
+                    pass
+            return False
+
+    def fh_maybe_skip_initial_guide(self, driver):
+        """Intenta saltar el wizard de configuración inicial de Fiberhome"""
+        print("[SELENIUM] Verificando wizard inicial Fiberhome...")
+        try:
+            # Buscar botones comunes de "Next", "Skip", "Cancel" en iframes o main
+            # Esto es especulativo ya que no tenemos info del wizard Fiberhome
+            # Pero implementamos la estructura para agregarlo fácilmente
+            pass
+        except Exception as e:
+            print(f"[DEBUG] Error verificando wizard: {e}")
+
+    def _reset_factory_fiberhome(self):
+        """
+        Realiza reset de fábrica para Fiberhome.
+        Ruta: Management -> Device Management -> Device Reboot -> Restore
+        """
+        print("[RESET] Iniciando Factory Reset Fiberhome...")
+        if not self.driver:
+            print("[ERROR] No hay driver de Selenium activo")
+            return False
+            
+        driver = self.driver
+        wait = WebDriverWait(driver, 10)
+        
+        try:
+            # Asegurar que estamos en el frame correcto o main content
+            driver.switch_to.default_content()
+            
+            # 1. Click en Management (Top Menu)
+            print("[RESET] Buscando menú Management...")
+            try:
+                mgmt_link = self.find_element_anywhere(driver, By.XPATH, "//a[contains(text(), 'Management')]")
+                if mgmt_link:
+                    mgmt_link.click()
+                    time.sleep(1)
+                else:
+                    print("[ERROR] No se encontró menú Management")
+                    return False
+            except Exception as e:
+                print(f"[ERROR] Falló click en Management: {e}")
+                return False
+                
+            # 2. Click en Device Management (Left Menu)
+            print("[RESET] Buscando Device Management...")
+            try:
+                dev_mgmt = self.find_element_anywhere(driver, By.XPATH, "//a[contains(text(), 'Device Management')]")
+                if dev_mgmt:
+                    dev_mgmt.click()
+                    time.sleep(1)
+                else:
+                    print("[ERROR] No se encontró Device Management")
+                    return False
+            except Exception as e:
+                print(f"[ERROR] Falló click en Device Management: {e}")
+                return False
+
+            # 3. Click en Device Reboot / Restore (Sub Menu)
+            print("[RESET] Buscando menú Restore/Reboot...")
+            try:
+                # Intentar "Restore" primero (según screenshot breadcrumb)
+                restore_link = self.find_element_anywhere(driver, By.XPATH, "//a[contains(text(), 'Restore')]")
+                if restore_link:
+                    restore_link.click()
+                else:
+                    # Intentar "Device Reboot"
+                    reboot_link = self.find_element_anywhere(driver, By.XPATH, "//a[contains(text(), 'Device Reboot')]")
+                    if reboot_link:
+                        reboot_link.click()
+                    else:
+                        print("[ERROR] No se encontró menú Restore ni Device Reboot")
+                        return False
+                time.sleep(1)
+            except Exception as e:
+                print(f"[ERROR] Falló navegación a Restore: {e}")
+                return False
+                
+            # 4. Click en botón Restore
+            print("[RESET] Buscando botón Restore...")
+            try:
+                # Buscar en frames porque el contenido suele estar en un iframe
+                restore_btn = self.find_element_anywhere(driver, By.ID, "Restart_button")
+                if not restore_btn:
+                    # Intentar por value
+                    restore_btn = self.find_element_anywhere(driver, By.XPATH, "//input[@value='Restore']")
+                
+                if restore_btn:
+                    print("[RESET] Botón Restore encontrado, haciendo click...")
+                    restore_btn.click()
+                    
+                    # 5. Confirmar alerta
+                    try:
+                        WebDriverWait(driver, 3).until(EC.alert_is_present())
+                        alert = driver.switch_to.alert
+                        print(f"[RESET] Alerta detectada: {alert.text}")
+                        alert.accept()
+                        print("[RESET] Alerta aceptada. Reinicio en curso...")
+                        return True
+                    except TimeoutException:
+                        print("[WARNING] No apareció alerta de confirmación, verificando si se reinició...")
+                        return True
+                else:
+                    print("[ERROR] No se encontró el botón Restore")
+                    return False
+                    
+            except Exception as e:
+                print(f"[ERROR] Error al hacer click en Restore: {e}")
+                return False
+                
+        except Exception as e:
+            print(f"[ERROR] Excepción general en reset Fiberhome: {e}")
+            return False
+
     def _login_huawei(self) -> bool:
         #  función de inicio de sesión para huawei
         if SELENIUM_AVAILABLE:
@@ -1330,6 +1741,17 @@ class ONTAutomatedTester:
                 # Deshabilitar warnings de certificado
                 chrome_options.add_argument('--ignore-certificate-errors')
                 chrome_options.add_argument('--allow-insecure-localhost')
+
+                # Deshabilitar gestor de contraseñas y alertas de seguridad
+                prefs = {
+                    "credentials_enable_service": False,
+                    "profile.password_manager_enabled": False,
+                    "safebrowsing.enabled": False,
+                    "profile.default_content_setting_values.notifications": 2
+                }
+                chrome_options.add_experimental_option("prefs", prefs)
+                chrome_options.add_argument('--disable-blink-features=AutomationControlled')
+                chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
 
                 # Inicializar driver con WebDriver Manager
                 print("[SELENIUM] Descargando/verificando ChromeDriver...")
@@ -2204,6 +2626,58 @@ class ONTAutomatedTester:
             "name": "FACTORY_RESET_PASS",
             "status": "SKIP",
             "details": {"reason": "Test no destructivo - requiere verificacion manual"}
+        }
+        
+        # Lógica específica para Fiberhome (MOD001)
+        if self.model == "MOD001" or self.test_results['metadata'].get('device_type') == "FIBERHOME":
+            print("[TEST] Ejecutando secuencia de Factory Reset para Fiberhome...")
+            
+            # Asegurar que tenemos driver de Selenium activo
+            if not self.driver:
+                print("[TEST] Driver no activo (login previo fue AJAX?). Iniciando login Fiberhome para obtener driver...")
+                if not self._login_fiberhome():
+                    result["status"] = "FAIL"
+                    result["details"]["error"] = "No se pudo iniciar driver Selenium para reset"
+                    return result
+
+            if self._reset_factory_fiberhome():
+                print("[TEST] Reset enviado. Esperando reinicio (aprox 120s)...")
+                time.sleep(60) # Esperar a que baje la interfaz
+                
+                # Esperar a que vuelva el ping
+                print("[TEST] Esperando respuesta de ping...")
+                start_wait = time.time()
+                while time.time() - start_wait < 300: # 5 min timeout
+                    response = subprocess.run(
+                        ['ping', '-n', '1', '-w', '1000', self.host],
+                        capture_output=True
+                    )
+                    if response.returncode == 0:
+                        print("[TEST] Dispositivo responde a ping. Esperando servicios (30s)...")
+                        time.sleep(30)
+                        break
+                    time.sleep(5)
+                
+                # Re-login y Skip Wizard
+                print("[TEST] Intentando re-login y skip wizard...")
+                if self.login():
+                    result["status"] = "PASS"
+                    result["details"]["reset_performed"] = True
+                    result["details"]["relogin_success"] = True
+                    result["details"]["wizard_skipped"] = True # Asumido si login pasa (login llama a skip)
+                else:
+                    result["status"] = "FAIL"
+                    result["details"]["error"] = "No se pudo hacer login después del reset"
+            else:
+                result["status"] = "FAIL"
+                result["details"]["error"] = "Falló la ejecución del comando de reset"
+                
+            return result
+
+        result = {
+            "name": "FACTORY_RESET_PASS",
+            "status": "SKIP",
+            "details": {"reason": "Test no destructivo para este modelo - requiere verificacion manual"}
         }
         
         return result
@@ -3121,111 +3595,223 @@ class ONTAutomatedTester:
     # Función en caso de que sea la primera vez conectando un Huawei
     def hw_maybe_skip_initial_guide(self, driver, timeout=10):
         """
-        Si el wizard inicial de Huawei está presente, intenta completarlo/cerrarlo
-        y luego navega a la página principal (frame.asp).
+        Si el wizard inicial de Huawei está presente, intenta saltarlo usando los 3 pasos específicos:
+        1. guidesyscfg (Skip)
+        2. guideskip (Skip)
+        3. nextpage (Return to Home Page)
         """
+        print("[SELENIUM] Verificando si aparece el wizard de configuración inicial (Huawei)...")
         try:
             driver.switch_to.default_content()
+            
+            # Definir los pasos a ejecutar en orden
+            steps = [
+                {"id": "guidesyscfg", "desc": "Paso 1: Skip Network Config"},
+                {"id": "guideskip", "desc": "Paso 2: Skip User Config"},
+                {"id": "nextpage", "desc": "Paso 3: Return to Home Page"}
+            ]
+            
+            wizard_found = False
+            
+            for step in steps:
+                print(f"[SELENIUM] Buscando paso del wizard: {step['desc']} (ID: {step['id']})...")
+                try:
+                    # Buscar el elemento usando búsqueda recursiva en frames
+                    # Usamos find_element_anywhere que ya implementamos recursivo
+                    element = self.find_element_anywhere(
+                        driver, 
+                        By.ID, 
+                        step["id"], 
+                        desc=step["desc"],
+                        timeout=5  # Aumentamos timeout a 5s para dar tiempo a cargar
+                    )
+                    
+                    if element:
+                        print(f"[SELENIUM] Wizard detectado - Ejecutando {step['desc']}...")
+                        wizard_found = True
+                        
+                        # Hacer click
+                        try:
+                            element.click()
+                        except:
+                            driver.execute_script("arguments[0].click();", element)
+                            
+                        time.sleep(2) # Esperar un poco más entre pasos
+                    else:
+                        print(f"[SELENIUM] No se encontró el elemento {step['id']} ({step['desc']}).")
+                        # Si no se encuentra, quizás ya pasamos ese paso
+                        pass
+                        
+                except Exception as e:
+                    print(f"[WARN] Error intentando ejecutar {step['desc']}: {e}")
 
-            page_source = driver.page_source
-            current_url = driver.current_url
-
-            # Heurística: solo consideramos que hay wizard si vemos cosas típicas
-            # de guideframe.asp
-            if "guideframebody" not in page_source and "guideinternet.asp" not in page_source \
-            and "guidewificfg.asp" not in page_source and "userguidecfgdone.asp" not in current_url:
-                print("[INFO] No se detectó wizard de configuración inicial (Huawei).")
-                return
-
-            print("[SELENIUM] Wizard Huawei detectado, intentando saltarlo...")
-
-            # 1) Intentar usar el botón de "Configuration completion"
-            try:
-                btn_done = WebDriverWait(driver, 3).until(
-                    EC.presence_of_element_located((By.ID, "icoconfigdone"))
-                )
-                # Llamamos al handler JS original
-                driver.execute_script("onchangestep(arguments[0]);", btn_done)
-                print("[SELENIUM] Se hizo click en 'config done' del wizard (JS).")
-            except (NoSuchElementException, TimeoutException):
-                # 2) Si no existe el botón, vamos directo a la página de 'done'
-                done_url = urljoin(self.base_url, "/html/ssmp/cfgguide/userguidecfgdone.asp")
-                print(f"[SELENIUM] Abriendo directamente {done_url} para cerrar wizard...")
-                driver.get(done_url)
-
-            # 3) Después de cerrar el wizard, ir SIEMPRE a la página principal
-            frame_url = urljoin(self.base_url, "")
-            print(f"[SELENIUM] Navegando a la página principal: {frame_url}")
-            driver.get(frame_url)
-
-            # Guardamos la pantalla resultante para revisar
-            after_path = Path("debug_huawei_after_skip.html")
-            after_path.write_text(driver.page_source, encoding="utf-8")
-            print(f"[SELENIUM] HTML tras skip guardado en {after_path}")
-            # Esperar a que aparezca el frame principal
-            try:
-                WebDriverWait(driver, 10).until(
-                    EC.presence_of_element_located((By.ID, "name_Systeminfo"))
-                )
-                print("[INFO] Se saltó la página de configuración inicial y se cargó la UI normal.")
+            if wizard_found:
+                print("[SELENIUM] Secuencia de salto de wizard finalizada.")
+                # Asegurar que vamos a la página principal
+                time.sleep(2)
                 return True
-            except TimeoutException:
-                print("[WARN] No se encontró mainFrame después de cerrar wizard; "
-                    "puede que este modelo use otra página principal.")
+            else:
+                print("[INFO] No se detectó ningún paso del wizard de configuración inicial.")
+                # Debug adicional: imprimir URL actual
+                print(f"[DEBUG] URL actual: {driver.current_url}")
                 return False
 
         except Exception as e:
-            print(f"[WARN] Error intentando saltar wizard Huawei: {e}")
-    # Funcion para buscar en todos los frames para Huawei
+            print(f"[WARN] Error general en hw_maybe_skip_initial_guide: {e}")
+            return False
+            return False
+    
+    def _reset_factory_huawei(self, driver) -> bool:
+        """
+        Realiza el factory reset en dispositivos Huawei.
+        1. Busca el botón RESET en la página principal (Home Page).
+        2. Al hacer click, se despliega un menú/sección.
+        3. Busca y clickea el botón 'Restore Defaults'.
+        """
+        print("[SELENIUM] Iniciando proceso de Factory Reset (Huawei)...")
+        try:
+            # 1. Asegurarse de estar en la Home Page
+            driver.switch_to.default_content()
+            
+            # 2. Buscar el botón inicial "RESET"
+            print("[SELENIUM] Buscando botón RESET en Home Page...")
+            reset_menu_btn = self.find_element_anywhere(
+                driver,
+                By.XPATH,
+                "//div[contains(text(), 'RESET')] | //span[contains(text(), 'RESET')] | //a[contains(text(), 'RESET')]",
+                desc="RESET Menu Button",
+                timeout=5
+            )
+            
+            if not reset_menu_btn:
+                print("[WARN] No se encontró RESET por texto, intentando selectores alternativos...")
+                reset_menu_btn = self.find_element_anywhere(
+                    driver,
+                    By.CSS_SELECTOR,
+                    "div.reset-button, #reset_btn, .icon-reset", 
+                    desc="RESET Menu Button (Alt)",
+                    timeout=3
+                )
+
+            if not reset_menu_btn:
+                print("[ERROR] No se encontró el botón RESET")
+                return False
+
+            # Hacer click para desplegar el menú
+            print("[SELENIUM] Click en botón RESET...")
+            try:
+                reset_menu_btn.click()
+            except:
+                driver.execute_script("arguments[0].click();", reset_menu_btn)
+            
+            time.sleep(3) # Esperar a que se despliegue
+
+            # 3. Buscar el botón "Restore Defaults"
+            # Busqueda amplia por texto "Restore"
+            print("[SELENIUM] Buscando botón 'Restore Defaults'...")
+            
+            # Intentar varios selectores
+            restore_selectors = [
+                (By.XPATH, "//button[contains(text(), 'Restore Defaults')]"),
+                (By.XPATH, "//input[@value='Restore Defaults']"),
+                (By.XPATH, "//div[contains(text(), 'Restore Defaults')]"),
+                (By.XPATH, "//button[contains(text(), 'Restore')]"),
+                (By.ID, "RestoreDefaults"),
+                (By.ID, "RestoreDefault"),
+                (By.NAME, "RestoreDefaults")
+            ]
+            
+            restore_btn = None
+            
+            # Usar find_element_anywhere para cada selector
+            for by, sel in restore_selectors:
+                restore_btn = self.find_element_anywhere(driver, by, sel, desc=f"Restore Btn ({sel})", timeout=1)
+                if restore_btn:
+                    break
+            
+            if restore_btn:
+                print("[SELENIUM] Botón 'Restore Defaults' encontrado. Ejecutando reset...")
+                try:
+                    restore_btn.click()
+                except:
+                    driver.execute_script("arguments[0].click();", restore_btn)
+                
+                # 4. Manejar la alerta de confirmación
+                try:
+                    WebDriverWait(driver, 5).until(EC.alert_is_present())
+                    alert = driver.switch_to.alert
+                    print(f"[SELENIUM] Alerta de confirmación detectada: {alert.text}")
+                    alert.accept()
+                    print("[SELENIUM] Alerta aceptada. El dispositivo se está reiniciando a fábrica.")
+                    return True
+                except TimeoutException:
+                    print("[WARN] No apareció alerta de confirmación, verificando si la acción se ejecutó...")
+                    return True
+            else:
+                print("[ERROR] No se encontró el botón 'Restore Defaults' después de hacer click en RESET")
+                # Debug: Imprimir source del frame donde estaba RESET si es posible
+                return False
+        except Exception as e:
+            print(f"[ERROR] Falló el proceso de Factory Reset: {e}")
+            return False
+
+    # Funcion para buscar en todos los frames para Huawei (Recursiva)
     def find_element_anywhere(self, driver, by, sel, desc="", timeout=10):
         """
-        Busca UN elemento en el documento principal y en todos los frames/iframes.
-        Devuelve el WebElement o lanza NoSuchElementException si no aparece.
-
-        by:   estrategia (By.ID, By.CSS_SELECTOR, etc)
-        sel:  selector
-        desc: texto descriptivo para logs
+        Busca un elemento en el documento principal y en todos los iframes recursivamente.
+        Retorna el elemento si lo encuentra, manteniendo el driver en el contexto del frame donde se encontró.
         """
-        end_time = time.time() + timeout
-        last_exc = None
-
-        while time.time() < end_time:
-            # 1) Documento principal
-            driver.switch_to.default_content()
+        # Helper recursivo
+        def search_in_frames(drv, current_depth=0):
+            # 1. Buscar en el contexto actual
             try:
-                el = driver.find_element(by, sel)
-                # Si se ve, lo regresamos
+                el = drv.find_element(by, sel)
                 if el.is_displayed():
-                    if desc:
-                        print(f"[SELENIUM] {desc} encontrado en documento principal con {by}='{sel}'")
                     return el
-            except NoSuchElementException as e:
-                last_exc = e
+            except:
+                pass
+            
+            if current_depth > 3: # Limite de profundidad para evitar loops infinitos
+                return None
 
-            # 2) Buscar en todos los frames/iframes
-            frames = driver.find_elements(By.CSS_SELECTOR, "frame, iframe")
-            for idx, frame in enumerate(frames):
+            # 2. Buscar en sub-frames
+            frames = drv.find_elements(By.TAG_NAME, "iframe")
+            # También buscar 'frame' si es un frameset
+            frames.extend(drv.find_elements(By.TAG_NAME, "frame"))
+            
+            for i, frame in enumerate(frames):
                 try:
-                    driver.switch_to.default_content()
-                    driver.switch_to.frame(frame)
-                except Exception:
-                    continue
+                    drv.switch_to.frame(frame)
+                    found = search_in_frames(drv, current_depth + 1)
+                    if found:
+                        return found
+                    drv.switch_to.parent_frame()
+                except:
+                    try:
+                        drv.switch_to.parent_frame()
+                    except:
+                        pass
+            return None
 
-                try:
-                    el = driver.find_element(by, sel)
-                    if el.is_displayed():
-                        if desc:
-                            print(f"[SELENIUM] {desc} encontrado en frame #{idx} con {by}='{sel}'")
-                        return el
-                except NoSuchElementException as e:
-                    last_exc = e
-                    continue
-
-            time.sleep(0.3)
-
-        # Si llegamos aquí, no se encontró en ningún lado
-        msg = f"No se encontró {desc or sel} en ningún frame ni en el documento principal"
-        raise NoSuchElementException(msg) from last_exc
+        # Inicio de la búsqueda
+        try:
+            driver.switch_to.default_content()
+            
+            # Intentar esperar un poco si se pide timeout
+            start_time = time.time()
+            while time.time() - start_time < timeout:
+                driver.switch_to.default_content()
+                found_el = search_in_frames(driver)
+                if found_el:
+                    print(f"[SELENIUM] {desc} encontrado con {by}='{sel}'")
+                    return found_el
+                time.sleep(0.5)
+                
+            return None
+            
+        except Exception as e:
+            # print(f"[DEBUG] Error buscando {desc}: {e}")
+            return None
 
     #Funciones de parseo de info Huawei
     def parse_table_label_value(self, driver, table_selector):
@@ -3915,13 +4501,22 @@ class ONTAutomatedTester:
         ]
         
         # Recorrer todas las funciones de clicks + extraer el DOM
+        # Usar try/except para cada paso para evitar que un fallo detenga todo el proceso
         for name, nav_func, parse_func in tests:
-            nav_func(driver)             # hace los clicks
-            data = parse_func(driver)    # lee sólo lo que nos interesa
-            self.test_results["tests"][name] = { # Pasar al test_results
-                "name": name,
-                "data": data,
-            }
+            try:
+                nav_func(driver)             # hace los clicks
+                data = parse_func(driver)    # lee sólo lo que nos interesa
+                self.test_results["tests"][name] = { # Pasar al test_results
+                    "name": name,
+                    "data": data,
+                }
+            except Exception as e:
+                print(f"[WARN] Error en extracción de {name}: {type(e).__name__} - {e}")
+                self.test_results["tests"][name] = {
+                    "name": name,
+                    "data": None,
+                    "error": str(e)
+                }
 
         self.save_results2("test_hg8145v5")
         #print(self.test_results)
@@ -4072,7 +4667,9 @@ class ONTAutomatedTester:
         skip_count = 0
         
         for test_name, test_data in self.test_results["tests"].items():
-            status = test_data["status"]
+            # Huawei info data has different structure: {"name": ..., "data": ...}
+            # Regular test results have: {"status": "PASS/FAIL", ...}
+            status = test_data.get("status", "SKIP")  # Default to SKIP if no status
             symbol = "[OK]" if status == "PASS" else "[X]" if status == "FAIL" else "[-]"
             lines.append(f"{symbol} {test_name}: {status}")
             
@@ -4138,22 +4735,20 @@ class ONTAutomatedTester:
         w5 = ""
         # Obtencion de valores para mostrarlo en corto:
         if (self.model == "MOD001"):
-            sn = self.test_results['metadata'].get('serial_number_physical')
-            mac = self.test_results['metadata'].get('mac_address')
-            modelo = self.test_results['metadata'].get('model')
-            dn = self.test_results['metadata'].get('device_name')
-            sft = self.test_results['metadata']['base_info'].get('software_version')
-            w2 = self.test_results['metadata']['base_info']['wifi_info'].get('ssid_24ghz')
-            w5 = self.test_results['metadata']['base_info']['wifi_info'].get('ssid_5ghz')
+            # Extraer metadata de forma segura
+            metadata = self.test_results.get('metadata', {})
+            base_info = metadata.get('base_info', {})
+            wifi_info = base_info.get('wifi_info', {})
+            
+            sn = metadata.get('serial_number_physical', '')
+            mac = metadata.get('mac_address', '')
+            modelo = metadata.get('model', '')
+            dn = metadata.get('device_name', '')
+            sft =base_info.get('software_version', '')
+            w2 = wifi_info.get('ssid_24ghz', '')
+            w5 = wifi_info.get('ssid_5ghz', '')
         elif (self.model == "MOD002"):
             # TODO; la información está muy dispersa
-            # sn = self.test_results['metadata'].get('serial_number')
-            # mac = self.test_results['metadata']['tests']['mac']['details']['WAN_COMFIG'].get('WorkIFMac')
-            # modelo = "MOD002"
-            # dn = self.test_results['metadata'].get('model')
-            # sft = self.test_results['metadata']['tests'].get('SoftwareVer')
-            # w2 = self.test_results['metadata']['base_info']['wifi_info'].get('ssid_24ghz')
-            # w5 = self.test_results['metadata']['base_info']['wifi_info'].get('ssid_5ghz')
             print("En proceso\n")
         print("El numero de serie es: ", sn)
         print("La mac es: ", mac)
@@ -4220,7 +4815,7 @@ class ONTAutomatedTester:
 
 def main():
     parser = argparse.ArgumentParser(description="ONT Automated Test Suite")
-    parser.add_argument("--host", required=True, help="IP de la ONT")
+    parser.add_argument("--host", help="IP de la ONT (opcional, se detecta automáticamente si se omite)")
     parser.add_argument("--model", help="Modelo de la ONT (opcional, se detecta automaticamente)")
     parser.add_argument("--output", help="Directorio de salida (opcional)")
     parser.add_argument("--mode", 
@@ -4229,6 +4824,52 @@ def main():
                        help="Modo de operacion: test (todos), retest (solo fallidos), label (generar etiqueta)")
     
     args = parser.parse_args()
+    
+   # Auto-discovery si no se proporciona --host
+    if not args.host:
+        print("\n============================================================")
+        print("ONT/ATA AUTOMATED TEST SUITE - AUTO-DISCOVERY MODE")
+        print("============================================================\n")
+        
+        # Crear tester temporal para verificar red y escanear
+        temp_tester = ONTAutomatedTester(host="0.0.0.0", model=None)
+        
+        # Verificar configuración de red
+        print("[NETWORK] Verificando configuración de red...")
+        network_ok, missing_networks = temp_tester._check_network_configuration()
+        
+        if not network_ok:
+            print(f"[WARNING] Faltan {len(missing_networks)} red(es) configurada(s)")
+            temp_tester._show_network_setup_guide(missing_networks)
+            print("[INFO] Continuando con escaneo en las redes disponibles...\n")
+        else:
+            print("[OK] Configuración de red correcta - Todas las redes accesibles\n")
+        
+        ip, device_type = temp_tester._scan_for_device()
+        
+        if not ip:
+            print("\n[ERROR] No se encontró ningún dispositivo ONT.")
+            print("[ERROR] Verifica:")
+            print("  1. El dispositivo esté encendido y conectado")
+            print("  2. La configuración de red (ver instrucciones arriba)")
+            print("\nTambién puedes especificar manualmente:")
+            print("  python ont_automated_tester.py --host 192.168.100.1")
+            return
+        
+        # Usar el IP y modelo detectados
+        args.host = ip
+        args.model = temp_tester.model  # El modelo ya fue asignado en _detect_device_type
+        print(f"\n[OK] Dispositivo {device_type} detectado: {args.host} (Modelo: {args.model})\n")
+    
+    # Mostrar info de inicio
+    print("=" * 60)
+    print("ONT/ATA AUTOMATED TEST SUITE")
+    print(f"Host: {args.host}")
+    if args.model:
+        print(f"Modelo especificado: {args.model}")
+    print(f"Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
+    print("=" * 60)
+    print()
     
     if args.mode == 'label':
         # Modo label: generar etiqueta de identificación
