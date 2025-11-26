@@ -1359,6 +1359,7 @@ class ONTAutomatedTester:
                     if (resetZTE):
                         reset = True
                         self._login_zte(True) # Es necesario volver a loggearse después del reset
+                        driver.quit()
                         return True
                     else:
                         print("[WARNING] No se pudo resetear, saltando pruebas")
