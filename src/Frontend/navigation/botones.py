@@ -1,9 +1,9 @@
 import customtkinter as ctk
 
-def boton_inicio(parent, command=None):
+def boton_OMITIR(parent, command=None):
     return ctk.CTkButton(
         parent,
-        text="Inicio",
+        text="OMITIR RETEST DE FÁBRICA",
         command=command
     )
 
@@ -17,7 +17,6 @@ def boton_escaneos(parent, command=None):
 def boton_propiedades(parent, command=None):
     return ctk.CTkButton(
         parent,
-        
         text="Propiedades",
         command=command
     )

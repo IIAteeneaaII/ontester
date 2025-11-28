@@ -9,7 +9,7 @@ root_path = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(root_path))
 
 from src.Frontend.navigation.botones import (
-    boton_inicio,
+    boton_OMITIR,
     boton_escaneos,
     boton_propiedades,
     boton_reporte,
@@ -71,8 +71,8 @@ class TesterView(ctk.CTkFrame):
         self.modo_menu.pack(pady=(20, 30), padx=20, fill="x")
         # =============================================
 
-        # Botones importados
-        boton_inicio(left_frame, command=self.ir_inicio).pack(pady=10, padx=20, fill="x")
+        # Botones importados (columna izquierda)
+        boton_OMITIR(left_frame, command=self.ir_OMITIR).pack(pady=10, padx=20, fill="x")
         boton_escaneos(left_frame, command=self.ir_escaneos).pack(pady=10, padx=20, fill="x")
         boton_propiedades(left_frame, command=self.ir_propiedades).pack(pady=10, padx=20, fill="x")
         boton_reporte(left_frame, command=self.ir_reporte).pack(pady=10, padx=20, fill="x")
@@ -202,8 +202,9 @@ class TesterView(ctk.CTkFrame):
 
     # ================= HANDLERS DE LOS BOTONES =================
 
-    def ir_inicio(self):
-        print("Navegando a Inicio")
+    def ir_OMITIR(self):
+        print("Navegando a OMITIR RETEST DE FÁBRICA")
+        # aquí luego conectas la lógica para omitir el retesteo
 
     def ir_escaneos(self):
         print("Navegando a Escaneos")
