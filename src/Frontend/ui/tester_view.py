@@ -10,10 +10,10 @@ sys.path.insert(0, str(root_path))
 
 from src.Frontend.navigation.botones import (
     boton_OMITIR,
-    boton_escaneos,
-    boton_propiedades,
-    boton_reporte,
-    boton_tester
+    boton_Ethernet,
+    boton_Conectividad,
+    boton_Otrospuertos,
+    boton_señaleswifi,
 )
 
 
@@ -59,24 +59,43 @@ class TesterView(ctk.CTkFrame):
         logo_label.pack(expand=True)
         # =========================================================
 
-        # ===== Menú desplegable "Escoge tu modo" =====
-        self.modo_var = ctk.StringVar(value="Escoge tu modo")
+        # ===== Menú desplegable "Escoge el modo" =====
+        self.modo_var = ctk.StringVar(value="Escoge el modo")
+
         self.modo_menu = ctk.CTkOptionMenu(
             left_frame,
             variable=self.modo_var,
             values=["Testeo", "Retesteo", "Etiqueta"],
             command=self.cambiar_modo,
-            font=ctk.CTkFont(size=16, weight="bold")
+            font=ctk.CTkFont(size=16, weight="bold"),
+
+            # que mida igual que los botones
+            height=36,
+            corner_radius=8,
+            width=180,  # puedes ajustar, pero que sea similar al ancho de los botones
+
+            # colores del “cajón” principal
+            fg_color="#3498db",      # azul barra
+            text_color="white",
+            button_color="#2980b9",
+            button_hover_color="#2471a3",
+
+            # colores del desplegable
+            dropdown_fg_color="#3498db",
+            dropdown_hover_color="#2980b9",
+            dropdown_text_color="white",
+            dropdown_font=ctk.CTkFont(size=14, weight="bold"),
         )
         self.modo_menu.pack(pady=(20, 30), padx=20, fill="x")
         # =============================================
 
+
         # Botones importados (columna izquierda)
         boton_OMITIR(left_frame, command=self.ir_OMITIR).pack(pady=10, padx=20, fill="x")
-        boton_escaneos(left_frame, command=self.ir_escaneos).pack(pady=10, padx=20, fill="x")
-        boton_propiedades(left_frame, command=self.ir_propiedades).pack(pady=10, padx=20, fill="x")
-        boton_reporte(left_frame, command=self.ir_reporte).pack(pady=10, padx=20, fill="x")
-        boton_tester(left_frame, command=self.ir_tester).pack(pady=10, padx=20, fill="x")
+        boton_Ethernet(left_frame, command=self.ir_ethernet).pack(pady=10, padx=20, fill="x")
+        boton_Conectividad(left_frame, command=self.ir_conectividad).pack(pady=10, padx=20, fill="x")
+        boton_Otrospuertos(left_frame, command=self.ir_otros_puertos).pack(pady=10, padx=20, fill="x")
+        boton_señaleswifi(left_frame, command=self.ir_senales_wifi).pack(pady=10, padx=20, fill="x")
 
         # Frame derecho (área principal/contenido)
         right_frame = ctk.CTkFrame(self, corner_radius=0)
@@ -200,31 +219,37 @@ class TesterView(ctk.CTkFrame):
         self.pruebas_realizadas += 1
         self.pruebas_count_label.configure(text=str(self.pruebas_realizadas))
 
-    # ================= HANDLERS DE LOS BOTONES =================
+    def _ejecutar_prueba_desde_boton(self, nombre_prueba: str):
+        """Utilidad para ejecutar la lógica de prueba desde cualquier botón."""
+        print(f"Ejecutando {nombre_prueba}...")
+        self.content_label.configure(text=f"Ejecutando {nombre_prueba}...")
 
-    def ir_OMITIR(self):
-        print("Navegando a OMITIR RETEST DE FÁBRICA")
-        # aquí luego conectas la lógica para omitir el retesteo
-
-    def ir_escaneos(self):
-        print("Navegando a Escaneos")
-
-    def ir_propiedades(self):
-        print("Navegando a Propiedades")
-
-    def ir_reporte(self):
-        print("Navegando a Reporte")
-
-    def ir_tester(self):
-        print("Navegando a Tester")
-        # Si hay ViewModel, que él maneje la prueba real
         if self.viewmodel is not None:
+            # Lógica real (por ahora random en TesterViewModel)
             self.viewmodel.ejecutar_prueba()
         else:
             # Demo sin VM: alterna EXITOSA/FALLIDA y suma al contador
             self._last_result_ok = not self._last_result_ok
             self.actualizar_estado_prueba(self._last_result_ok)
             self.incrementar_contador_pruebas()
+
+    # ================= HANDLERS DE LOS BOTONES =================
+
+    def ir_OMITIR(self):
+        print("Navegando a OMITIR RETEST DE FÁBRICA")
+        self.content_label.configure(text="Retest de fábrica omitido para este ONT.")
+
+    def ir_ethernet(self):
+        self._ejecutar_prueba_desde_boton("PRUEBA DE ETHERNET")
+
+    def ir_conectividad(self):
+        self._ejecutar_prueba_desde_boton("PRUEBA DE CONECTIVIDAD")
+
+    def ir_otros_puertos(self):
+        self._ejecutar_prueba_desde_boton("PRUEBA DE OTROS PUERTOS")
+
+    def ir_senales_wifi(self):
+        self._ejecutar_prueba_desde_boton("PRUEBA DE SEÑALES WIFI")
 
 
 # Para probar la vista individualmente (sin VM)
