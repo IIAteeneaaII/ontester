@@ -2,6 +2,7 @@ import customtkinter as ctk
 import sys
 from pathlib import Path
 from datetime import datetime
+from PIL import Image
 
 # Agregar la raíz del proyecto al path
 root_path = Path(__file__).parent.parent.parent.parent
@@ -15,6 +16,7 @@ from src.Frontend.navigation.botones import (
     boton_tester
 )
 
+
 class TesterView(ctk.CTkFrame):
     def __init__(self, parent, **kwargs):
         super().__init__(parent, **kwargs)
@@ -27,15 +29,45 @@ class TesterView(ctk.CTkFrame):
         left_frame = ctk.CTkFrame(self, width=200, corner_radius=0)
         left_frame.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
         left_frame.grid_propagate(False)
-        
-        # Título "Escoge tu modo"
-        titulo = ctk.CTkLabel(
-            left_frame,
-            text="Escoge tu modo",
-            font=ctk.CTkFont(size=18, weight="bold")
+
+         # ===== Logo circular en la parte superior izquierda =====
+        assets_dir = Path(__file__).parent.parent / "assets" / "icons"
+        logo_path = assets_dir / "logo_tester.png"
+
+        # Guardamos en self para que no lo borre el GC
+        self.logo_image = ctk.CTkImage(
+            light_image=Image.open(logo_path),
+            dark_image=Image.open(logo_path),
+            size=(48, 48)  # tamaño del logo
         )
-        titulo.pack(pady=(20, 30), padx=20)
+
+        logo_frame = ctk.CTkFrame(
+            left_frame,
+            width=70,
+            height=70,
+            corner_radius=35,      # radio = la mitad -> círculo
+            fg_color="#FFFFFF"     # color de fondo del círculo (ajústalo a tu tema)
+        )
+        logo_frame.pack(pady=(15, 5))
+        logo_frame.pack_propagate(False)
+
+        logo_label = ctk.CTkLabel(logo_frame, text="", image=self.logo_image)
+        logo_label.pack(expand=True)
+        # =========================================================
+
         
+        # ===== Menú desplegable "Escoge tu modo" =====
+        self.modo_var = ctk.StringVar(value="Escoge tu modo")
+        self.modo_menu = ctk.CTkOptionMenu(
+            left_frame,
+            variable=self.modo_var,
+            values=["Testeo", "Retesteo", "Etiqueta"],
+            command=self.cambiar_modo,  # <- llama al método de abajo
+            font=ctk.CTkFont(size=16, weight="bold")
+        )
+        self.modo_menu.pack(pady=(20, 30), padx=20, fill="x")
+        # =============================================
+
         # Botones importados
         boton_inicio(left_frame, command=self.ir_inicio).pack(pady=10, padx=20, fill="x")
         boton_escaneos(left_frame, command=self.ir_escaneos).pack(pady=10, padx=20, fill="x")
@@ -59,12 +91,12 @@ class TesterView(ctk.CTkFrame):
         self.update_clock()
         
         # Área de contenido principal
-        content_label = ctk.CTkLabel(
+        self.content_label = ctk.CTkLabel(
             right_frame,
             text="Área de contenido principal",
             font=ctk.CTkFont(size=16)
         )
-        content_label.pack(expand=True)
+        self.content_label.pack(expand=True)
     
     def update_clock(self):
         """Actualiza el reloj cada segundo"""
@@ -81,9 +113,16 @@ class TesterView(ctk.CTkFrame):
             time_string = time_string.replace(eng, esp)
         
         self.clock_label.configure(text=time_string)
-        # Actualizar cada 1000ms (1 segundo)
-        self.after(1000, self.update_clock)
-    
+        self.after(1000, self.update_clock)  # Actualizar cada 1000ms (1 segundo)
+
+    # ======= AQUÍ VA EL NUEVO MÉTODO =======
+    def cambiar_modo(self, modo: str):
+        """Se ejecuta cuando eliges Testeo / Retesteo / Etiqueta."""
+        print(f"Modo seleccionado: {modo}")
+        # Ejemplo: actualizar el texto del área de contenido
+        self.content_label.configure(text=f"Modo actual: {modo}")
+    # =======================================
+
     # Comandos para los botones
     def ir_inicio(self):
         print("Navegando a Inicio")
@@ -99,6 +138,7 @@ class TesterView(ctk.CTkFrame):
     
     def ir_tester(self):
         print("Navegando a Tester")
+
 
 # Para probar la vista individualmente
 if __name__ == "__main__":
