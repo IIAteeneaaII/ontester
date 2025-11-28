@@ -1138,7 +1138,7 @@ class HuaweiMixin:
                     wait.until(
                         EC.presence_of_element_located((By.ID, "name_Systeminfo"))
                     )
-                    print("[SELENIUM] Login HG8145V5 completado, menú System Information visible.")
+                    print("[SELENIUM] Login HUAWEI completado, menú System Information visible.")
                     # return True
                 except TimeoutException:
                     print("[SELENIUM] WARNING: No apareció 'name_Systeminfo' tras login (puede que el login haya fallado).")

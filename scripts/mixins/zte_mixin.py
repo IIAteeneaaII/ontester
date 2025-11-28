@@ -576,87 +576,39 @@ class ZTEMixin:
         return False
 
     def parse_zte_wifi_pass(self, driver):
-        """
-        Mostrar y leer la contraseña WiFi 2.4GHz del ZTE.
-        Se asume que nav_zte_wifi_pass() ya dejó abierto el panel de SSID1 (2.4GHz)
-        en WLAN SSID Configuration.
-        """
+        """Obtener contraseña WiFi 2.4GHz del ZTE de forma robusta."""
         try:
-            # Siempre regresar al documento principal por si quedamos en algún frame
             driver.switch_to.default_content()
 
-            # --- 1) Buscar y clickear el icono de "mostrar contraseña" ---
-            show_icon = self.find_element_anywhere(
-                driver,
-                By.ID,
-                "ShowKeyPassphrase:0",
-                desc="Icono mostrar contraseña WiFi 2.4GHz",
+            # 1) Localizar el campo de contraseña
+            pwd_field = WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.ID, "KeyPassphrase:0"))
             )
+            print("[SELENIUM] Campo KeyPassphrase:0 localizado.")
 
-            if not show_icon:
-                print("[SELENIUM] No se encontró el icono de mostrar contraseña WiFi 2.4GHz")
-                return {"band": "2.4GHz", "password": "N/A"}
+            # 2) Modificar el type="password" → "text"
+            driver.execute_script("""
+                let f = document.getElementById('KeyPassphrase:0');
+                if (f) f.setAttribute('type','text');
+            """)
+            print("[SELENIUM] Se forzó type=text en el campo de contraseña.")
 
-            # Click con JS (es lo que mejor funciona en estos GUIs)
-            try:
-                driver.execute_script("arguments[0].click();", show_icon)
-            except Exception as e:
-                print(f"[SELENIUM] Error al hacer click en icono mostrar contraseña: {e}")
-                return {"band": "2.4GHz", "password": "N/A"}
+            # 3) Leer el valor ya visible
+            password = pwd_field.get_attribute("value").strip()
 
-            # --- 2) Esperar y localizar el input visible con la pass ---
-            def get_visible_key_input(drv):
-                """Devuelve el KeyPassphrase:0 que esté visible (hay dos con el mismo id)."""
-                drv.switch_to.default_content()
+            if password:
+                print(f"[SELENIUM] Contraseña WiFi 2.4GHz obtenida: {password}")
+                return {"band": "2.4GHz", "password": password}
 
-                # Buscar en documento principal
-                candidates = drv.find_elements(By.ID, "KeyPassphrase:0")
-                for el in candidates:
-                    try:
-                        if el.is_displayed():
-                            return el
-                    except Exception:
-                        continue
+            print("[SELENIUM] Campo localizado pero vacío.")
+            return {"band": "2.4GHz", "password": "N/A"}
 
-                # Buscar en todos los frames/iframes
-                frames = drv.find_elements(By.CSS_SELECTOR, "frame, iframe")
-                for frame in frames:
-                    try:
-                        drv.switch_to.default_content()
-                        drv.switch_to.frame(frame)
-                    except Exception:
-                        continue
-
-                    candidates = drv.find_elements(By.ID, "KeyPassphrase:0")
-                    for el in candidates:
-                        try:
-                            if el.is_displayed():
-                                return el
-                        except Exception:
-                            continue
-
-                return None  # Para que el WebDriverWait siga esperando
-
-            try:
-                pwd_el = WebDriverWait(driver, 10).until(get_visible_key_input)
-            except TimeoutException:
-                print("[SELENIUM] Timeout al buscar el campo de contraseña WiFi 2.4GHz")
-                return {"band": "2.4GHz", "password": "N/A"}
-
-            if not pwd_el:
-                print("[SELENIUM] No se pudo localizar el campo de contraseña WiFi 2.4GHz")
-                return {"band": "2.4GHz", "password": "N/A"}
-
-            password = pwd_el.get_attribute("value").strip()
-            print(f"[SELENIUM] Contraseña WiFi 2.4GHz obtenida: {password}")
-
-            return {
-                "band": "2.4GHz",
-                "password": password,
-            }
+        except TimeoutException:
+            print("[SELENIUM] Timeout al buscar campo de contraseña WiFi 2.4GHz")
+            return {"band": "2.4GHz", "password": "N/A"}
 
         except Exception as e:
-            print(f"[ERROR] Ocurrió un error al intentar extraer la contraseña WiFi 2.4GHz: {e}")
+            print(f"[ERROR] Falló la extracción de contraseña ZTE: {e}")
             return {"band": "2.4GHz", "password": "N/A"}
 
     def zte_info(self, driver):

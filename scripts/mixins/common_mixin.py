@@ -873,9 +873,9 @@ class CommonMixin:
         ruta_mac = self.test_results['tests']['mac']['details']['WAN_COMFIG']
         mac = None
         for cfg in ruta_mac:
-        if cfg.get("ConnTrigger") == "AlwaysOn":
-            mac = cfg.get("WorkIFMac")  # aquí está la MAC
-            break
+            if cfg.get("ConnTrigger") == "AlwaysOn":
+                mac = cfg.get("WorkIFMac")  # aquí está la MAC
+                break
         sftVer = self.test_results['tests']['basic']['DEVINFO'].get('SoftwareVer') #sft version
         ruta_wifi = self.test_results['tests']['wifi']['details']['WLANAP']
         essids_validos = [
@@ -885,7 +885,7 @@ class CommonMixin:
         ]
         wifi24 = essids_validos[0] if essids_validos else None
         wifi5 = essids_validos[0] if essids_validos else None
-        # passWifi =
+        passWifi = self.test_results['tests']['Contraseña']['details'].get('password')
 
         # Tests
         ping = "PASS" # si llega hasta aqui es que se le puede hacer ping
