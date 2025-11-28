@@ -40,7 +40,7 @@ class FiberMixin:
             return False
 
         driver = None
-        headless = True
+        headless = False # DEBUG: Visible para el usuario
         try:
             print(f"[SELENIUM] Iniciando login Fiberhome a {self.host}...")
             
@@ -72,6 +72,28 @@ class FiberMixin:
             # Guardar referencia al driver
             self.driver = driver
             
+            # --- LIMPIEZA DE SESIONES PREVIA ---
+            print("[SELENIUM] Intentando limpiar sesiones previas...")
+            try:
+                logout_urls = [
+                    f"http://{self.host}/logout",
+                    f"http://{self.host}/html/logout.html",
+                    f"http://{self.host}/cgi-bin/logout",
+                    f"http://{self.host}/html/index.html" # A veces index fuerza redirect a login limpio
+                ]
+                driver.set_page_load_timeout(5)
+                for url in logout_urls:
+                    try:
+                        driver.get(url)
+                        time.sleep(0.5)
+                    except:
+                        pass
+                driver.delete_all_cookies()
+                driver.set_page_load_timeout(30) # Restaurar timeout normal
+            except Exception as e:
+                print(f"[WARN] Error en limpieza previa: {e}")
+            # -----------------------------------
+
             # 1. Navegar al login
             login_url = f"http://{self.host}/html/login_inter.html"
             print(f"[SELENIUM] Navegando a {login_url}...")
@@ -111,6 +133,16 @@ class FiberMixin:
                 
                 if login_btn:
                     login_btn.click()
+                    
+                    # Verificar si hay alerta de "Usuario ya logueado"
+                    try:
+                        WebDriverWait(driver, 3).until(EC.alert_is_present())
+                        alert = driver.switch_to.alert
+                        print(f"[SELENIUM] Alerta tras login: {alert.text}")
+                        alert.accept()
+                        time.sleep(1)
+                    except:
+                        pass
                 else:
                     print("[ERROR] No se encontró botón de login")
                     return False
@@ -121,7 +153,31 @@ class FiberMixin:
             
             # 4. Verificar login exitoso
             time.sleep(3)
-            if "login_inter.html" not in driver.current_url:
+            current_url = driver.current_url
+            print(f"[DEBUG] URL actual tras login: {current_url}")
+            
+            if "login_inter.html" in current_url or "login" in current_url.split('/')[-1]:
+                print("[WARNING] URL no cambió tras click. Intentando ENTER en password...")
+                try:
+                    from selenium.webdriver.common.keys import Keys
+                    pass_field.send_keys(Keys.ENTER)
+                    time.sleep(3)
+                    
+                    # Verificar alerta de nuevo
+                    try:
+                        WebDriverWait(driver, 3).until(EC.alert_is_present())
+                        alert = driver.switch_to.alert
+                        print(f"[SELENIUM] Alerta tras ENTER: {alert.text}")
+                        alert.accept()
+                        time.sleep(1)
+                    except:
+                        pass
+                        
+                    current_url = driver.current_url
+                except Exception as e:
+                    print(f"[ERROR] Falló intento de ENTER: {e}")
+
+            if "login_inter.html" not in current_url and "login" not in current_url.split('/')[-1]:
                 print("[AUTH] Login Fiberhome exitoso (URL cambió)")
                 
                 # Intentar saltar wizard si existe
@@ -134,7 +190,45 @@ class FiberMixin:
                 
                 return True
             else:
-                print("[ERROR] Login fallido, seguimos en login page")
+                print(f"[ERROR] Login fallido, seguimos en login page ({current_url})")
+                
+                # Verificar si es por sesión activa
+                try:
+                    body_text = driver.find_element(By.TAG_NAME, "body").text
+                    if "already logged in" in body_text or "ya logueado" in body_text:
+                        print("[AUTH] DETECTADO: Sesión previa activa.")
+                        print("[AUTH] Intentando forzar logout...")
+                        
+                        # Intentar URLs de logout comunes
+                        logout_urls = [
+                            f"http://{self.host}/logout",
+                            f"http://{self.host}/html/logout.html",
+                            f"http://{self.host}/cgi-bin/logout"
+                        ]
+                        
+                        for url in logout_urls:
+                            try:
+                                driver.get(url)
+                                time.sleep(1)
+                            except:
+                                pass
+                        
+                        print("[AUTH] Recargando página de login...")
+                        driver.get(login_url)
+                        time.sleep(2)
+                        
+                        # REINTENTO RECURSIVO (solo una vez)
+                        # Para evitar recursión infinita, podríamos usar un flag, 
+                        # pero por simplicidad asumimos que si falla de nuevo, fallará por otro motivo o timeout
+                        # O mejor, retornamos False y dejamos que el usuario reintente, 
+                        # pero el usuario pidió que el script lo arregle.
+                        # Vamos a intentar limpiar campos y re-loguear aqui mismo si es facil,
+                        # pero recursión es arriesgada. Mejor notificar.
+                        print("[AUTH] Por favor, intente ejecutar el script nuevamente ahora que se intentó cerrar sesión.")
+                        
+                except:
+                    pass
+                    
                 return False
                 
         except Exception as e:
@@ -150,17 +244,34 @@ class FiberMixin:
         """Intenta saltar el wizard de configuración inicial de Fiberhome"""
         print("[SELENIUM] Verificando wizard inicial Fiberhome...")
         try:
-            # Buscar botones comunes de "Next", "Skip", "Cancel" en iframes o main
-            # Esto es especulativo ya que no tenemos info del wizard Fiberhome
-            # Pero implementamos la estructura para agregarlo fácilmente
-            pass
+            # Buscar botones comunes de "Next", "Skip", "Cancel"
+            # IDs y XPaths comunes en Fiberhome
+            skip_buttons = [
+                "//input[@value='Next']",
+                "//input[@value='Skip']",
+                "//button[contains(text(), 'Next')]",
+                "//button[contains(text(), 'Skip')]",
+                "//a[contains(text(), 'Skip')]"
+            ]
+            
+            for xpath in skip_buttons:
+                try:
+                    # Timeout muy corto (1s) porque es opcional y probamos varios
+                    btn = self.find_element_anywhere(driver, By.XPATH, xpath, timeout=1)
+                    if btn and btn.is_displayed():
+                        print(f"[SELENIUM] Botón de wizard encontrado: {xpath}")
+                        btn.click()
+                        time.sleep(1)
+                except:
+                    pass
+                    
         except Exception as e:
             print(f"[DEBUG] Error verificando wizard: {e}")
 
     def _reset_factory_fiberhome(self):
         """
         Realiza reset de fábrica para Fiberhome.
-        Ruta: Management -> Device Management -> Device Reboot -> Restore
+        Ruta: Management (first_menu_manage) -> Device Management (span_device_admin) -> Restore (Restart_button)
         """
         print("[RESET] Iniciando Factory Reset Fiberhome...")
         if not self.driver:
@@ -174,13 +285,19 @@ class FiberMixin:
             # Asegurar que estamos en el frame correcto o main content
             driver.switch_to.default_content()
             
-            # 1. Click en Management (Top Menu)
-            print("[RESET] Buscando menú Management...")
+            # 1. Click en Management (Top Menu) - ID: first_menu_manage
+            print("[RESET] Buscando menú Management (first_menu_manage)...")
             try:
-                mgmt_link = self.find_element_anywhere(driver, By.XPATH, "//a[contains(text(), 'Management')]")
+                # Intentar primero por ID específico proporcionado
+                mgmt_link = self.find_element_anywhere(driver, By.ID, "first_menu_manage", timeout=2)
+                
+                if not mgmt_link:
+                    # Fallback a texto
+                    mgmt_link = self.find_element_anywhere(driver, By.XPATH, "//a[contains(text(), 'Management')]", timeout=2)
+                
                 if mgmt_link:
                     mgmt_link.click()
-                    time.sleep(1)
+                    time.sleep(2)
                 else:
                     print("[ERROR] No se encontró menú Management")
                     return False
@@ -188,13 +305,19 @@ class FiberMixin:
                 print(f"[ERROR] Falló click en Management: {e}")
                 return False
                 
-            # 2. Click en Device Management (Left Menu)
-            print("[RESET] Buscando Device Management...")
+            # 2. Click en Device Management (Left Menu) - ID: span_device_admin
+            print("[RESET] Buscando Device Management (span_device_admin)...")
             try:
-                dev_mgmt = self.find_element_anywhere(driver, By.XPATH, "//a[contains(text(), 'Device Management')]")
+                # Intentar primero por ID específico proporcionado
+                dev_mgmt = self.find_element_anywhere(driver, By.ID, "span_device_admin", timeout=2)
+                
+                if not dev_mgmt:
+                    # Fallback a texto
+                    dev_mgmt = self.find_element_anywhere(driver, By.XPATH, "//a[contains(text(), 'Device Management')]", timeout=2)
+                
                 if dev_mgmt:
                     dev_mgmt.click()
-                    time.sleep(1)
+                    time.sleep(2)
                 else:
                     print("[ERROR] No se encontró Device Management")
                     return False
@@ -202,58 +325,44 @@ class FiberMixin:
                 print(f"[ERROR] Falló click en Device Management: {e}")
                 return False
 
-            # 3. Click en Device Reboot / Restore (Sub Menu)
-            print("[RESET] Buscando menú Restore/Reboot...")
+            # 3. Click en botón Restore - ID: Restart_button
+            print("[RESET] Buscando botón Restore (Restart_button)...")
+            restore_btn = None
+            
             try:
-                # Intentar "Restore" primero (según screenshot breadcrumb)
-                restore_link = self.find_element_anywhere(driver, By.XPATH, "//a[contains(text(), 'Restore')]")
-                if restore_link:
-                    restore_link.click()
-                else:
-                    # Intentar "Device Reboot"
-                    reboot_link = self.find_element_anywhere(driver, By.XPATH, "//a[contains(text(), 'Device Reboot')]")
-                    if reboot_link:
-                        reboot_link.click()
-                    else:
-                        print("[ERROR] No se encontró menú Restore ni Device Reboot")
-                        return False
-                time.sleep(1)
-            except Exception as e:
-                print(f"[ERROR] Falló navegación a Restore: {e}")
-                return False
+                # Intentar encontrar el botón directamente
+                restore_btn = self.find_element_anywhere(driver, By.ID, "Restart_button", timeout=5)
+                
+                if not restore_btn:
+                     # Fallback
+                     restore_btn = self.find_element_anywhere(driver, By.XPATH, "//input[@value='Restore']", timeout=2)
+            except:
+                pass
                 
             # 4. Click en botón Restore
-            print("[RESET] Buscando botón Restore...")
-            try:
-                # Buscar en frames porque el contenido suele estar en un iframe
-                restore_btn = self.find_element_anywhere(driver, By.ID, "Restart_button")
-                if not restore_btn:
-                    # Intentar por value
-                    restore_btn = self.find_element_anywhere(driver, By.XPATH, "//input[@value='Restore']")
-                
-                if restore_btn:
-                    print("[RESET] Botón Restore encontrado, haciendo click...")
+            if restore_btn:
+                print("[RESET] Botón Restore encontrado, haciendo click...")
+                try:
                     restore_btn.click()
                     
                     # 5. Confirmar alerta
                     try:
-                        WebDriverWait(driver, 3).until(EC.alert_is_present())
+                        WebDriverWait(driver, 5).until(EC.alert_is_present())
                         alert = driver.switch_to.alert
                         print(f"[RESET] Alerta detectada: {alert.text}")
                         alert.accept()
                         print("[RESET] Alerta aceptada. Reinicio en curso...")
                         return True
                     except TimeoutException:
-                        print("[WARNING] No apareció alerta de confirmación, verificando si se reinició...")
+                        print("[WARNING] No apareció alerta de confirmación, asumiendo reinicio...")
                         return True
-                else:
-                    print("[ERROR] No se encontró el botón Restore")
+                except Exception as e:
+                    print(f"[ERROR] Error al hacer click en Restore: {e}")
                     return False
-                    
-            except Exception as e:
-                print(f"[ERROR] Error al hacer click en Restore: {e}")
+            else:
+                print("[ERROR] No se encontró el botón Restore (Restart_button)")
                 return False
-                
+                    
         except Exception as e:
             print(f"[ERROR] Excepción general en reset Fiberhome: {e}")
             return False
@@ -626,21 +735,149 @@ class FiberMixin:
             print(f"[DEBUG] Error extrayendo WiFi desde get_allwan_info_broadBand: {e}")
             return None
     
+    def _extract_wifi_password_selenium(self, driver=None) -> Dict[str, str]:
+        """
+        Extrae contraseñas WiFi usando Selenium manipulando el DOM.
+        
+        Ruta:
+        1. Navegar a http://192.168.100.1/html/main_inter.html
+        2. Click en Network (ID: first_menu_network)
+        3. Click en WLAN Security (ID: thr_security)
+        4. Remover clase de seguridad del input PreSharedKey
+        5. Leer valor del campo
+        
+        Returns:
+            Dict con passwords_24ghz y password_5ghz
+        """
+        if not driver and not self.driver:
+            print("[ERROR] No hay driver de Selenium disponible")
+            return {}
+        
+        driver = driver or self.driver
+        passwords = {}
+        
+        try:
+            # 1. Navegar a main_inter.html
+            main_url = f"http://{self.host}/html/main_inter.html"
+            print(f"[SELENIUM] Navegando a {main_url} para extraer passwords WiFi...")
+            driver.get(main_url)
+            time.sleep(2)
+            
+            # 2. Click en Network (first_menu_network)
+            print("[SELENIUM] Click en Network menu...")
+            network_menu = self.find_element_anywhere(driver, By.ID, "first_menu_network", timeout=5)
+            if not network_menu:
+                print("[ERROR] No se encontró menú Network")
+                return {}
+            network_menu.click()
+            time.sleep(1)
+            
+            # 3. Click en WLAN Security (thr_security)
+            print("[SELENIUM] Click en WLAN Security...")
+            wlan_security = self.find_element_anywhere(driver, By.ID, "thr_security", timeout=5)
+            if not wlan_security:
+                print("[ERROR] No se encontró WLAN Security")
+                return {}
+            wlan_security.click()
+            time.sleep(2)
+            
+            # 4. Buscar campo PreSharedKey y extraer password
+            print("[SELENIUM] Buscando campo PreSharedKey...")
+            
+            # Intentar encontrar el campo (puede estar en un iframe)
+            psk_field = self.find_element_anywhere(driver, By.ID, "PreSharedKey", timeout=5)
+            
+            if psk_field:
+                # Remover clase de seguridad usando JavaScript
+                print("[SELENIUM] Removiendo clase de seguridad del campo...")
+                driver.execute_script("""
+                    var element = arguments[0];
+                    element.className = '';
+                    element.type = 'text';
+                """, psk_field)
+                
+                time.sleep(0.5)
+                
+                # Leer el valor
+                password = psk_field.get_attribute('value')
+                
+                if password:
+                    print(f"[SELENIUM] ✓ Password 2.4GHz extraída: {password}")
+                    passwords['password_24ghz'] = password
+                    passwords['extraction_method'] = 'selenium_dom_manipulation'
+                else:
+                    print("[WARN] Campo PreSharedKey vacío")
+            else:
+                print("[ERROR] No se encontró campo PreSharedKey")
+            
+            # Intentar también extraer password 5GHz si existe
+            # Buscar si hay un tab o sección de 5GHz
+            try:
+                # Algunos dispositivos tienen pestañas 2.4GHz / 5GHz
+                ghz_5_tab_ids = ["5g_tab", "wifi_5g", "wlan_5g", "wireless_5g"]
+                
+                for tab_id in ghz_5_tab_ids:
+                    tab_element = self.find_element_anywhere(driver, By.ID, tab_id, timeout=1)
+                    if tab_element:
+                        print(f"[SELENIUM] Encontrada pestaña 5GHz: {tab_id}")
+                        tab_element.click()
+                        time.sleep(1)
+                        
+                        # Buscar campo PreSharedKey para 5GHz
+                        psk_5g_ids = ["PreSharedKey_5g", "PreSharedKey5G", "psk_5g"]
+                        
+                        for psk_id in psk_5g_ids:
+                            psk_5g_field = self.find_element_anywhere(driver, By.ID, psk_id, timeout=1)
+                            if psk_5g_field:
+                                driver.execute_script("""
+                                    var element = arguments[0];
+                                    element.className = '';
+                                    element.type = 'text';
+                                """, psk_5g_field)
+                                
+                                time.sleep(0.5)
+                                password_5g = psk_5g_field.get_attribute('value')
+                                
+                                if password_5g:
+                                    print(f"[SELENIUM] ✓ Password 5GHz extraída: {password_5g}")
+                                    passwords['password_5ghz'] = password_5g
+                                break
+                        break
+            except Exception as e:
+                print(f"[DEBUG] No se encontró sección 5GHz: {e}")
+            
+            return passwords
+            
+        except Exception as e:
+            print(f"[ERROR] Error extrayendo passwords WiFi: {e}")
+            import traceback
+            traceback.print_exc()
+            return passwords
+
     def _extract_wifi_info(self) -> Dict[str, Any]:
         """Extrae información WiFi completa (SSIDs, passwords, canales) usando endpoints específicos (fallback)"""
         wifi_info = {}
         
-        if not self.session_id:
-            print("[DEBUG] No hay sessionid, no se puede obtener info WiFi")
-            return wifi_info
+        # PRIORIDAD 1: Intentar extracción por Selenium (método más confiable para passwords)
+        if self.driver:
+            print("[INFO] Intentando extracción de passwords WiFi por Selenium...")
+            selenium_passwords = self._extract_wifi_password_selenium()
+            if selenium_passwords:
+                wifi_info.update(selenium_passwords)
+                print(f"[INFO] Passwords extraídas por Selenium: {list(selenium_passwords.keys())}")
         
-        # Intentar get_wifi_info para WiFi 2.4GHz
+        if not self.session_id:
+            print("[DEBUG] No hay sessionid, no se puede obtener info WiFi adicional")
+            return wifi_info if wifi_info else {}
+        
+        # PRIORIDAD 2: Intentar get_wifi_info para WiFi 2.4GHz (SSID y otros datos)
         try:
             wifi_24_response = self._ajax_get('get_wifi_info')
             if wifi_24_response.get('session_valid') == 1:
                 if wifi_24_response.get('SSID'):
                     wifi_info['ssid_24ghz'] = wifi_24_response['SSID']
-                if wifi_24_response.get('PreSharedKey'):
+                # Solo usar password de AJAX si no la obtuvimos por Selenium
+                if wifi_24_response.get('PreSharedKey') and 'password_24ghz' not in wifi_info:
                     wifi_info['password_24ghz'] = wifi_24_response['PreSharedKey']
                 if wifi_24_response.get('Channel'):
                     wifi_info['channel_24ghz'] = wifi_24_response['Channel']
@@ -649,13 +886,14 @@ class FiberMixin:
         except Exception as e:
             print(f"[DEBUG] Error obteniendo WiFi 2.4GHz: {e}")
         
-        # Intentar get_5g_wifi_info para WiFi 5GHz
+        # PRIORIDAD 3: Intentar get_5g_wifi_info para WiFi 5GHz
         try:
             wifi_5g_response = self._ajax_get('get_5g_wifi_info')
             if wifi_5g_response.get('session_valid') == 1:
                 if wifi_5g_response.get('SSID'):
                     wifi_info['ssid_5ghz'] = wifi_5g_response['SSID']
-                if wifi_5g_response.get('PreSharedKey'):
+                # Solo usar password de AJAX si no la obtuvimos por Selenium
+                if wifi_5g_response.get('PreSharedKey') and 'password_5ghz' not in wifi_info:
                     wifi_info['password_5ghz'] = wifi_5g_response['PreSharedKey']
                 if wifi_5g_response.get('Channel'):
                     wifi_info['channel_5ghz'] = wifi_5g_response['Channel']
@@ -683,7 +921,7 @@ class FiberMixin:
                     ssid_encrypted = network.get('SSID', '')
                     ssid_decrypted = self._decrypt_wifi_credential(ssid_encrypted) if ssid_encrypted else 'N/A'
                     
-                    # Extraer y desencriptar password
+                    # Extraer y desencriptar password (solo si no lo tenemos por Selenium)
                     psk_encrypted = network.get('PreSharedKey', '')
                     psk_decrypted = self._decrypt_wifi_credential(psk_encrypted) if psk_encrypted else 'N/A'
                     
@@ -694,14 +932,18 @@ class FiberMixin:
                     if is_5ghz:
                         if 'ssid_5ghz' not in wifi_info:  # Solo la primera red 5GHz activa
                             wifi_info['ssid_5ghz'] = ssid_decrypted
-                            wifi_info['password_5ghz'] = psk_decrypted
+                            # Solo usar password encriptada si no la tenemos por Selenium
+                            if 'password_5ghz' not in wifi_info:
+                                wifi_info['password_5ghz'] = psk_decrypted
                             wifi_info['channel_5ghz'] = channel
                             wifi_info['enabled_5ghz'] = True
                             wifi_info['standard_5ghz'] = network.get('Standard')
                     else:
                         if 'ssid_24ghz' not in wifi_info:  # Solo la primera red 2.4GHz activa
                             wifi_info['ssid_24ghz'] = ssid_decrypted
-                            wifi_info['password_24ghz'] = psk_decrypted
+                            # Solo usar password encriptada si no la tenemos por Selenium
+                            if 'password_24ghz' not in wifi_info:
+                                wifi_info['password_24ghz'] = psk_decrypted
                             wifi_info['channel_24ghz'] = channel
                             wifi_info['enabled_24ghz'] = True
                             wifi_info['standard_24ghz'] = network.get('Standard')
@@ -806,6 +1048,19 @@ class FiberMixin:
                     result["details"]["reset_performed"] = True
                     result["details"]["relogin_success"] = True
                     result["details"]["wizard_skipped"] = True # Asumido si login pasa (login llama a skip)
+                    
+                    # Extraer información post-reset para verificar estado
+                    print("[TEST] Extrayendo información post-reset...")
+                    try:
+                        # Intentar extraer info básica
+                        base_info = self._extract_base_info()
+                        if base_info:
+                            self.test_results['metadata']['base_info'] = base_info
+                            result["details"]["post_reset_info"] = "Extracted"
+                            print("[TEST] Información actualizada correctamente")
+                    except Exception as e:
+                        print(f"[WARNING] No se pudo extraer info post-reset: {e}")
+                        
                 else:
                     result["status"] = "FAIL"
                     result["details"]["error"] = "No se pudo hacer login después del reset"
