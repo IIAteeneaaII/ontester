@@ -17,6 +17,7 @@ def boton_escaneos(parent, command=None):
 def boton_propiedades(parent, command=None):
     return ctk.CTkButton(
         parent,
+        
         text="Propiedades",
         command=command
     )
