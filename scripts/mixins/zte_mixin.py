@@ -476,99 +476,187 @@ class ZTEMixin:
             return False
 
     def nav_zte_wifi_pass(self, driver):
-        """Navega para obtener la contraseña Wi-Fi para ZTE"""
+        """Local Network -> WLAN -> WLAN Basic -> WLAN SSID Configuration (SSID1 2.4GHz)"""
+        # Siempre arrancar desde la raíz del GUI ZTE
+        driver.switch_to.default_content()
         driver.get(self.base_url)
-        # Menú 'Local Network'
+
+        # 1) Menú superior: Local Network
         self.click_anywhere(
             driver,
             [
                 (By.ID, "localnet"),
-                (By.XPATH, "//a[@id='localnet' and @menupage='localNetStatus']"),
+                (By.XPATH, "//*[@id='localnet' or @menupage='localNetStatus']"),
             ],
             "Local Network",
-            timeout=10  # Aumentar el tiempo de espera
         )
 
-        # Submenú 'WLAN'
+        # 2) Submenú: WLAN
         self.click_anywhere(
             driver,
             [
                 (By.ID, "wlanConfig"),
-                (By.XPATH, "//a[@id='wlanConfig' and @menupage='wlanBasic']"),
+                (By.XPATH, "//*[@id='wlanConfig' or @menupage='wlanBasic']"),
             ],
             "WLAN",
-            timeout=10
         )
 
-        # Sección 'WLAN Basic'
+        # 3) Tercer nivel: WLAN Basic
         self.click_anywhere(
             driver,
             [
                 (By.ID, "wlanBasic"),
-                (By.XPATH, "//p[@id='wlanBasic' and @menupage='wlanBasic']"),
+                (By.XPATH, "//*[@id='wlanBasic' or contains(normalize-space(.),'WLAN Basic')]"),
             ],
             "WLAN Basic",
-            timeout=10
         )
 
-        # Submenú 'WLAN SSID Configuration'
+        # 4) Barra "WLAN SSID Configuration"
         self.click_anywhere(
             driver,
             [
                 (By.ID, "WLANSSIDConfBar"),
-                (By.XPATH, "//h1[@id='WLANSSIDConfBar' and contains(text(), 'WLAN SSID')]"),
+                (By.XPATH, "//*[@id='WLANSSIDConfBar']"),
             ],
             "WLAN SSID Configuration",
-            timeout=10
         )
 
-        # Clic en la SSID (SSID1)
-        # self.click_anywhere(
-        #     driver,
-        #     [
-        #         (By.ID, "instName_WLANSSIDConf:0"),
-        #         (By.XPATH, "//a[@id='instName_WLANSSIDConf:0' and contains(text(), 'SSID1')]"),
-        #     ],
-        #     "SSID1 (2.4GHz)",
-        #     timeout=10
-        # )
-
-    def parse_zte_wifi_pass(self, driver):
-        """Obtiene la contraseña Wi-Fi del modelo ZTE"""
-        try:
-            # Asegúrate de que el checkbox para mostrar la contraseña esté siendo clickeado
-            show_pass_el = self.find_element_anywhere(
+        # 5) Esperar (con reintentos) a que el AJAX cargue la instancia SSID1 (2.4GHz)
+        max_attempts = 4
+        for attempt in range(max_attempts):
+            # usamos find_element_anywhere porque ya recorre todos los frames/iframes
+            ssid1 = self.find_element_anywhere(
                 driver,
                 By.ID,
-                "ShowKeyPassphrase:0",  # id para habilitar mostrar contraseña
-                desc="Checkbox para mostrar la contraseña WiFi",
+                "instName_WLANSSIDConf:0",
+                desc="SSID1 (2.4GHz)",
+                timeout=6,  # espera por intento
             )
 
-            # Esperar a que el icono de mostrar contraseña sea visible
-            WebDriverWait(driver, 20).until(
-                EC.element_to_be_clickable((By.ID, "ShowKeyPassphrase:0"))
-            )
-            
-            # Hacer clic para mostrar la contraseña
-            driver.execute_script("arguments[0].click();", show_pass_el)
+            if ssid1:
+                print("[SELENIUM] SSID1 (2.4GHz) listo en WLAN SSID Configuration")
+                # nos aseguramos de que quede expandido (por si acaso)
+                try:
+                    driver.execute_script("arguments[0].click();", ssid1)
+                except Exception:
+                    pass
+                return True
 
-            # Esperar el campo de la contraseña
-            pwd_el = WebDriverWait(driver, 20).until(  # Aumentamos el tiempo de espera aquí
-                EC.visibility_of_element_located((By.ID, "KeyPassphrase:0"))
+            # Si no se encontró, reintentamos forzando una recarga ligera del panel
+            print(
+                f"[SELENIUM] Intento {attempt+1}/{max_attempts}: "
+                "Panel SSID1 no disponible. Reintentando recarga AJAX..."
             )
+
+            try:
+                driver.switch_to.default_content()
+                # re-clic en la barra de SSID Configuration
+                self.click_anywhere(
+                    driver,
+                    [
+                        (By.ID, "WLANSSIDConfBar"),
+                        (By.XPATH, "//*[@id='WLANSSIDConfBar']"),
+                    ],
+                    "WLAN SSID Configuration (re-click)",
+                )
+                # algunos firmwares usan este input oculto para refrescar
+                driver.execute_script(
+                    """
+                    var btn = document.getElementById('WLANSSIDConf_Refresh_button');
+                    if (btn) { btn.click(); }
+                    """
+                )
+            except Exception:
+                # si algo sale mal aquí, sólo esperamos y volvemos a intentar
+                pass
+
+            time.sleep(3)  # pequeña espera antes del siguiente intento
+
+        print("[ERROR] No se logró preparar el panel SSID1 2.4GHz :(")
+        return False
+
+    def parse_zte_wifi_pass(self, driver):
+        """
+        Mostrar y leer la contraseña WiFi 2.4GHz del ZTE.
+        Se asume que nav_zte_wifi_pass() ya dejó abierto el panel de SSID1 (2.4GHz)
+        en WLAN SSID Configuration.
+        """
+        try:
+            # Siempre regresar al documento principal por si quedamos en algún frame
+            driver.switch_to.default_content()
+
+            # --- 1) Buscar y clickear el icono de "mostrar contraseña" ---
+            show_icon = self.find_element_anywhere(
+                driver,
+                By.ID,
+                "ShowKeyPassphrase:0",
+                desc="Icono mostrar contraseña WiFi 2.4GHz",
+            )
+
+            if not show_icon:
+                print("[SELENIUM] No se encontró el icono de mostrar contraseña WiFi 2.4GHz")
+                return {"band": "2.4GHz", "password": "N/A"}
+
+            # Click con JS (es lo que mejor funciona en estos GUIs)
+            try:
+                driver.execute_script("arguments[0].click();", show_icon)
+            except Exception as e:
+                print(f"[SELENIUM] Error al hacer click en icono mostrar contraseña: {e}")
+                return {"band": "2.4GHz", "password": "N/A"}
+
+            # --- 2) Esperar y localizar el input visible con la pass ---
+            def get_visible_key_input(drv):
+                """Devuelve el KeyPassphrase:0 que esté visible (hay dos con el mismo id)."""
+                drv.switch_to.default_content()
+
+                # Buscar en documento principal
+                candidates = drv.find_elements(By.ID, "KeyPassphrase:0")
+                for el in candidates:
+                    try:
+                        if el.is_displayed():
+                            return el
+                    except Exception:
+                        continue
+
+                # Buscar en todos los frames/iframes
+                frames = drv.find_elements(By.CSS_SELECTOR, "frame, iframe")
+                for frame in frames:
+                    try:
+                        drv.switch_to.default_content()
+                        drv.switch_to.frame(frame)
+                    except Exception:
+                        continue
+
+                    candidates = drv.find_elements(By.ID, "KeyPassphrase:0")
+                    for el in candidates:
+                        try:
+                            if el.is_displayed():
+                                return el
+                        except Exception:
+                            continue
+
+                return None  # Para que el WebDriverWait siga esperando
+
+            try:
+                pwd_el = WebDriverWait(driver, 10).until(get_visible_key_input)
+            except TimeoutException:
+                print("[SELENIUM] Timeout al buscar el campo de contraseña WiFi 2.4GHz")
+                return {"band": "2.4GHz", "password": "N/A"}
+
+            if not pwd_el:
+                print("[SELENIUM] No se pudo localizar el campo de contraseña WiFi 2.4GHz")
+                return {"band": "2.4GHz", "password": "N/A"}
+
             password = pwd_el.get_attribute("value").strip()
+            print(f"[SELENIUM] Contraseña WiFi 2.4GHz obtenida: {password}")
 
             return {
-                "band": "2.4GHz",  # También podría incluir la banda dependiendo de la implementación
+                "band": "2.4GHz",
                 "password": password,
             }
 
-        except TimeoutException:
-            print("[SELENIUM] No se pudo encontrar la contraseña WiFi 2.4GHz")
-            return {"band": "2.4GHz", "password": "N/A"}
-
         except Exception as e:
-            print(f"[ERROR] Ocurrió un error al intentar extraer la contraseña WiFi: {e}")
+            print(f"[ERROR] Ocurrió un error al intentar extraer la contraseña WiFi 2.4GHz: {e}")
             return {"band": "2.4GHz", "password": "N/A"}
 
     def zte_info(self, driver):
@@ -659,14 +747,15 @@ class ZTEMixin:
                 self.test_results["tests"][result["name"]] = result
 
             # Funcion adicional para obtener la contraseña del wifi:
-            self.nav_zte_wifi_pass(driver) # Navegacion
-            pswd = self.parse_zte_wifi_pass(driver) # Obtencion
-            result = {
-                "name": "Contraseña",
-                "status": pswd.get("error", {}).get("str") == "SUCC",
-                "details": pswd,          # aquí va el json parseado de ese XML
-            }
-            self.test_results["tests"][result["name"]] = result
+            nav_bool = self.nav_zte_wifi_pass(driver) # Navegacion
+            if (nav_bool):
+                pswd = self.parse_zte_wifi_pass(driver) # Obtencion
+                result = {
+                    "name": "Contraseña",
+                    "status": pswd.get("error", {}).get("str") == "SUCC",
+                    "details": pswd,          # aquí va el json parseado de ese XML
+                }
+                self.test_results["tests"][result["name"]] = result
             #Guardar a archivo
             self.save_results2("test_mod002")
         except Exception as e:

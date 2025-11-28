@@ -849,3 +849,88 @@ class CommonMixin:
         except Exception as e:
             return {"success": False, "error": str(e)}
     
+    def _resultadosFiber(self):
+        # Valores informativos
+        sn = self.test_results['metadata']['base_info']['raw_data'].get('gponsn') #sn
+        mac = self.test_results['metadata']['base_info']['raw_data'].get('brmac') #mac
+        sftVer = self.test_results['metadata']['base_info']['raw_data'].get('SoftwareVersion') #nombre sft
+        wifi24 = self.test_results['metadata']['base_info']['wifi_info'].get('ssid_24ghz') #nombre wifi 2.4
+        wifi5 = self.test_results['metadata']['base_info']['wifi_info'].get('ssid_5ghz') #nombre wifi 2.4
+        # passWifi = 
+
+        # Tests
+        ping = self.test_results['tests']['PING_CONNECTIVITY'].get('status') # pass
+        reset = self.test_results['tests']['FACTORY_RESET_PASS'].get('status') # pass
+        usb = self.test_results['tests']['FACTORY_RESET_PASS'].get('status') # pass
+        tx = self.test_results['metadata']['base_info'].get('tx_power_dbm') # valor negativo
+        rx = self.test_results['metadata']['base_info'].get('rx_power_dbm') # valor negativo
+        w24 = self.test_results['tests']['WIFI_24GHZ']['details'].get('enabled') # true
+        w5 = self.test_results['tests']['WIFI_5GHZ']['details'].get('enabled') # true
+    
+    def _resultadosZTE(self):
+        # Valores informativos
+        sn = self.test_results['metadata'].get('serial_number') #sn
+        ruta_mac = self.test_results['tests']['mac']['details']['WAN_COMFIG']
+        mac = None
+        for cfg in ruta_mac:
+        if cfg.get("ConnTrigger") == "AlwaysOn":
+            mac = cfg.get("WorkIFMac")  # aquí está la MAC
+            break
+        sftVer = self.test_results['tests']['basic']['DEVINFO'].get('SoftwareVer') #sft version
+        ruta_wifi = self.test_results['tests']['wifi']['details']['WLANAP']
+        essids_validos = [
+            ap["ESSID"]
+            for ap in wlanaps
+            if "ESSID" in ap and "SSID" not in ap["ESSID"]
+        ]
+        wifi24 = essids_validos[0] if essids_validos else None
+        wifi5 = essids_validos[0] if essids_validos else None
+        # passWifi =
+
+        # Tests
+        ping = "PASS" # si llega hasta aqui es que se le puede hacer ping
+        reset = True # ya está implementado y si no se resetea no hace nada
+        usb_ruta = self.test_results['tests']['usb']['details'] # ruta donde estará o no el valor buscado
+        usb = "USBDEV" in usb_ruta # True or False
+        tx = self.test_results['tests']['fibra']['details']['PON_OPTICALPARA'].get('RxPower') # valor negativo
+        rx = self.test_results['tests']['fibra']['details']['PON_OPTICALPARA'].get('TxPower') # valor negativo
+        w24 = self.test_results['tests']['wifi']['details']['WLANSETTING'][0]["RadioStatus"] # valor 1 si activo
+        w5 = self.test_results['tests']['wifi']['details']['WLANSETTING'][1]["RadioStatus"] # valor 1 si activo
+
+    def _resultadosHuawei(self):
+        # Valores informativos
+        sn = self.test_results['metadata'].get('serial_number') #sn
+        mac = self.test_results['tests']['hw_mac'].get('data') # mac
+        sftVer = self.test_results['tests']['hw_device']['data'].get('software_version') # sft version
+        wifi24 = self.test_results['tests']['hw_wifi24']['data'].get('ssid') # nombre wifi
+        wifi5 = self.test_results['tests']['hw_wifi5']['data'].get('ssid') # nombre wifi
+        passWifi = self.test_results['tests']['hw_wifi24_pass']['data'].get('password') # pass wifi
+
+        # Tests
+        ping = "PASS" # sin poder hacer ping no se podría avanzar tanto
+        reset = True # ya se resetea
+        usb = self.test_results['tests']['hw_usb']['data'].get('connected') # true or false
+        tx = self.test_results['tests']['hw_optical']['data'].get('tx_optical_power') # -- dBm si no tiene conexion
+        rx = self.test_results['tests']['hw_optical']['data'].get('rx_optical_power') # -- dBm si no tiene conexion
+        w24 = self.test_results['tests']['hw_wifi24']['data'].get('status') # Enabled si true
+        w5 = self.test_results['tests']['hw_wifi5']['data'].get('status') # Enabled si true
+
+    # Aqui voy a poner el resultado de las pruebas de todos los modelos
+    # PD para Atenea, si quieres puedes modificarla para que devuelva un Dict o algo
+    def _resultados_finales(self):
+        # Identificar el modelo
+        if (self.model == "MOD001"):
+            #Fiber | ont
+            self._resultadosFiber()
+        elif (self.model == "MOD002"):
+            #zte | ont
+            self._resultadosZTE()
+        elif (self.model == "MOD003" or self.model == "MOD004" or self.model == "MOD005"):
+            #huawei | ont
+            self._resultadosHuawei()
+        elif (self.model == "MOD006"):
+            #grandstream | empresarial
+            print("A este modelo aun le falta")
+        else:
+            #otro modelo
+            print("Sin reporte de resultados, modelo no admitido")

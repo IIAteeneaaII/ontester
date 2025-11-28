@@ -956,7 +956,7 @@ class HuaweiMixin:
                     "error": str(e)
                 }
 
-        self.save_results2("test_hg8145v5")
+        self.save_results2("test_mod003-mod005")
         #print(self.test_results)
 
     def _login_huawei(self) -> bool:
