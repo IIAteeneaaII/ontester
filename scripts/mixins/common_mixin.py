@@ -856,7 +856,7 @@ class CommonMixin:
         sftVer = self.test_results['metadata']['base_info']['raw_data'].get('SoftwareVersion') #nombre sft
         wifi24 = self.test_results['metadata']['base_info']['wifi_info'].get('ssid_24ghz') #nombre wifi 2.4
         wifi5 = self.test_results['metadata']['base_info']['wifi_info'].get('ssid_5ghz') #nombre wifi 2.4
-        # passWifi = 
+        passWifi = self.test_results['tests']['WIFI_24GHZ']['details'].get('password_unencrypted') # contraseña
 
         # Tests
         ping = self.test_results['tests']['PING_CONNECTIVITY'].get('status') # pass

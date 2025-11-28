@@ -72,34 +72,83 @@ class FiberMixin:
             # Guardar referencia al driver
             self.driver = driver
             
-            # --- LIMPIEZA DE SESIONES PREVIA ---
-            print("[SELENIUM] Intentando limpiar sesiones previas...")
+            # --- LIMPIEZA DE SESIONES PREVIA (MEJORADA CON POST) ---
+            print("[SELENIUM] FORZANDO CIERRE DE SESIONES ACTIVAS...")
             try:
-                logout_urls = [
-                    f"http://{self.host}/logout",
-                    f"http://{self.host}/html/logout.html",
-                    f"http://{self.host}/cgi-bin/logout",
-                    f"http://{self.host}/html/index.html" # A veces index fuerza redirect a login limpio
-                ]
+                # PASO 1: Navegar a login para establecer contexto
                 driver.set_page_load_timeout(5)
-                for url in logout_urls:
+                try:
+                    print("[SELENIUM] Navegando a login para verificar sesiones...")
+                    driver.get(f"http://{self.host}/html/login_inter.html")
+                    time.sleep(1)
+                    
+                    # Verificar si hay alerta de sesión activa Y ACEPTARLA
                     try:
-                        driver.get(url)
-                        time.sleep(0.5)
+                        alert = driver.switch_to.alert
+                        alert_text = alert.text
+                        if "already" in alert_text.lower() or "logged" in alert_text.lower():
+                            print(f"[SELENIUM] ⚠️ Sesión activa detectada: '{alert_text[:60]}...'")
+                            print("[SELENIUM] Aceptando alerta para forzar cierre...")
+                            alert.accept()
+                            time.sleep(2)  # Esperar a que el servidor procese
+                        else:
+                            alert.accept()
+                    except:
+                        print("[SELENIUM] No hay alerta de sesión activa")
+                        pass
+                except Exception as e:
+                    print(f"[SELENIUM] Error verificando login: {e}")
+                
+                # PASO 2: POST logout explícito usando JavaScript
+                print("[SELENIUM] Enviando comandos de logout...")
+                logout_commands = [
+                    f"fetch('http://{self.host}/cgi-bin/do_logout', {{method: 'POST', credentials: 'include'}}).catch(() => {{}})",
+                    f"fetch('http://{self.host}/html/logout.html', {{method: 'GET', credentials: 'include'}}).catch(() => {{}})",
+                    f"document.cookie.split(';').forEach(c => {{document.cookie = c.trim().split('=')[0] + '=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;'}})"
+                ]
+                
+                for cmd in logout_commands:
+                    try:
+                        driver.execute_script(cmd)
+                        time.sleep(0.3)
                     except:
                         pass
+                
+                # PASO 3: Limpiar cookies del navegador
                 driver.delete_all_cookies()
-                driver.set_page_load_timeout(30) # Restaurar timeout normal
+                print("[SELENIUM] Cookies eliminadas")
+                
+                # PASO 4: Recargar página de login LIMPIA
+                print("[SELENIUM] Recargando login limpio...")
+                driver.get(f"http://{self.host}/html/login_inter.html")
+                time.sleep(1)
+                
+                # PASO 5: Verificar si TODAVÍA hay alerta
+                try:
+                    alert = driver.switch_to.alert
+                    print(f"[SELENIUM] ⚠️ ALERTA PERSISTENTE: {alert.text[:60]}")
+                    alert.accept()
+                    time.sleep(2)
+                    
+                    # Si persiste, esperar más tiempo para que el servidor libere la sesión
+                    print("[SELENIUM] Esperando 5s para que el servidor libere sesión...")
+                    time.sleep(5)
+                    
+                    # Recargar una vez más
+                    driver.get(f"http://{self.host}/html/login_inter.html")
+                    time.sleep(1)
+                except:
+                    print("[SELENIUM] ✓ Login limpio - sin alertas")
+                
+                driver.set_page_load_timeout(30)  # Restaurar timeout
+                print("[SELENIUM] ✓ Limpieza de sesiones completada")
+                
             except Exception as e:
                 print(f"[WARN] Error en limpieza previa: {e}")
             # -----------------------------------
 
-            # 1. Navegar al login
-            login_url = f"http://{self.host}/html/login_inter.html"
-            print(f"[SELENIUM] Navegando a {login_url}...")
-            driver.get(login_url)
-            
-            # Esperar a que cargue
+            # Ya estamos en la página de login después de la limpieza
+            # Esperar a que cargue completamente
             wait = WebDriverWait(driver, 10)
             
             # 2. Ingresar credenciales
@@ -194,16 +243,17 @@ class FiberMixin:
                 
                 # Verificar si es por sesión activa
                 try:
-                    body_text = driver.find_element(By.TAG_NAME, "body").text
-                    if "already logged in" in body_text or "ya logueado" in body_text:
-                        print("[AUTH] DETECTADO: Sesión previa activa.")
-                        print("[AUTH] Intentando forzar logout...")
+                    body_text = driver.find_element(By.TAG_NAME, "body").text.lower()
+                    page_source = driver.page_source.lower()
+                    
+                    if "already" in body_text or "logged" in body_text or "sesión" in page_source:
+                        print("[AUTH] ⚠️ SESIÓN ACTIVA DETECTADA - Intentando forzar cierre...")
                         
-                        # Intentar URLs de logout comunes
+                        # Intentar URLs de logout
                         logout_urls = [
-                            f"http://{self.host}/logout",
+                            f"http://{self.host}/cgi-bin/do_logout",
                             f"http://{self.host}/html/logout.html",
-                            f"http://{self.host}/cgi-bin/logout"
+                            f"http://{self.host}/logout"
                         ]
                         
                         for url in logout_urls:
@@ -213,20 +263,77 @@ class FiberMixin:
                             except:
                                 pass
                         
-                        print("[AUTH] Recargando página de login...")
-                        driver.get(login_url)
+                        # Limpiar cookies de nuevo
+                        driver.delete_all_cookies()
+                        
+                        print("[AUTH] Esperando 5s para que servidor libere sesión...")
+                        time.sleep(5)
+                        
+                        print("[AUTH] REINTENTANDO LOGIN...")
+                        driver.get(f"http://{self.host}/html/login_inter.html")
                         time.sleep(2)
                         
-                        # REINTENTO RECURSIVO (solo una vez)
-                        # Para evitar recursión infinita, podríamos usar un flag, 
-                        # pero por simplicidad asumimos que si falla de nuevo, fallará por otro motivo o timeout
-                        # O mejor, retornamos False y dejamos que el usuario reintente, 
-                        # pero el usuario pidió que el script lo arregle.
-                        # Vamos a intentar limpiar campos y re-loguear aqui mismo si es facil,
-                        # pero recursión es arriesgada. Mejor notificar.
-                        print("[AUTH] Por favor, intente ejecutar el script nuevamente ahora que se intentó cerrar sesión.")
-                        
-                except:
+                        # REINTENTAR LOGIN COMPLETO
+                        try:
+                            # Esperar y verificar alerta
+                            try:
+                                alert = driver.switch_to.alert
+                                print(f"[AUTH] Alerta detectada: {alert.text[:60]}")
+                                alert.accept()
+                                time.sleep(2)
+                            except:
+                                pass
+                            
+                            # Reingresar credenciales
+                            wait = WebDriverWait(driver, 10)
+                            user_field = wait.until(EC.presence_of_element_located((By.ID, "user_name")))
+                            user_field.clear()
+                            user_field.send_keys('root')
+                            
+                            try:
+                                pass_field = driver.find_element(By.ID, "loginpp")
+                            except:
+                                pass_field = driver.find_element(By.ID, "password")
+                            
+                            pass_field.clear()
+                            pass_field.send_keys('admin')
+                            
+                            # Click login
+                            login_btn = None
+                            for btn_id in ["login_btn", "login", "LoginId"]:
+                                try:
+                                    login_btn = driver.find_element(By.ID, btn_id)
+                                    break
+                                except:
+                                    continue
+                            
+                            if login_btn:
+                                login_btn.click()
+                                time.sleep(3)
+                                
+                                # Verificar éxito
+                                current_url = driver.current_url
+                                if "login_inter.html" not in current_url:
+                                    print("[AUTH] ✓ LOGIN EXITOSO tras reintento")
+                                    
+                                    # Saltar wizard
+                                    self.fh_maybe_skip_initial_guide(driver)
+                                    
+                                    # Cookies
+                                    selenium_cookies = driver.get_cookies()
+                                    for cookie in selenium_cookies:
+                                        self.session.cookies.set(cookie['name'], cookie['value'])
+                                    
+                                    return True
+                                else:
+                                    print("[ERROR] Reintento falló - sesión aún activa")
+                                    print("[INFO] Cierre manualmente la sesión desde otro navegador o espere timeout")
+                                    return False
+                        except Exception as e:
+                            print(f"[ERROR] Error en reintento: {e}")
+                            return False
+                except Exception as e:
+                    print(f"[ERROR] Error verificando sesión: {e}")
                     pass
                     
                 return False
@@ -788,15 +895,20 @@ class FiberMixin:
             psk_field = self.find_element_anywhere(driver, By.ID, "PreSharedKey", timeout=5)
             
             if psk_field:
-                # Remover clase de seguridad usando JavaScript
+                # DEBUG: Inspect element before modification
+                print(f"[DEBUG] Pre-mod - Value: '{psk_field.get_attribute('value')}'")
+                print(f"[DEBUG] Pre-mod - Class: '{psk_field.get_attribute('class')}'")
+                print(f"[DEBUG] Pre-mod - Type: '{psk_field.get_attribute('type')}'")
+
+                # Remover clase de seguridad usando JavaScript (SOLO CLASE)
                 print("[SELENIUM] Removiendo clase de seguridad del campo...")
-                driver.execute_script("""
-                    var element = arguments[0];
-                    element.className = '';
-                    element.type = 'text';
-                """, psk_field)
+                driver.execute_script("arguments[0].removeAttribute('class');", psk_field)
                 
                 time.sleep(0.5)
+                
+                # DEBUG: Inspect element after modification
+                print(f"[DEBUG] Post-mod - Value: '{psk_field.get_attribute('value')}'")
+                print(f"[DEBUG] Post-mod - Class: '{psk_field.get_attribute('class')}'")
                 
                 # Leer el valor
                 password = psk_field.get_attribute('value')
@@ -810,41 +922,121 @@ class FiberMixin:
             else:
                 print("[ERROR] No se encontró campo PreSharedKey")
             
-            # Intentar también extraer password 5GHz si existe
-            # Buscar si hay un tab o sección de 5GHz
+            # ========== EXTRAER PASSWORD 5GHz ==========
+            print("\n[SELENIUM] Intentando extraer password 5GHz...")
             try:
-                # Algunos dispositivos tienen pestañas 2.4GHz / 5GHz
-                ghz_5_tab_ids = ["5g_tab", "wifi_5g", "wlan_5g", "wireless_5g"]
+                # MÉTODO 1: Buscar dropdown/selector de banda (común en Fiberhome)
+                print("[SELENIUM] Buscando selector de banda WiFi...")
+                selector_found = False
                 
-                for tab_id in ghz_5_tab_ids:
-                    tab_element = self.find_element_anywhere(driver, By.ID, tab_id, timeout=1)
-                    if tab_element:
-                        print(f"[SELENIUM] Encontrada pestaña 5GHz: {tab_id}")
-                        tab_element.click()
-                        time.sleep(1)
-                        
-                        # Buscar campo PreSharedKey para 5GHz
-                        psk_5g_ids = ["PreSharedKey_5g", "PreSharedKey5G", "psk_5g"]
-                        
-                        for psk_id in psk_5g_ids:
-                            psk_5g_field = self.find_element_anywhere(driver, By.ID, psk_id, timeout=1)
-                            if psk_5g_field:
-                                driver.execute_script("""
-                                    var element = arguments[0];
-                                    element.className = '';
-                                    element.type = 'text';
-                                """, psk_5g_field)
+                # IDs comunes para selector de banda
+                selector_ids = ["WlanIndex", "ssid_mode", "wlan_mode", "wifi_index", "band_select", "SSID_Index"]
+                
+                for sel_id in selector_ids:
+                    try:
+                        selector = self.find_element_anywhere(driver, By.ID, sel_id, timeout=1)
+                        if selector:
+                            print(f"[SELENIUM] ✓ Selector encontrado: {sel_id}")
+                            
+                            # Verificar si es un select/dropdown
+                            tag_name = selector.tag_name.lower()
+                            if tag_name == 'select':
+                                # Es un dropdown - seleccionar opción de 5GHz
+                                options = selector.find_elements(By.TAG_NAME, "option")
+                                print(f"[DEBUG] Opciones disponibles: {len(options)}")
                                 
-                                time.sleep(0.5)
-                                password_5g = psk_5g_field.get_attribute('value')
+                                # Buscar opción que contenga "5G", "5GHz", o índice 1
+                                for idx, option in enumerate(options):
+                                    opt_text = option.text.lower()
+                                    opt_value = option.get_attribute('value')
+                                    print(f"[DEBUG]   Opción {idx}: text='{option.text}' value='{opt_value}'")
+                                    
+                                    if '5g' in opt_text or '5ghz' in opt_text or opt_value in ['1', 'wlan1', 'ssid1']:
+                                        print(f"[SELENIUM] Seleccionando opción 5GHz: {option.text}")
+                                        option.click()
+                                        time.sleep(2)  # Esperar a que la página actualice
+                                        selector_found = True
+                                        break
                                 
-                                if password_5g:
-                                    print(f"[SELENIUM] ✓ Password 5GHz extraída: {password_5g}")
-                                    passwords['password_5ghz'] = password_5g
+                                if selector_found:
+                                    break
+                    except Exception as e:
+                        continue
+                
+                # MÉTODO 2: Buscar tabs/pestañas
+                if not selector_found:
+                    print("[SELENIUM] No se encontró selector, buscando tabs...")
+                    tab_ids = ["5g_tab", "wifi_5g", "wlan_5g", "wireless_5g", "tab_5g", "ssid1_tab"]
+                    
+                    for tab_id in tab_ids:
+                        try:
+                            tab_element = self.find_element_anywhere(driver, By.ID, tab_id, timeout=1)
+                            if tab_element:
+                                print(f"[SELENIUM] ✓ Tab 5GHz encontrado: {tab_id}")
+                                tab_element.click()
+                                time.sleep(2)
+                                selector_found = True
                                 break
-                        break
+                        except:
+                            continue
+                
+                # MÉTODO 3: Buscar menú separado para 5GHz (WLAN Security 5GHz)
+                if not selector_found:
+                    print("[SELENIUM] Buscando menú WLAN Security 5GHz separado...")
+                    menu_5g_ids = ["thr_security_5g", "thr_security5g", "wlan_security_5g", "sec_menu_5g"]
+                    
+                    for menu_id in menu_5g_ids:
+                        try:
+                            menu_5g = self.find_element_anywhere(driver, By.ID, menu_id, timeout=1)
+                            if menu_5g:
+                                print(f"[SELENIUM] ✓ Menú 5GHz encontrado: {menu_id}")
+                                menu_5g.click()
+                                time.sleep(2)
+                                selector_found = True
+                                break
+                        except:
+                            continue
+                
+                # Si encontramos forma de cambiar a 5GHz, leer el MISMO campo PreSharedKey
+                if selector_found:
+                    print("[SELENIUM] Buscando campo PreSharedKey para 5GHz...")
+                    
+                    # El campo sigue siendo PreSharedKey, pero ahora muestra la password de 5GHz
+                    psk_5g_field = self.find_element_anywhere(driver, By.ID, "PreSharedKey", timeout=3)
+                    
+                    if psk_5g_field:
+                        print(f"[DEBUG] 5GHz Pre-mod - Value: '{psk_5g_field.get_attribute('value')}'")
+                        print(f"[DEBUG] 5GHz Pre-mod - Class: '{psk_5g_field.get_attribute('class')}'")
+                        
+                        driver.execute_script("arguments[0].removeAttribute('class');", psk_5g_field)
+                        time.sleep(0.5)
+                        
+                        print(f"[DEBUG] 5GHz Post-mod - Value: '{psk_5g_field.get_attribute('value')}'")
+                        
+                        password_5g = psk_5g_field.get_attribute('value')
+                        
+                        if password_5g and password_5g != passwords.get('password_24ghz'):
+                            print(f"[SELENIUM] ✓ Password 5GHz extraída: {password_5g}")
+                            passwords['password_5ghz'] = password_5g
+                        elif password_5g == passwords.get('password_24ghz'):
+                            print("[INFO] Password 5GHz es igual a 2.4GHz (banda dual con misma clave)")
+                            passwords['password_5ghz'] = password_5g
+                        else:
+                            print("[WARN] Campo PreSharedKey 5GHz vacío")
+                    else:
+                        print("[WARN] No se encontró campo PreSharedKey para 5GHz")
+                else:
+                    print("[INFO] No se encontró forma de cambiar a banda 5GHz")
+                    print("[INFO] Puede que el dispositivo use la misma contraseña para ambas bandas")
+                    # Asumir que usan la misma password
+                    if 'password_24ghz' in passwords:
+                        passwords['password_5ghz'] = passwords['password_24ghz']
+                        passwords['password_5ghz_note'] = "Asumida igual a 2.4GHz (no se encontró selector)"
+                    
             except Exception as e:
-                print(f"[DEBUG] No se encontró sección 5GHz: {e}")
+                print(f"[WARN] Error extrayendo password 5GHz: {e}")
+                import traceback
+                traceback.print_exc()
             
             return passwords
             
@@ -1238,6 +1430,18 @@ class FiberMixin:
             "details": {}
         }
         
+        # PRIORIDAD 0: Intentar extraer password NO ENCRIPTADA por Selenium
+        if self.driver:
+            print("[TEST] Intentando extracción de password WiFi 2.4GHz por Selenium...")
+            try:
+                selenium_passwords = self._extract_wifi_password_selenium()
+                if selenium_passwords and 'password_24ghz' in selenium_passwords:
+                    print(f"[TEST] ✓ Password 2.4GHz obtenida por Selenium: {selenium_passwords['password_24ghz']}")
+                    result["details"]["password_unencrypted"] = selenium_passwords['password_24ghz']
+                    result["details"]["extraction_method"] = "selenium_dom_manipulation"
+            except Exception as e:
+                print(f"[WARN] Error en extracción Selenium: {e}")
+        
         # Prioridad 1: Usar datos de get_base_info si están disponibles
         base_info = self.test_results['metadata'].get('base_info')
         if base_info and base_info.get('wifi_info'):
@@ -1246,7 +1450,10 @@ class FiberMixin:
                 result["status"] = "PASS"
                 result["details"]["method"] = "AJAX get_base_info"
                 result["details"]["ssid"] = wifi_info.get('ssid_24ghz')
-                result["details"]["password"] = wifi_info.get('password_24ghz', 'N/A')
+                # Solo usar password AJAX si no tenemos la de Selenium
+                if "password_unencrypted" not in result["details"]:
+                    result["details"]["password"] = wifi_info.get('password_24ghz', 'N/A')
+                    result["details"]["note"] = "Password encriptada (use Selenium para versión sin encriptar)"
                 result["details"]["channel"] = wifi_info.get('channel_24ghz', 'N/A')
                 result["details"]["enabled"] = wifi_info.get('enabled_24ghz', False)
                 return result
@@ -1276,6 +1483,18 @@ class FiberMixin:
             "details": {}
         }
         
+        # PRIORIDAD 0: Intentar extraer password NO ENCRIPTADA por Selenium
+        if self.driver:
+            print("[TEST] Intentando extracción de password WiFi 5GHz por Selenium...")
+            try:
+                selenium_passwords = self._extract_wifi_password_selenium()
+                if selenium_passwords and 'password_5ghz' in selenium_passwords:
+                    print(f"[TEST] ✓ Password 5GHz obtenida por Selenium: {selenium_passwords['password_5ghz']}")
+                    result["details"]["password_unencrypted"] = selenium_passwords['password_5ghz']
+                    result["details"]["extraction_method"] = "selenium_dom_manipulation"
+            except Exception as e:
+                print(f"[WARN] Error en extracción Selenium: {e}")
+        
         # Prioridad 1: Usar datos de get_base_info si están disponibles
         base_info = self.test_results['metadata'].get('base_info')
         if base_info and base_info.get('wifi_info'):
@@ -1284,7 +1503,10 @@ class FiberMixin:
                 result["status"] = "PASS"
                 result["details"]["method"] = "AJAX get_base_info"
                 result["details"]["ssid"] = wifi_info.get('ssid_5ghz')
-                result["details"]["password"] = wifi_info.get('password_5ghz', 'N/A')
+                # Solo usar password AJAX si no tenemos la de Selenium
+                if "password_unencrypted" not in result["details"]:
+                    result["details"]["password"] = wifi_info.get('password_5ghz', 'N/A')
+                    result["details"]["note"] = "Password encriptada (use Selenium para versión sin encriptar)"
                 result["details"]["channel"] = wifi_info.get('channel_5ghz', 'N/A')
                 result["details"]["enabled"] = wifi_info.get('enabled_5ghz', False)
                 return result
