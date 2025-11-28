@@ -1,4 +1,12 @@
 import customtkinter as ctk
+import sys
+from pathlib import Path
+from datetime import datetime
+
+# Agregar la raíz del proyecto al path
+root_path = Path(__file__).parent.parent.parent.parent
+sys.path.insert(0, str(root_path))
+
 from src.Frontend.navigation.botones import (
     boton_inicio,
     boton_escaneos,
@@ -39,7 +47,18 @@ class TesterView(ctk.CTkFrame):
         right_frame = ctk.CTkFrame(self, corner_radius=0)
         right_frame.grid(row=0, column=1, sticky="nsew", padx=0, pady=0)
         
-        # Aquí puedes agregar el contenido principal
+        # Reloj en tiempo real
+        self.clock_label = ctk.CTkLabel(
+            right_frame,
+            text="",
+            font=ctk.CTkFont(size=20)
+        )
+        self.clock_label.pack(pady=20, padx=20, anchor="nw")
+        
+        # Iniciar actualización del reloj
+        self.update_clock()
+        
+        # Área de contenido principal
         content_label = ctk.CTkLabel(
             right_frame,
             text="Área de contenido principal",
@@ -47,10 +66,27 @@ class TesterView(ctk.CTkFrame):
         )
         content_label.pack(expand=True)
     
+    def update_clock(self):
+        """Actualiza el reloj cada segundo"""
+        now = datetime.now()
+        time_string = now.strftime("%I:%M %p  %d %B %Y")
+        # Reemplazar nombres de mes en inglés por español
+        meses = {
+            'January': 'enero', 'February': 'febrero', 'March': 'marzo',
+            'April': 'abril', 'May': 'mayo', 'June': 'junio',
+            'July': 'julio', 'August': 'agosto', 'September': 'septiembre',
+            'October': 'octubre', 'November': 'noviembre', 'December': 'diciembre'
+        }
+        for eng, esp in meses.items():
+            time_string = time_string.replace(eng, esp)
+        
+        self.clock_label.configure(text=time_string)
+        # Actualizar cada 1000ms (1 segundo)
+        self.after(1000, self.update_clock)
+    
     # Comandos para los botones
     def ir_inicio(self):
         print("Navegando a Inicio")
-        # Aquí agregarás la lógica de navegación
     
     def ir_escaneos(self):
         print("Navegando a Escaneos")
