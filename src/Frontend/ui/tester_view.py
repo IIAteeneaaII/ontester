@@ -3,6 +3,8 @@ import sys
 from pathlib import Path
 from datetime import datetime
 from PIL import Image
+from src.Frontend.ui.panel_pruebas_view import PanelPruebasConexion
+
 
 # Agregar la raíz del proyecto al path
 root_path = Path(__file__).parent.parent.parent.parent
@@ -181,19 +183,28 @@ class TesterView(ctk.CTkFrame):
         # ===========================================
 
         # Área de contenido principal
+                # Contenedor principal (centro + panel inferior)
+        self.main_content = ctk.CTkFrame(self.right_frame, fg_color="transparent")
+        self.main_content.pack(expand=True, fill="both")
+
+        # Texto central (puedes cambiarlo luego por otra cosa)
         self.content_label = ctk.CTkLabel(
-            self.right_frame,
+            self.main_content,
             text="Área de contenido principal",
             font=ctk.CTkFont(size=16)
         )
-        self.content_label.pack(expand=True, fill="both")
+        self.content_label.pack(expand=True)
+
+        # Panel de pruebas de conectividad (compartido entre vistas)
+        self.panel_pruebas = PanelPruebasConexion(self.main_content)
+        self.panel_pruebas.pack(fill="x", padx=60, pady=(0, 40))
 
         # Iniciar actualización del reloj
         self.update_clock()
 
-        # ====== Responsividad: escuchar cambios de tamaño ======
+    # ====== Responsividad: escuchar cambios de tamaño ======
         self.bind("<Configure>", self._on_resize)
-        # =======================================================
+    # =======================================================
 
     # ================= Helpers de estilo =================
 

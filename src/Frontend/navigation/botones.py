@@ -1,14 +1,22 @@
+# src/Frontend/navigation/botones.py
 import customtkinter as ctk
 from pathlib import Path
 from PIL import Image
 
-# Estilo común para los botones de la barra izquierda
+# ---------- Estilo común: barra izquierda ----------
 BTN_KWARGS = {
     "height": 36,
     "corner_radius": 8,
     "font": ("Segoe UI", 13, "bold"),
     "anchor": "w",         # contenido alineado a la izquierda
     "border_spacing": 12,  # margen interno desde el borde izquierdo
+}
+
+# ---------- Estilo común: botones del panel central ----------
+PANEL_BTN_KWARGS = {
+    "height": 70,
+    "corner_radius": 6,
+    "font": ("Segoe UI", 11, "bold"),
 }
 
 # Carpeta de iconos
@@ -30,15 +38,16 @@ def _cargar_icono(nombre_archivo: str, size=(20, 20)):
     return None
 
 
-# ====== Iconos ======
+# ====== Iconos barra izquierda ======
 OMITIR_ICON         = _cargar_icono("omitir_icon.png")
 ETHERNET_ICON       = _cargar_icono("ethernet_icon.png")
 CONECTIVIDAD_ICON   = _cargar_icono("conectividad_icon.png")
 OTROS_PUERTOS_ICON  = _cargar_icono("otros_puertos_icon.png")
 WIFI_ICON           = _cargar_icono("wifi_icon.png")
-# ====================
+# ====================================
 
 
+# ========= Botones barra izquierda =========
 def boton_OMITIR(parent, command=None):
     """Botón para omitir retest de fábrica, con icono a la izquierda."""
     btn = ctk.CTkButton(
@@ -108,3 +117,80 @@ def boton_señaleswifi(parent, command=None):
     )
     btn._icon_wifi = WIFI_ICON
     return btn
+# =============================================
+
+
+# ========= Botones del panel central =========
+# (los 8 cuadritos: PING, FACTORY RESET, SOFTWARE, USB PORT, TX POWER, RX POWER, WIFI 2.4, WIFI 5.0)
+
+def panel_boton_ping(parent, command=None):
+    return ctk.CTkButton(
+        parent,
+        text="PING",
+        command=command,
+        **PANEL_BTN_KWARGS
+    )
+
+
+def panel_boton_factory_reset(parent, command=None):
+    return ctk.CTkButton(
+        parent,
+        text="FACTORY RESET",
+        command=command,
+        **PANEL_BTN_KWARGS
+    )
+
+
+def panel_boton_software(parent, command=None):
+    return ctk.CTkButton(
+        parent,
+        text="SOFTWARE",
+        command=command,
+        **PANEL_BTN_KWARGS
+    )
+
+
+def panel_boton_usb_port(parent, command=None):
+    return ctk.CTkButton(
+        parent,
+        text="USB PORT",
+        command=command,
+        **PANEL_BTN_KWARGS
+    )
+
+
+def panel_boton_tx_power(parent, command=None):
+    return ctk.CTkButton(
+        parent,
+        text="TX POWER",
+        command=command,
+        **PANEL_BTN_KWARGS
+    )
+
+
+def panel_boton_rx_power(parent, command=None):
+    return ctk.CTkButton(
+        parent,
+        text="RX POWER",
+        command=command,
+        **PANEL_BTN_KWARGS
+    )
+
+
+def panel_boton_wifi_24(parent, command=None):
+    return ctk.CTkButton(
+        parent,
+        text="WIFI 2.4 GHz",
+        command=command,
+        **PANEL_BTN_KWARGS
+    )
+
+
+def panel_boton_wifi_50(parent, command=None):
+    return ctk.CTkButton(
+        parent,
+        text="WIFI 5.0 GHz",
+        command=command,
+        **PANEL_BTN_KWARGS
+    )
+# =============================================
