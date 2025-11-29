@@ -3,8 +3,8 @@ import sys
 from pathlib import Path
 from datetime import datetime
 from PIL import Image
-from src.Frontend.ui.panel_pruebas_view import PanelPruebasConexion
 
+from src.Frontend.ui.panel_pruebas_view import PanelPruebasConexion
 
 # Agregar la raíz del proyecto al path
 root_path = Path(__file__).parent.parent.parent.parent
@@ -49,7 +49,7 @@ class TesterView(ctk.CTkFrame):
         # ======= SIDEBAR CON SCROLL =======
         self.left_scroll = ctk.CTkScrollableFrame(
             self,
-            width=280,          # ancho más grande para que quepa texto + icono
+            width=280,          # ancho del sidebar
             corner_radius=0
         )
         self.left_scroll.grid(row=0, column=0, sticky="nsw", padx=0, pady=0)
@@ -182,29 +182,106 @@ class TesterView(ctk.CTkFrame):
         self.pruebas_count_label.pack(side="left", padx=(5, 0))
         # ===========================================
 
-        # Área de contenido principal
-                # Contenedor principal (centro + panel inferior)
+        # ======= CONTENIDO PRINCIPAL =======
         self.main_content = ctk.CTkFrame(self.right_frame, fg_color="transparent")
-        self.main_content.pack(expand=True, fill="both")
+        # un poco más de espacio debajo de la barra superior
+        self.main_content.pack(expand=True, fill="both", padx=60, pady=(30, 0))
 
-        # Texto central (puedes cambiarlo luego por otra cosa)
-        self.content_label = ctk.CTkLabel(
-            self.main_content,
-            text="Área de contenido principal",
-            font=ctk.CTkFont(size=16)
+        # Frame de información (SN, MAC, SOFTWARE, etc.)
+        info_frame = ctk.CTkFrame(self.main_content, fg_color="transparent")
+        info_frame.pack(side="top", fill="x", pady=(0, 30))
+
+        info_frame.grid_columnconfigure(0, weight=1)
+        info_frame.grid_columnconfigure(1, weight=1)
+
+        # Columna izquierda (SN / MAC / SOFTWARE / WIFI / Password)
+        lbl_sn = ctk.CTkLabel(
+            info_frame,
+            text="SN:",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            anchor="w"
         )
-        self.content_label.pack(expand=True)
+        lbl_sn.grid(row=0, column=0, sticky="w", pady=(0, 5))
+
+        lbl_mac = ctk.CTkLabel(
+            info_frame,
+            text="MAC:",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            anchor="w"
+        )
+        # Deja SN y MAC como un primer bloque, con buen espacio debajo
+        lbl_mac.grid(row=1, column=0, sticky="w", pady=(0, 25))
+
+        # Segundo bloque: SOFTWARE / WIFI / Password, con más separación del bloque anterior
+        lbl_software = ctk.CTkLabel(
+            info_frame,
+            text="SOFTWARE:",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            anchor="w"
+        )
+        lbl_software.grid(row=2, column=0, sticky="w", pady=(10, 5))
+
+        lbl_wifi24 = ctk.CTkLabel(
+            info_frame,
+            text="WIFI 2.4 GHz:",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            anchor="w"
+        )
+        lbl_wifi24.grid(row=3, column=0, sticky="w", pady=5)
+
+        lbl_wifi5 = ctk.CTkLabel(
+            info_frame,
+            text="WIFI 5 GHz:",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            anchor="w"
+        )
+        lbl_wifi5.grid(row=4, column=0, sticky="w", pady=5)
+
+        lbl_password = ctk.CTkLabel(
+            info_frame,
+            text="Password",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            anchor="w"
+        )
+        lbl_password.grid(row=5, column=0, sticky="w", pady=(5, 0))
+
+        # Columna derecha (Fo TX / Fo Rx / Usb Port), un poco más hacia la izquierda
+        lbl_fo_tx = ctk.CTkLabel(
+            info_frame,
+            text="Fo TX:",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            anchor="w"
+        )
+        lbl_fo_tx.grid(row=2, column=1, sticky="w", padx=(40, 0), pady=(10, 5))
+
+        lbl_fo_rx = ctk.CTkLabel(
+            info_frame,
+            text="Fo Rx:",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            anchor="w"
+        )
+        lbl_fo_rx.grid(row=3, column=1, sticky="w", padx=(40, 0), pady=5)
+
+        lbl_usb = ctk.CTkLabel(
+            info_frame,
+            text="Usb Port",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            anchor="w"
+        )
+        lbl_usb.grid(row=4, column=1, sticky="w", padx=(40, 0), pady=(5, 0))
+        # ====================================
 
         # Panel de pruebas de conectividad (compartido entre vistas)
+        # Más espacio desde el bloque de información y MENOS margen inferior
         self.panel_pruebas = PanelPruebasConexion(self.main_content)
-        self.panel_pruebas.pack(fill="x", padx=60, pady=(0, 40))
+        self.panel_pruebas.pack(side="bottom", fill="x", padx=60, pady=(40, 10))
+        # ====================================
 
         # Iniciar actualización del reloj
         self.update_clock()
 
-    # ====== Responsividad: escuchar cambios de tamaño ======
+        # Responsividad
         self.bind("<Configure>", self._on_resize)
-    # =======================================================
 
     # ================= Helpers de estilo =================
 
@@ -239,8 +316,6 @@ class TesterView(ctk.CTkFrame):
 
         width = max(event.width, 400)
 
-        # Sidebar fijo en 280 si la ventana es angosta.
-        # Cuando la ventana es más grande, lo dejamos entre 280 y 320.
         if width < 950:
             sidebar_width = 280
         else:
@@ -248,7 +323,6 @@ class TesterView(ctk.CTkFrame):
             sidebar_width = max(280, min(sidebar_width, 320))
 
         self.left_scroll.configure(width=sidebar_width)
-        # No tocamos set_widget_scaling para que el texto no se achique.
 
     # ================= LÓGICA DE UI =================
 
@@ -272,7 +346,6 @@ class TesterView(ctk.CTkFrame):
     def cambiar_modo(self, modo: str):
         """Se ejecuta cuando eliges Testeo / Retesteo / Etiqueta."""
         print(f"Modo seleccionado: {modo}")
-        self.content_label.configure(text=f"Modo actual: {modo}")
 
         # Primero, todos neutros
         self._set_all_buttons_state("neutral")
@@ -327,7 +400,6 @@ class TesterView(ctk.CTkFrame):
     def _ejecutar_prueba_desde_boton(self, nombre_prueba: str):
         """Utilidad para ejecutar la lógica de prueba desde cualquier botón."""
         print(f"Ejecutando {nombre_prueba}...")
-        self.content_label.configure(text=f"Ejecutando {nombre_prueba}...")
 
         if self.viewmodel is not None:
             self.viewmodel.ejecutar_prueba()
@@ -340,7 +412,6 @@ class TesterView(ctk.CTkFrame):
 
     def ir_OMITIR(self):
         print("Navegando a OMITIR RETEST DE FÁBRICA")
-        self.content_label.configure(text="Retest de fábrica omitido para este ONT.")
 
     def ir_ethernet(self):
         self._ejecutar_prueba_desde_boton("PRUEBA DE ETHERNET")
@@ -363,7 +434,7 @@ if __name__ == "__main__":
     app = ctk.CTk()
     app.title("Tester View")
     app.geometry("1200x600")
-    app.minsize(900, 550)   # para que no se pueda hacer tan delgada que rompa el layout
+    app.minsize(900, 550)
 
     view = TesterView(app)
     view.pack(fill="both", expand=True)
