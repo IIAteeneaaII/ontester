@@ -40,7 +40,7 @@ class FiberMixin:
             return False
 
         driver = None
-        headless = False # DEBUG: Visible para el usuario
+        headless = True # DEBUG: Visible para el usuario
         try:
             print(f"[SELENIUM] Iniciando login Fiberhome a {self.host}...")
             
