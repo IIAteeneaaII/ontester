@@ -26,19 +26,37 @@ class TesterView(ctk.CTkFrame):
         self._last_result_ok = False         # para pruebas sin VM
         self.pruebas_realizadas = 0          # contador de pruebas
 
+        # Colores para los estados de los botones
+        self.color_neutro_fg = "#3498db"     # azul
+        self.color_neutro_hover = "#2980b9"
+        self.color_activo_fg = "#27ae60"     # verde
+        self.color_activo_hover = "#1e8449"
+        self.color_inactivo_fg = "#e74c3c"   # rojo
+        self.color_inactivo_hover = "#c0392b"
+
         # Configurar grid general
-        self.grid_columnconfigure(1, weight=1)
+        self.grid_columnconfigure(0, weight=0)  # sidebar
+        self.grid_columnconfigure(1, weight=1)  # contenido
         self.grid_rowconfigure(0, weight=1)
 
-        # Frame izquierdo (columna de navegación)
-        left_frame = ctk.CTkFrame(self, width=200, corner_radius=0)
-        left_frame.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
-        left_frame.grid_propagate(False)
-
-        # ===== Logo circular en la parte superior izquierda =====
+        # ========= ASSETS =========
         assets_dir = Path(__file__).parent.parent / "assets" / "icons"
         logo_path = assets_dir / "logo_tester.png"
+        # ==========================
 
+        # ======= SIDEBAR CON SCROLL =======
+        self.left_scroll = ctk.CTkScrollableFrame(
+            self,
+            width=280,          # ancho más grande para que quepa texto + icono
+            corner_radius=0
+        )
+        self.left_scroll.grid(row=0, column=0, sticky="nsw", padx=0, pady=0)
+
+        # Alias para usarlo como contenedor de los controles
+        left_frame = self.left_scroll
+        # ==================================
+
+        # ===== Logo circular en la parte superior izquierda =====
         self.logo_image = ctk.CTkImage(
             light_image=Image.open(logo_path),
             dark_image=Image.open(logo_path),
@@ -69,18 +87,15 @@ class TesterView(ctk.CTkFrame):
             command=self.cambiar_modo,
             font=ctk.CTkFont(size=16, weight="bold"),
 
-            # que mida igual que los botones
             height=36,
             corner_radius=8,
-            width=180,  # puedes ajustar, pero que sea similar al ancho de los botones
+            width=260,  # casi el ancho del sidebar
 
-            # colores del “cajón” principal
-            fg_color="#3498db",      # azul barra
+            fg_color="#3498db",
             text_color="white",
             button_color="#2980b9",
             button_hover_color="#2471a3",
 
-            # colores del desplegable
             dropdown_fg_color="#3498db",
             dropdown_hover_color="#2980b9",
             dropdown_text_color="white",
@@ -89,21 +104,31 @@ class TesterView(ctk.CTkFrame):
         self.modo_menu.pack(pady=(20, 30), padx=20, fill="x")
         # =============================================
 
+        # Botones importados (columna izquierda) — guardamos las referencias
+        self.btn_omitir = boton_OMITIR(left_frame, command=self.ir_OMITIR)
+        self.btn_omitir.pack(pady=10, padx=20, fill="x")
 
-        # Botones importados (columna izquierda)
-        boton_OMITIR(left_frame, command=self.ir_OMITIR).pack(pady=10, padx=20, fill="x")
-        boton_Ethernet(left_frame, command=self.ir_ethernet).pack(pady=10, padx=20, fill="x")
-        boton_Conectividad(left_frame, command=self.ir_conectividad).pack(pady=10, padx=20, fill="x")
-        boton_Otrospuertos(left_frame, command=self.ir_otros_puertos).pack(pady=10, padx=20, fill="x")
-        boton_señaleswifi(left_frame, command=self.ir_senales_wifi).pack(pady=10, padx=20, fill="x")
+        self.btn_ethernet = boton_Ethernet(left_frame, command=self.ir_ethernet)
+        self.btn_ethernet.pack(pady=10, padx=20, fill="x")
+
+        self.btn_conectividad = boton_Conectividad(left_frame, command=self.ir_conectividad)
+        self.btn_conectividad.pack(pady=10, padx=20, fill="x")
+
+        self.btn_otros_puertos = boton_Otrospuertos(left_frame, command=self.ir_otros_puertos)
+        self.btn_otros_puertos.pack(pady=10, padx=20, fill="x")
+
+        self.btn_wifi = boton_señaleswifi(left_frame, command=self.ir_senales_wifi)
+        self.btn_wifi.pack(pady=10, padx=20, fill="x")
+
+        # Estado inicial: todos neutros (azules)
+        self._set_all_buttons_state("neutral")
 
         # Frame derecho (área principal/contenido)
-        right_frame = ctk.CTkFrame(self, corner_radius=0)
-        right_frame.grid(row=0, column=1, sticky="nsew", padx=0, pady=0)
+        self.right_frame = ctk.CTkFrame(self, corner_radius=0)
+        self.right_frame.grid(row=0, column=1, sticky="nsew", padx=0, pady=0)
 
         # ========= BARRA SUPERIOR COMPLETA =========
-        # [ Prueba: EXITOSA ]   [ reloj ]   [ Pruebas realizadas: N ]
-        top_bar = ctk.CTkFrame(right_frame, fg_color="transparent")
+        top_bar = ctk.CTkFrame(self.right_frame, fg_color="transparent")
         top_bar.pack(fill="x", pady=20, padx=40)
 
         # -- Izquierda: estado de la última prueba --
@@ -157,14 +182,62 @@ class TesterView(ctk.CTkFrame):
 
         # Área de contenido principal
         self.content_label = ctk.CTkLabel(
-            right_frame,
+            self.right_frame,
             text="Área de contenido principal",
             font=ctk.CTkFont(size=16)
         )
-        self.content_label.pack(expand=True)
+        self.content_label.pack(expand=True, fill="both")
 
         # Iniciar actualización del reloj
         self.update_clock()
+
+        # ====== Responsividad: escuchar cambios de tamaño ======
+        self.bind("<Configure>", self._on_resize)
+        # =======================================================
+
+    # ================= Helpers de estilo =================
+
+    def _set_button_style(self, button, state: str):
+        """state: 'neutral', 'active', 'inactive'."""
+        if state == "active":
+            fg = self.color_activo_fg
+            hover = self.color_activo_hover
+        elif state == "inactive":
+            fg = self.color_inactivo_fg
+            hover = self.color_inactivo_hover
+        else:  # neutral
+            fg = self.color_neutro_fg
+            hover = self.color_neutro_hover
+
+        button.configure(fg_color=fg, hover_color=hover)
+
+    def _set_all_buttons_state(self, state: str):
+        """Pone TODOS los botones en el mismo estado."""
+        self._set_button_style(self.btn_omitir, state)
+        self._set_button_style(self.btn_ethernet, state)
+        self._set_button_style(self.btn_conectividad, state)
+        self._set_button_style(self.btn_otros_puertos, state)
+        self._set_button_style(self.btn_wifi, state)
+
+    # ================= Responsividad =================
+
+    def _on_resize(self, event):
+        """Ajusta proporciones cuando cambia el tamaño de la ventana."""
+        if event.widget is not self:
+            return
+
+        width = max(event.width, 400)
+
+        # Sidebar fijo en 280 si la ventana es angosta.
+        # Cuando la ventana es más grande, lo dejamos entre 280 y 320.
+        if width < 950:
+            sidebar_width = 280
+        else:
+            sidebar_width = int(width * 0.22)
+            sidebar_width = max(280, min(sidebar_width, 320))
+
+        self.left_scroll.configure(width=sidebar_width)
+        # No tocamos set_widget_scaling para que el texto no se achique.
 
     # ================= LÓGICA DE UI =================
 
@@ -189,6 +262,27 @@ class TesterView(ctk.CTkFrame):
         """Se ejecuta cuando eliges Testeo / Retesteo / Etiqueta."""
         print(f"Modo seleccionado: {modo}")
         self.content_label.configure(text=f"Modo actual: {modo}")
+
+        # Primero, todos neutros
+        self._set_all_buttons_state("neutral")
+
+        if modo == "Testeo":
+            # Activos: OMITIR, CONECTIVIDAD, OTROS PUERTOS
+            self._set_button_style(self.btn_omitir, "active")
+            self._set_button_style(self.btn_conectividad, "active")
+            self._set_button_style(self.btn_otros_puertos, "active")
+
+            # Inactivos: ETHERNET, WIFI
+            self._set_button_style(self.btn_ethernet, "inactive")
+            self._set_button_style(self.btn_wifi, "inactive")
+
+        elif modo == "Retesteo":
+            # Todos activos
+            self._set_all_buttons_state("active")
+
+        elif modo == "Etiqueta":
+            # Todos inactivos
+            self._set_all_buttons_state("inactive")
 
     def actualizar_estado_prueba(self, estado):
         """
@@ -225,10 +319,8 @@ class TesterView(ctk.CTkFrame):
         self.content_label.configure(text=f"Ejecutando {nombre_prueba}...")
 
         if self.viewmodel is not None:
-            # Lógica real (por ahora random en TesterViewModel)
             self.viewmodel.ejecutar_prueba()
         else:
-            # Demo sin VM: alterna EXITOSA/FALLIDA y suma al contador
             self._last_result_ok = not self._last_result_ok
             self.actualizar_estado_prueba(self._last_result_ok)
             self.incrementar_contador_pruebas()
@@ -259,7 +351,8 @@ if __name__ == "__main__":
 
     app = ctk.CTk()
     app.title("Tester View")
-    app.geometry("1000x600")
+    app.geometry("1200x600")
+    app.minsize(900, 550)   # para que no se pueda hacer tan delgada que rompa el layout
 
     view = TesterView(app)
     view.pack(fill="both", expand=True)
