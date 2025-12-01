@@ -106,7 +106,7 @@ class TesterView(ctk.CTkFrame):
         self.modo_menu.pack(pady=(20, 30), padx=20, fill="x")
         # =============================================
 
-        # Botones importados (columna izquierda) — guardamos las referencias
+        # ------ Botones principales del sidebar ------
         self.btn_omitir = boton_OMITIR(left_frame, command=self.ir_OMITIR)
         self.btn_omitir.pack(pady=10, padx=20, fill="x")
 
@@ -121,6 +121,45 @@ class TesterView(ctk.CTkFrame):
 
         self.btn_wifi = boton_señaleswifi(left_frame, command=self.ir_senales_wifi)
         self.btn_wifi.pack(pady=10, padx=20, fill="x")
+        # ---------------------------------------------
+
+        # ====== Bloque de usuario + botón SALIR (abajo) ======
+        self.user_block = ctk.CTkFrame(left_frame, fg_color="transparent")
+        self.user_block.pack(side="bottom", fill="x", padx=20, pady=(20, 10))
+
+        # Etiquetas de Id y Hola
+        self.label_usuario_id = ctk.CTkLabel(
+            self.user_block,
+            text="Id: __________",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            anchor="w",
+            justify="left"
+        )
+        self.label_usuario_id.pack(anchor="w")
+
+        self.label_usuario_nombre = ctk.CTkLabel(
+            self.user_block,
+            text="Hola: (nombre de usuario)",
+            font=ctk.CTkFont(size=12),
+            anchor="w",
+            justify="left"
+        )
+        self.label_usuario_nombre.pack(anchor="w", pady=(2, 8))
+
+        # Botón SALIR en rojo
+        self.btn_salir = ctk.CTkButton(
+            self.user_block,
+            text="SALIR",
+            fg_color="#e74c3c",
+            hover_color="#c0392b",
+            text_color="white",
+            font=ctk.CTkFont(size=13, weight="bold"),
+            corner_radius=6,
+            height=32,
+            command=self.ir_salir
+        )
+        self.btn_salir.pack(fill="x", pady=(4, 0))
+        # =======================================================
 
         # Estado inicial: todos neutros (azules)
         self._set_all_buttons_state("neutral")
@@ -184,7 +223,6 @@ class TesterView(ctk.CTkFrame):
 
         # ======= CONTENIDO PRINCIPAL =======
         self.main_content = ctk.CTkFrame(self.right_frame, fg_color="transparent")
-        # un poco más de espacio debajo de la barra superior
         self.main_content.pack(expand=True, fill="both", padx=60, pady=(30, 0))
 
         # Frame de información (SN, MAC, SOFTWARE, etc.)
@@ -209,10 +247,8 @@ class TesterView(ctk.CTkFrame):
             font=ctk.CTkFont(size=14, weight="bold"),
             anchor="w"
         )
-        # Deja SN y MAC como un primer bloque, con buen espacio debajo
         lbl_mac.grid(row=1, column=0, sticky="w", pady=(0, 25))
 
-        # Segundo bloque: SOFTWARE / WIFI / Password, con más separación del bloque anterior
         lbl_software = ctk.CTkLabel(
             info_frame,
             text="SOFTWARE:",
@@ -245,7 +281,7 @@ class TesterView(ctk.CTkFrame):
         )
         lbl_password.grid(row=5, column=0, sticky="w", pady=(5, 0))
 
-        # Columna derecha (Fo TX / Fo Rx / Usb Port), un poco más hacia la izquierda
+        # Columna derecha (Fo TX / Fo Rx / Usb Port)
         lbl_fo_tx = ctk.CTkLabel(
             info_frame,
             text="Fo TX:",
@@ -272,7 +308,6 @@ class TesterView(ctk.CTkFrame):
         # ====================================
 
         # Panel de pruebas de conectividad (compartido entre vistas)
-        # Más espacio desde el bloque de información y MENOS margen inferior
         self.panel_pruebas = PanelPruebasConexion(self.main_content)
         self.panel_pruebas.pack(side="bottom", fill="x", padx=60, pady=(40, 10))
         # ====================================
@@ -283,8 +318,14 @@ class TesterView(ctk.CTkFrame):
         # Responsividad
         self.bind("<Configure>", self._on_resize)
 
-    # ================= Helpers de estilo =================
+    # ========= Métodos para usuario =========
+    def set_usuario(self, user_id: str, nombre: str):
+        """Permite actualizar los textos de Id y nombre de usuario."""
+        self.label_usuario_id.configure(text=f"Id: {user_id}")
+        self.label_usuario_nombre.configure(text=f"Hola: {nombre}")
+    # ========================================
 
+    # ================= Helpers de estilo =================
     def _set_button_style(self, button, state: str):
         """state: 'neutral', 'active', 'inactive'."""
         if state == "active":
@@ -308,7 +349,6 @@ class TesterView(ctk.CTkFrame):
         self._set_button_style(self.btn_wifi, state)
 
     # ================= Responsividad =================
-
     def _on_resize(self, event):
         """Ajusta proporciones cuando cambia el tamaño de la ventana."""
         if event.widget is not self:
@@ -325,7 +365,6 @@ class TesterView(ctk.CTkFrame):
         self.left_scroll.configure(width=sidebar_width)
 
     # ================= LÓGICA DE UI =================
-
     def update_clock(self):
         """Actualiza el reloj cada segundo."""
         now = datetime.now()
@@ -409,7 +448,6 @@ class TesterView(ctk.CTkFrame):
             self.incrementar_contador_pruebas()
 
     # ================= HANDLERS DE LOS BOTONES =================
-
     def ir_OMITIR(self):
         print("Navegando a OMITIR RETEST DE FÁBRICA")
 
@@ -424,6 +462,11 @@ class TesterView(ctk.CTkFrame):
 
     def ir_senales_wifi(self):
         self._ejecutar_prueba_desde_boton("PRUEBA DE SEÑALES WIFI")
+
+    def ir_salir(self):
+        """Cierra la ventana principal."""
+        root = self.winfo_toplevel()
+        root.destroy()
 
 
 # Para probar la vista individualmente (sin VM)

@@ -117,6 +117,27 @@ def boton_señaleswifi(parent, command=None):
     )
     btn._icon_wifi = WIFI_ICON
     return btn
+
+
+def boton_salir(parent, command=None):
+    kwargs = BTN_KWARGS.copy()
+    # Para que el texto vaya centrado y sin sangría
+    kwargs.update({
+        "anchor": "center",
+        "border_spacing": 0,
+        "height": 32,
+    })
+
+    return ctk.CTkButton(
+        parent,
+        text="SALIR",
+        command=command,
+        fg_color="#e74c3c",
+        hover_color="#c0392b",
+        text_color="white",
+        corner_radius=6,
+        **kwargs,
+    )
 # =============================================
 
 
