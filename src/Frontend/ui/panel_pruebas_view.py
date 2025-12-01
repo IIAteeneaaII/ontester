@@ -1,13 +1,34 @@
 # src/Frontend/ui/panel_pruebas_view.py
+"""
+Módulo que define el panel inferior de pruebas de conectividad.
+
+Este panel se usa como un componente reutilizable dentro de la interfaz principal
+(tester_view.py). Visualmente está compuesto por:
+
+- Una barra de estado que indica si el equipo está CONECTADO / NO CONECTADO.
+- Un texto superior adicional (por ejemplo, para mostrar algún mensaje técnico).
+- Una fila con 8 botones de prueba (PING, FACTORY RESET, SOFTWARE, etc.).
+- Un texto inferior (por ahora fijo en "TEXTO", pensada como leyenda o nota).
+
+La idea es que tester_view.py pueda instanciar este panel y, si lo desea,
+actualizar el estado de conexión usando el método `actualizar_estado_conexion`.
+"""
+
 import sys
 from pathlib import Path
 
 import customtkinter as ctk
 
-# Para poder hacer import de navigation.botones
+# ---------------------------------------------------------------------
+# Configuración del path para poder importar los botones reutilizables
+# ---------------------------------------------------------------------
+
+# Ubicación raíz del proyecto (dos niveles por arriba de /ui/)
 root_path = Path(__file__).parent.parent.parent.parent
+# Agregamos la ruta al sys.path para que Python encuentre "src.Frontend.navigation"
 sys.path.insert(0, str(root_path))
 
+# Importamos las funciones que crean los botones del panel central
 from src.Frontend.navigation.botones import (
     panel_boton_ping,
     panel_boton_factory_reset,
@@ -23,40 +44,70 @@ from src.Frontend.navigation.botones import (
 class PanelPruebasConexion(ctk.CTkFrame):
     """
     Panel horizontal reutilizable con:
-      - Label superior: CONECTADO / NO CONECTADO
-      - Texto superior adicional
-      - 8 botones de prueba en una fila.
-      - Texto inferior "TEXTO".
+
+    - Label superior de estado: "CONECTADO" / "NO CONECTADO".
+    - Un texto superior adicional (por ejemplo, para mensajes técnicos).
+    - Ocho botones de pruebas en una sola fila.
+    - Un texto inferior (actualmente fijo en "TEXTO").
+
+    Esta clase NO ejecuta realmente las pruebas; únicamente muestra la
+    interfaz gráfica. El comportamiento de cada botón (qué hace al
+    presionarse) se define en quien use este panel (por ahora, sólo se
+    imprime un mensaje en consola).
     """
+
     def __init__(self, parent, **kwargs):
+        """
+        Constructor del panel.
+
+        :param parent:  Widget padre que contendrá este panel (por ejemplo,
+                        un frame dentro de tester_view).
+        :param kwargs:  Parámetros adicionales que se pasan al CTkFrame base.
+        """
         super().__init__(parent, **kwargs)
 
-        # Apariencia del marco contenedor (verde pastel suave)
+        # -----------------------------------------------------------------
+        # Apariencia general del marco contenedor
+        # -----------------------------------------------------------------
+        # Se busca un verde pastel muy suave para que combine con la paleta
+        # de la aplicación, sin cansar la vista.
         self.configure(
             corner_radius=10,
-            fg_color="#CFF9D9",   # verde muy claro tipo tarjeta
+            fg_color="#CFF9D9",   # Verde muy claro tipo "tarjeta"
         )
 
-        # Columnas para los 8 botones
+        # -----------------------------------------------------------------
+        # Configuración de columnas para la grilla interna
+        # -----------------------------------------------------------------
+        # Como tenemos 8 botones, definimos 8 columnas con el mismo "peso"
+        # para que se repartan homogéneamente en el ancho disponible.
         for col in range(8):
             self.grid_columnconfigure(col, weight=1)
 
-        # ----- Label de estado de conexión -----
+        # -----------------------------------------------------------------
+        # Label de estado de conexión (renglón 0)
+        # -----------------------------------------------------------------
+        # Muestra "CONECTADO" o "NO CONECTADO". El texto se modifica desde
+        # el método `actualizar_estado_conexion`.
         self.lbl_estado = ctk.CTkLabel(
             self,
             text="NO CONECTADO",
             font=ctk.CTkFont(size=16, weight="bold"),
-            text_color="#E0665C",    # rojo suave
+            text_color="#E0665C",    # Rojo suave para el estado "no conectado"
         )
         self.lbl_estado.grid(
             row=0,
             column=0,
-            columnspan=8,
+            columnspan=8,   # Ocupa todo el ancho del panel
             pady=(10, 5),
-            sticky="n"
+            sticky="n"      # Se alinea hacia la parte superior de la celda
         )
 
-        # ----- Texto superior adicional -----
+        # -----------------------------------------------------------------
+        # Texto superior adicional (renglón 1)
+        # -----------------------------------------------------------------
+        # Este texto puede usarse para mostrar mensajes como:
+        # "Respuesta desde 192.168.100.1..." o cualquier otra leyenda.
         self.lbl_texto_superior = ctk.CTkLabel(
             self,
             text="texto superior",
@@ -71,33 +122,56 @@ class PanelPruebasConexion(ctk.CTkFrame):
             sticky="n"
         )
 
-        # ----- Fila de botones ----- 
-        # ahora en row = 2
+        # -----------------------------------------------------------------
+        # Fila de botones (renglón 2)
+        # -----------------------------------------------------------------
+        # Cada botón se crea mediante una función de `navigation.botones`
+        # para mantener un estilo consistente en toda la aplicación.
+        # Por ahora, el comando sólo llama a `_on_click`, que imprime el
+        # nombre de la prueba en consola (pensado como gancho para futuro).
         self.btn_ping = panel_boton_ping(self, command=lambda: self._on_click("PING"))
         self.btn_ping.grid(row=2, column=0, padx=5, pady=(0, 10), sticky="nsew")
 
-        self.btn_factory = panel_boton_factory_reset(self, command=lambda: self._on_click("FACTORY RESET"))
+        self.btn_factory = panel_boton_factory_reset(
+            self, command=lambda: self._on_click("FACTORY RESET")
+        )
         self.btn_factory.grid(row=2, column=1, padx=7, pady=(0, 10), sticky="nsew")
 
-        self.btn_software = panel_boton_software(self, command=lambda: self._on_click("SOFTWARE"))
+        self.btn_software = panel_boton_software(
+            self, command=lambda: self._on_click("SOFTWARE")
+        )
         self.btn_software.grid(row=2, column=2, padx=5, pady=(0, 10), sticky="nsew")
 
-        self.btn_usb = panel_boton_usb_port(self, command=lambda: self._on_click("USB PORT"))
+        self.btn_usb = panel_boton_usb_port(
+            self, command=lambda: self._on_click("USB PORT")
+        )
         self.btn_usb.grid(row=2, column=3, padx=5, pady=(0, 10), sticky="nsew")
 
-        self.btn_tx = panel_boton_tx_power(self, command=lambda: self._on_click("TX POWER"))
+        self.btn_tx = panel_boton_tx_power(
+            self, command=lambda: self._on_click("TX POWER")
+        )
         self.btn_tx.grid(row=2, column=4, padx=5, pady=(0, 10), sticky="nsew")
 
-        self.btn_rx = panel_boton_rx_power(self, command=lambda: self._on_click("RX POWER"))
+        self.btn_rx = panel_boton_rx_power(
+            self, command=lambda: self._on_click("RX POWER")
+        )
         self.btn_rx.grid(row=2, column=5, padx=5, pady=(0, 10), sticky="nsew")
 
-        self.btn_wifi24 = panel_boton_wifi_24(self, command=lambda: self._on_click("WIFI 2.4 GHz"))
+        self.btn_wifi24 = panel_boton_wifi_24(
+            self, command=lambda: self._on_click("WIFI 2.4 GHz")
+        )
         self.btn_wifi24.grid(row=2, column=6, padx=5, pady=(0, 10), sticky="nsew")
 
-        self.btn_wifi50 = panel_boton_wifi_50(self, command=lambda: self._on_click("WIFI 5.0 GHz"))
+        self.btn_wifi50 = panel_boton_wifi_50(
+            self, command=lambda: self._on_click("WIFI 5.0 GHz")
+        )
         self.btn_wifi50.grid(row=2, column=7, padx=5, pady=(0, 10), sticky="nsew")
 
-        # ----- Texto inferior "TEXTO" -----
+        # -----------------------------------------------------------------
+        # Texto inferior (renglón 3)
+        # -----------------------------------------------------------------
+        # De momento se deja fijo como "TEXTO". Sirve como leyenda, pista o
+        # información adicional breve debajo de los botones.
         self.lbl_texto = ctk.CTkLabel(
             self,
             text="TEXTO",
@@ -112,31 +186,50 @@ class PanelPruebasConexion(ctk.CTkFrame):
             sticky="s"
         )
 
-    # --------- API pública útil ---------
-
+    # -----------------------------------------------------------------
+    # API pública del panel
+    # -----------------------------------------------------------------
     def actualizar_estado_conexion(self, conectado: bool):
         """
-        Cambia el texto y color del label superior:
-          True  -> CONECTADO (verde)
-          False -> NO CONECTADO (rojo)
+        Actualiza el label de estado ("CONECTADO" / "NO CONECTADO").
+
+        :param conectado: True si el equipo está conectado,
+                          False si no lo está.
         """
         if conectado:
+            # Estado conectado: texto en verde
             self.lbl_estado.configure(
                 text="CONECTADO",
-                text_color="#27AE60"  # verde
+                text_color="#27AE60"  # Verde
             )
         else:
+            # Estado no conectado: texto en rojo pastel
             self.lbl_estado.configure(
                 text="NO CONECTADO",
-                text_color="#E0665C"  # rojo pastel
+                text_color="#E0665C"  # Rojo pastel
             )
 
-    # Este método lo puedes usar para debug o para enlazar lógica real.
+    # -----------------------------------------------------------------
+    # Callbacks internos
+    # -----------------------------------------------------------------
     def _on_click(self, nombre_prueba: str):
+        """
+        Callback genérico para los botones.
+
+        Por ahora solo imprime el nombre de la prueba en consola.
+        En el futuro, aquí se puede enlazar la lógica real de ejecución.
+
+        :param nombre_prueba: Identificador de la prueba (PING, TX POWER, etc.).
+        """
         print(f"[PanelPruebasConexion] Click en {nombre_prueba}")
 
 
-# Para probar el panel por separado
+# ---------------------------------------------------------------------
+# Bloque de prueba independiente
+# ---------------------------------------------------------------------
+# Permite ejecutar este archivo directamente (python panel_pruebas_view.py)
+# para ver únicamente el panel, sin necesidad de cargar toda la interfaz
+# principal del tester.
 if __name__ == "__main__":
     ctk.set_appearance_mode("light")
     ctk.set_default_color_theme("blue")
