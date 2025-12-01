@@ -723,6 +723,35 @@ class Mac():
 
         return result
 
+    def get_unauthorized_wifi_clients(self, whitelist_path: str) -> List[Dict[str, Any]]:
+        """
+        Devuelve la lista de clientes WiFi (con todos sus datos) cuya MAC
+        NO está en el archivo de whitelist.
+        """
+        # 1) Obtener todos los clientes actuales del router
+        clients = self._selenium_get_wifi_clients()
+        if not clients:
+            print("[WIFI CLIENTS] No se encontraron clientes WiFi")
+            return []
+
+        # 2) Cargar whitelist
+        allowed = self._load_mac_whitelist(whitelist_path)
+        if not allowed:
+            print(f"[WIFI CLIENTS] Whitelist vacía o no encontrada: {whitelist_path}")
+            # En este caso podrías devolver todos, pero aquí devuelvo lista vacía
+            return []
+
+        # 3) Filtrar clientes cuya MAC NO está permitida
+        unauthorized: List[Dict[str, Any]] = []
+        for c in clients:
+            norm_mac = self._normalize_mac(c["mac"])
+            if norm_mac not in allowed:
+                unauthorized.append(c)
+
+        print(f"[WIFI CLIENTS] Clientes NO permitidos: {len(unauthorized)}")
+        return unauthorized
+
+
 def main():
     # Script para verificar los usuarios conectados en una red (fiberhome / para la oficina)
     objClass = Mac(host="192.168.202.1", model=None)
@@ -732,6 +761,8 @@ def main():
         # print(dispositivos)
         macs = objClass._load_mac_whitelist("C:/Users/Admin/Desktop/macs_sin_desc.txt")
         resultado = objClass.test_wifi_clients()
+        bans = objClass.get_unauthorized_wifi_clients("C:/Users/Admin/Desktop/macs_sin_desc.txt")
+        print(bans)
         # print(resultado)
 
 if __name__ == "__main__":

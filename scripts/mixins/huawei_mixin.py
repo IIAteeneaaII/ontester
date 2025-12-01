@@ -1141,16 +1141,14 @@ class HuaweiMixin:
                     print("[SELENIUM] Login HUAWEI completado, menú System Information visible.")
                     # return True
                 except TimeoutException:
-                    print("[SELENIUM] WARNING: No apareció 'name_Systeminfo' tras login (puede que el login haya fallado).")
+                    print("[SELENIUM] WARNING: No apareció 'name_Systeminfo' tras login (puede que el login haya fallado) o haya wizard.")
                     # Guardamos la pantalla resultante para revisar
-                    after_path = Path("debug_huawei_after_login.html")
-                    after_path.write_text(driver.page_source, encoding="utf-8")
-                    print(f"[SELENIUM] HTML tras login guardado en {after_path}")
+                    # after_path = Path("debug_huawei_after_login.html")
+                    # after_path.write_text(driver.page_source, encoding="utf-8")
+                    # print(f"[SELENIUM] HTML tras login guardado en {after_path}")
                     # return False
 
                 # return True
-
-                
                 # Esperar a que cargue la página principal (varios indicadores posibles)
                 time.sleep(5)  # Dar tiempo para procesar login
                 cookies = {c["name"]: c["value"] for c in driver.get_cookies()}
@@ -1174,7 +1172,15 @@ class HuaweiMixin:
                     #hacer sesion otra vez
                     #temp_bool = self._login_huawei()
                 else:
-                    print("[INFO] No se saltó la página de configuración inicial o no se encontraron los skips")
+                    # no reset de fabrica
+                    # print("[INFO] No se saltó la página de configuración inicial o no se encontraron los skips")
+                    reset = self._reset_factory_huawei(driver)
+                    time.sleep(100)
+                    if(reset):
+                        loginBool = self._login_huawei()
+                        return loginBool
+                    else:
+                        print("[INFO] No se reseteo de fabrica")
                 # Peticiones desde aqui para no cerrar el driver
                 
                 self.huawei_info(driver)
