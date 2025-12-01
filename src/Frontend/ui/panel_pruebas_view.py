@@ -24,15 +24,17 @@ class PanelPruebasConexion(ctk.CTkFrame):
     """
     Panel horizontal reutilizable con:
       - Label superior: CONECTADO / NO CONECTADO
+      - Texto superior adicional
       - 8 botones de prueba en una fila.
+      - Texto inferior "TEXTO".
     """
     def __init__(self, parent, **kwargs):
         super().__init__(parent, **kwargs)
 
-        # Apariencia del marco contenedor
+        # Apariencia del marco contenedor (verde pastel suave)
         self.configure(
             corner_radius=10,
-            fg_color="#ecf0f1",   # gris claro tipo tarjeta
+            fg_color="#CFF9D9",   # verde muy claro tipo tarjeta
         )
 
         # Columnas para los 8 botones
@@ -44,41 +46,71 @@ class PanelPruebasConexion(ctk.CTkFrame):
             self,
             text="NO CONECTADO",
             font=ctk.CTkFont(size=16, weight="bold"),
-            text_color="#e74c3c",    # rojo
+            text_color="#E0665C",    # rojo suave
         )
         self.lbl_estado.grid(
             row=0,
             column=0,
             columnspan=8,
-            pady=(10, 15),
+            pady=(10, 5),
             sticky="n"
         )
 
-        # ----- Fila de botones -----
-        # fila 1, columnas 0..7
+        # ----- Texto superior adicional -----
+        self.lbl_texto_superior = ctk.CTkLabel(
+            self,
+            text="texto superior",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color="#333333",
+        )
+        self.lbl_texto_superior.grid(
+            row=1,
+            column=0,
+            columnspan=8,
+            pady=(0, 10),
+            sticky="n"
+        )
+
+        # ----- Fila de botones ----- 
+        # ahora en row = 2
         self.btn_ping = panel_boton_ping(self, command=lambda: self._on_click("PING"))
-        self.btn_ping.grid(row=1, column=0, padx=5, pady=(0, 10), sticky="nsew")
+        self.btn_ping.grid(row=2, column=0, padx=5, pady=(0, 10), sticky="nsew")
 
         self.btn_factory = panel_boton_factory_reset(self, command=lambda: self._on_click("FACTORY RESET"))
-        self.btn_factory.grid(row=1, column=1, padx=7, pady=(0, 10), sticky="nsew")
+        self.btn_factory.grid(row=2, column=1, padx=7, pady=(0, 10), sticky="nsew")
 
         self.btn_software = panel_boton_software(self, command=lambda: self._on_click("SOFTWARE"))
-        self.btn_software.grid(row=1, column=2, padx=5, pady=(0, 10), sticky="nsew")
+        self.btn_software.grid(row=2, column=2, padx=5, pady=(0, 10), sticky="nsew")
 
         self.btn_usb = panel_boton_usb_port(self, command=lambda: self._on_click("USB PORT"))
-        self.btn_usb.grid(row=1, column=3, padx=5, pady=(0, 10), sticky="nsew")
+        self.btn_usb.grid(row=2, column=3, padx=5, pady=(0, 10), sticky="nsew")
 
         self.btn_tx = panel_boton_tx_power(self, command=lambda: self._on_click("TX POWER"))
-        self.btn_tx.grid(row=1, column=4, padx=5, pady=(0, 10), sticky="nsew")
+        self.btn_tx.grid(row=2, column=4, padx=5, pady=(0, 10), sticky="nsew")
 
         self.btn_rx = panel_boton_rx_power(self, command=lambda: self._on_click("RX POWER"))
-        self.btn_rx.grid(row=1, column=5, padx=5, pady=(0, 10), sticky="nsew")
+        self.btn_rx.grid(row=2, column=5, padx=5, pady=(0, 10), sticky="nsew")
 
         self.btn_wifi24 = panel_boton_wifi_24(self, command=lambda: self._on_click("WIFI 2.4 GHz"))
-        self.btn_wifi24.grid(row=1, column=6, padx=5, pady=(0, 10), sticky="nsew")
+        self.btn_wifi24.grid(row=2, column=6, padx=5, pady=(0, 10), sticky="nsew")
 
         self.btn_wifi50 = panel_boton_wifi_50(self, command=lambda: self._on_click("WIFI 5.0 GHz"))
-        self.btn_wifi50.grid(row=1, column=7, padx=5, pady=(0, 10), sticky="nsew")
+        self.btn_wifi50.grid(row=2, column=7, padx=5, pady=(0, 10), sticky="nsew")
+
+        # ----- Texto inferior "TEXTO" -----
+        self.lbl_texto = ctk.CTkLabel(
+            self,
+            text="TEXTO",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color="#333333",
+        )
+        self.lbl_texto.grid(
+            row=3,
+            column=0,
+            columnspan=8,
+            pady=(0, 8),
+            sticky="s"
+        )
 
     # --------- API pública útil ---------
 
@@ -91,12 +123,12 @@ class PanelPruebasConexion(ctk.CTkFrame):
         if conectado:
             self.lbl_estado.configure(
                 text="CONECTADO",
-                text_color="#2ecc71"  # verde
+                text_color="#27AE60"  # verde
             )
         else:
             self.lbl_estado.configure(
                 text="NO CONECTADO",
-                text_color="#e74c3c"  # rojo
+                text_color="#E0665C"  # rojo pastel
             )
 
     # Este método lo puedes usar para debug o para enlazar lógica real.

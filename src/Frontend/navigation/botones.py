@@ -10,6 +10,10 @@ BTN_KWARGS = {
     "font": ("Segoe UI", 13, "bold"),
     "anchor": "w",         # contenido alineado a la izquierda
     "border_spacing": 12,  # margen interno desde el borde izquierdo
+    # colores base (azul pastel)
+    "fg_color": "#4EA5D9",
+    "hover_color": "#3B8CC2",
+    "text_color": "white",
 }
 
 # ---------- Estilo común: botones del panel central ----------
@@ -17,6 +21,10 @@ PANEL_BTN_KWARGS = {
     "height": 70,
     "corner_radius": 6,
     "font": ("Segoe UI", 11, "bold"),
+    # mismos colores que barra izquierda, para consistencia
+    "fg_color": "#4EA5D9",
+    "hover_color": "#3B8CC2",
+    "text_color": "white",
 }
 
 # Carpeta de iconos
@@ -56,7 +64,6 @@ def boton_OMITIR(parent, command=None):
         image=OMITIR_ICON,
         compound="left" if OMITIR_ICON is not None else "center",
         command=command,
-        hover_color="#1e8449",
         **BTN_KWARGS
     )
     btn._icon_omitir = OMITIR_ICON
@@ -70,7 +77,6 @@ def boton_Ethernet(parent, command=None):
         image=ETHERNET_ICON,
         compound="left" if ETHERNET_ICON is not None else "center",
         command=command,
-        hover_color="#1e8449",
         **BTN_KWARGS
     )
     btn._icon_ethernet = ETHERNET_ICON
@@ -84,7 +90,6 @@ def boton_Conectividad(parent, command=None):
         image=CONECTIVIDAD_ICON,
         compound="left" if CONECTIVIDAD_ICON is not None else "center",
         command=command,
-        hover_color="#1e8449",
         **BTN_KWARGS
     )
     btn._icon_conectividad = CONECTIVIDAD_ICON
@@ -98,7 +103,6 @@ def boton_Otrospuertos(parent, command=None):
         image=OTROS_PUERTOS_ICON,
         compound="left" if OTROS_PUERTOS_ICON is not None else "center",
         command=command,
-        hover_color="#1e8449",
         **BTN_KWARGS
     )
     btn._icon_otros_puertos = OTROS_PUERTOS_ICON
@@ -112,7 +116,6 @@ def boton_señaleswifi(parent, command=None):
         image=WIFI_ICON,
         compound="left" if WIFI_ICON is not None else "center",
         command=command,
-        hover_color="#1e8449",
         **BTN_KWARGS
     )
     btn._icon_wifi = WIFI_ICON
@@ -120,20 +123,25 @@ def boton_señaleswifi(parent, command=None):
 
 
 def boton_salir(parent, command=None):
+    """
+    Botón rojo de SALIR para el bloque inferior del sidebar.
+    Mantiene la altura más pequeña y texto centrado.
+    """
     kwargs = BTN_KWARGS.copy()
     # Para que el texto vaya centrado y sin sangría
     kwargs.update({
         "anchor": "center",
         "border_spacing": 0,
         "height": 32,
+        # Colores específicos de salir (no azules)
+        "fg_color": "#F28B82",
+        "hover_color": "#E0665C",
     })
 
     return ctk.CTkButton(
         parent,
         text="SALIR",
         command=command,
-        fg_color="#e74c3c",
-        hover_color="#c0392b",
         text_color="white",
         corner_radius=6,
         **kwargs,

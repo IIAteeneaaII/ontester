@@ -21,20 +21,25 @@ from src.Frontend.navigation.botones import (
 
 class TesterView(ctk.CTkFrame):
     def __init__(self, parent, viewmodel=None, **kwargs):
-        super().__init__(parent, **kwargs)
+        # Fondo general azul muy clarito
+        super().__init__(parent, fg_color="#E9F5FF", **kwargs)
 
         # Referencia opcional al ViewModel
         self.viewmodel = viewmodel
         self._last_result_ok = False         # para pruebas sin VM
         self.pruebas_realizadas = 0          # contador de pruebas
 
-        # Colores para los estados de los botones
-        self.color_neutro_fg = "#3498db"     # azul
-        self.color_neutro_hover = "#2980b9"
-        self.color_activo_fg = "#27ae60"     # verde
-        self.color_activo_hover = "#1e8449"
-        self.color_inactivo_fg = "#e74c3c"   # rojo
-        self.color_inactivo_hover = "#c0392b"
+        # ===== Colores para los estados de los botones (paleta pastel) =====
+        # Neutro: azul pastel
+        self.color_neutro_fg = "#4EA5D9"
+        self.color_neutro_hover = "#3B8CC2"
+        # Activo: verde pastel
+        self.color_activo_fg = "#6FCF97"
+        self.color_activo_hover = "#56B27D"
+        # Inactivo: rojo suave
+        self.color_inactivo_fg = "#F28B82"
+        self.color_inactivo_hover = "#E0665C"
+        # ===================================================================
 
         # Configurar grid general
         self.grid_columnconfigure(0, weight=0)  # sidebar
@@ -50,7 +55,8 @@ class TesterView(ctk.CTkFrame):
         self.left_scroll = ctk.CTkScrollableFrame(
             self,
             width=280,          # ancho del sidebar
-            corner_radius=0
+            corner_radius=0,
+            fg_color="#E3F7F2"  # verde-agua pastel
         )
         self.left_scroll.grid(row=0, column=0, sticky="nsw", padx=0, pady=0)
 
@@ -93,13 +99,13 @@ class TesterView(ctk.CTkFrame):
             corner_radius=8,
             width=260,  # casi el ancho del sidebar
 
-            fg_color="#3498db",
+            fg_color="#4EA5D9",
             text_color="white",
-            button_color="#2980b9",
-            button_hover_color="#2471a3",
+            button_color="#3B8CC2",
+            button_hover_color="#2F6FA0",
 
-            dropdown_fg_color="#3498db",
-            dropdown_hover_color="#2980b9",
+            dropdown_fg_color="#4EA5D9",
+            dropdown_hover_color="#3B8CC2",
             dropdown_text_color="white",
             dropdown_font=ctk.CTkFont(size=14, weight="bold"),
         )
@@ -127,11 +133,15 @@ class TesterView(ctk.CTkFrame):
         self.user_block = ctk.CTkFrame(left_frame, fg_color="transparent")
         self.user_block.pack(side="bottom", fill="x", padx=20, pady=(20, 10))
 
-        # Etiquetas de Id y Hola
+        # Fuente más elegante para los textos de usuario
+        user_font_bold = ctk.CTkFont(family="Segoe UI", size=30, weight="bold")
+        user_font_regular = ctk.CTkFont(family="Segoe UI", size=15, weight="bold")
+
         self.label_usuario_id = ctk.CTkLabel(
             self.user_block,
-            text="Id: __________",
-            font=ctk.CTkFont(size=12, weight="bold"),
+            text="ID: ",
+            font=user_font_bold,
+            text_color="#37474F",
             anchor="w",
             justify="left"
         )
@@ -139,19 +149,19 @@ class TesterView(ctk.CTkFrame):
 
         self.label_usuario_nombre = ctk.CTkLabel(
             self.user_block,
-            text="Hola: (nombre de usuario)",
-            font=ctk.CTkFont(size=12),
+            text="HOLA: (nombre de usuario)",
+            font=user_font_regular,
+            text_color="#37474F",
             anchor="w",
             justify="left"
         )
         self.label_usuario_nombre.pack(anchor="w", pady=(2, 8))
 
-        # Botón SALIR en rojo
         self.btn_salir = ctk.CTkButton(
             self.user_block,
             text="SALIR",
-            fg_color="#e74c3c",
-            hover_color="#c0392b",
+            fg_color="#F28B82",
+            hover_color="#E0665C",
             text_color="white",
             font=ctk.CTkFont(size=13, weight="bold"),
             corner_radius=6,
@@ -165,7 +175,7 @@ class TesterView(ctk.CTkFrame):
         self._set_all_buttons_state("neutral")
 
         # Frame derecho (área principal/contenido)
-        self.right_frame = ctk.CTkFrame(self, corner_radius=0)
+        self.right_frame = ctk.CTkFrame(self, corner_radius=0, fg_color="#E9F5FF")
         self.right_frame.grid(row=0, column=1, sticky="nsew", padx=0, pady=0)
 
         # ========= BARRA SUPERIOR COMPLETA =========
@@ -179,7 +189,8 @@ class TesterView(ctk.CTkFrame):
         lbl_prueba = ctk.CTkLabel(
             left_bar,
             text="Prueba:",
-            font=ctk.CTkFont(size=18, weight="bold")
+            font=ctk.CTkFont(size=18, weight="bold"),
+            text_color="#2C3E50"
         )
         lbl_prueba.pack(side="left")
 
@@ -198,7 +209,8 @@ class TesterView(ctk.CTkFrame):
         self.clock_label = ctk.CTkLabel(
             center_bar,
             text="",
-            font=ctk.CTkFont(size=20)
+            font=ctk.CTkFont(size=20),
+            text_color="#2C3E50"
         )
         self.clock_label.pack()
 
@@ -206,19 +218,32 @@ class TesterView(ctk.CTkFrame):
         right_bar = ctk.CTkFrame(top_bar, fg_color="transparent")
         right_bar.pack(side="right")
 
-        lbl_pruebas_realizadas = ctk.CTkLabel(
+        # Texto de modelo (arriba)
+        self.modelo_label = ctk.CTkLabel(
             right_bar,
+            text="Modelo:",
+            font=ctk.CTkFont(size=14, weight="bold")
+        )
+        self.modelo_label.pack(side="top", anchor="e")
+
+        # Fila con "Pruebas realizadas: 0" debajo
+        pruebas_frame = ctk.CTkFrame(right_bar, fg_color="transparent")
+        pruebas_frame.pack(side="top", anchor="e")
+
+        lbl_pruebas_realizadas = ctk.CTkLabel(
+            pruebas_frame,
             text="Pruebas realizadas:",
             font=ctk.CTkFont(size=14, weight="bold")
         )
         lbl_pruebas_realizadas.pack(side="left")
 
         self.pruebas_count_label = ctk.CTkLabel(
-            right_bar,
+            pruebas_frame,
             text="0",
             font=ctk.CTkFont(size=18, weight="bold")
         )
         self.pruebas_count_label.pack(side="left", padx=(5, 0))
+
         # ===========================================
 
         # ======= CONTENIDO PRINCIPAL =======
@@ -232,11 +257,15 @@ class TesterView(ctk.CTkFrame):
         info_frame.grid_columnconfigure(0, weight=1)
         info_frame.grid_columnconfigure(1, weight=1)
 
+        label_font = ctk.CTkFont(size=14, weight="bold")
+        label_color = "#37474F"
+
         # Columna izquierda (SN / MAC / SOFTWARE / WIFI / Password)
         lbl_sn = ctk.CTkLabel(
             info_frame,
             text="SN:",
-            font=ctk.CTkFont(size=14, weight="bold"),
+            font=label_font,
+            text_color=label_color,
             anchor="w"
         )
         lbl_sn.grid(row=0, column=0, sticky="w", pady=(0, 5))
@@ -244,7 +273,8 @@ class TesterView(ctk.CTkFrame):
         lbl_mac = ctk.CTkLabel(
             info_frame,
             text="MAC:",
-            font=ctk.CTkFont(size=14, weight="bold"),
+            font=label_font,
+            text_color=label_color,
             anchor="w"
         )
         lbl_mac.grid(row=1, column=0, sticky="w", pady=(0, 25))
@@ -252,7 +282,8 @@ class TesterView(ctk.CTkFrame):
         lbl_software = ctk.CTkLabel(
             info_frame,
             text="SOFTWARE:",
-            font=ctk.CTkFont(size=14, weight="bold"),
+            font=label_font,
+            text_color=label_color,
             anchor="w"
         )
         lbl_software.grid(row=2, column=0, sticky="w", pady=(10, 5))
@@ -260,7 +291,8 @@ class TesterView(ctk.CTkFrame):
         lbl_wifi24 = ctk.CTkLabel(
             info_frame,
             text="WIFI 2.4 GHz:",
-            font=ctk.CTkFont(size=14, weight="bold"),
+            font=label_font,
+            text_color=label_color,
             anchor="w"
         )
         lbl_wifi24.grid(row=3, column=0, sticky="w", pady=5)
@@ -268,7 +300,8 @@ class TesterView(ctk.CTkFrame):
         lbl_wifi5 = ctk.CTkLabel(
             info_frame,
             text="WIFI 5 GHz:",
-            font=ctk.CTkFont(size=14, weight="bold"),
+            font=label_font,
+            text_color=label_color,
             anchor="w"
         )
         lbl_wifi5.grid(row=4, column=0, sticky="w", pady=5)
@@ -276,7 +309,8 @@ class TesterView(ctk.CTkFrame):
         lbl_password = ctk.CTkLabel(
             info_frame,
             text="Password",
-            font=ctk.CTkFont(size=14, weight="bold"),
+            font=label_font,
+            text_color=label_color,
             anchor="w"
         )
         lbl_password.grid(row=5, column=0, sticky="w", pady=(5, 0))
@@ -285,7 +319,8 @@ class TesterView(ctk.CTkFrame):
         lbl_fo_tx = ctk.CTkLabel(
             info_frame,
             text="Fo TX:",
-            font=ctk.CTkFont(size=14, weight="bold"),
+            font=label_font,
+            text_color=label_color,
             anchor="w"
         )
         lbl_fo_tx.grid(row=2, column=1, sticky="w", padx=(40, 0), pady=(10, 5))
@@ -293,7 +328,8 @@ class TesterView(ctk.CTkFrame):
         lbl_fo_rx = ctk.CTkLabel(
             info_frame,
             text="Fo Rx:",
-            font=ctk.CTkFont(size=14, weight="bold"),
+            font=label_font,
+            text_color=label_color,
             anchor="w"
         )
         lbl_fo_rx.grid(row=3, column=1, sticky="w", padx=(40, 0), pady=5)
@@ -301,7 +337,8 @@ class TesterView(ctk.CTkFrame):
         lbl_usb = ctk.CTkLabel(
             info_frame,
             text="Usb Port",
-            font=ctk.CTkFont(size=14, weight="bold"),
+            font=label_font,
+            text_color=label_color,
             anchor="w"
         )
         lbl_usb.grid(row=4, column=1, sticky="w", padx=(40, 0), pady=(5, 0))
@@ -309,8 +346,13 @@ class TesterView(ctk.CTkFrame):
 
         # Panel de pruebas de conectividad (compartido entre vistas)
         self.panel_pruebas = PanelPruebasConexion(self.main_content)
-        self.panel_pruebas.pack(side="bottom", fill="x", padx=60, pady=(40, 10))
-        # ====================================
+        self.panel_pruebas.pack(
+            side="bottom",
+            fill="x",
+            expand=False,
+            padx=0,
+            pady=(0, 10)
+        )
 
         # Iniciar actualización del reloj
         self.update_clock()
@@ -321,8 +363,8 @@ class TesterView(ctk.CTkFrame):
     # ========= Métodos para usuario =========
     def set_usuario(self, user_id: str, nombre: str):
         """Permite actualizar los textos de Id y nombre de usuario."""
-        self.label_usuario_id.configure(text=f"Id: {user_id}")
-        self.label_usuario_nombre.configure(text=f"Hola: {nombre}")
+        self.label_usuario_id.configure(text=f"ID: {user_id}")
+        self.label_usuario_nombre.configure(text=f"HOLA: {nombre}")
     # ========================================
 
     # ================= Helpers de estilo =================
@@ -390,30 +432,20 @@ class TesterView(ctk.CTkFrame):
         self._set_all_buttons_state("neutral")
 
         if modo == "Testeo":
-            # Activos: OMITIR, CONECTIVIDAD, OTROS PUERTOS
             self._set_button_style(self.btn_omitir, "active")
             self._set_button_style(self.btn_conectividad, "active")
             self._set_button_style(self.btn_otros_puertos, "active")
-
-            # Inactivos: ETHERNET, WIFI
             self._set_button_style(self.btn_ethernet, "inactive")
             self._set_button_style(self.btn_wifi, "inactive")
 
         elif modo == "Retesteo":
-            # Todos activos
             self._set_all_buttons_state("active")
 
         elif modo == "Etiqueta":
-            # Todos inactivos
             self._set_all_buttons_state("inactive")
 
     def actualizar_estado_prueba(self, estado):
-        """
-        Actualiza el texto y color de 'Prueba: ...'
-        estado puede ser:
-          - True / False
-          - 'EXITOSA' / 'FALLIDA' / etc.
-        """
+        """Actualiza el texto y color de 'Prueba: ...'."""
         if isinstance(estado, str):
             estado_normalizado = estado.strip().upper()
         else:
@@ -421,25 +453,22 @@ class TesterView(ctk.CTkFrame):
 
         if estado_normalizado in ("EXITOSA", "OK", "SUCCESS", "TRUE"):
             texto = "EXITOSA"
-            color = "#2ecc71"   # verde
+            color = "#27AE60"
         elif estado_normalizado in ("FALLIDA", "FAIL", "ERROR", "FALSE"):
             texto = "FALLIDA"
-            color = "#e74c3c"   # rojo
+            color = "#E0665C"
         else:
             texto = str(estado)
-            color = "#f1c40f"   # neutro
+            color = "#f1c40f"
 
         self.estado_prueba_label.configure(text=texto, text_color=color)
 
     def incrementar_contador_pruebas(self):
-        """Incrementa el contador y actualiza la etiqueta de 'Pruebas realizadas'."""
         self.pruebas_realizadas += 1
         self.pruebas_count_label.configure(text=str(self.pruebas_realizadas))
 
     def _ejecutar_prueba_desde_boton(self, nombre_prueba: str):
-        """Utilidad para ejecutar la lógica de prueba desde cualquier botón."""
         print(f"Ejecutando {nombre_prueba}...")
-
         if self.viewmodel is not None:
             self.viewmodel.ejecutar_prueba()
         else:
@@ -464,7 +493,6 @@ class TesterView(ctk.CTkFrame):
         self._ejecutar_prueba_desde_boton("PRUEBA DE SEÑALES WIFI")
 
     def ir_salir(self):
-        """Cierra la ventana principal."""
         root = self.winfo_toplevel()
         root.destroy()
 
