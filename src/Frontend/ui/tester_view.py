@@ -372,14 +372,17 @@ class TesterView(ctk.CTkFrame):
         if state == "active":
             fg = self.color_activo_fg
             hover = self.color_activo_hover
+            status = "normal"
         elif state == "inactive":
             fg = self.color_inactivo_fg
             hover = self.color_inactivo_hover
+            status = "disabled"
         else:  # neutral
             fg = self.color_neutro_fg
             hover = self.color_neutro_hover
+            status = "normal"
 
-        button.configure(fg_color=fg, hover_color=hover)
+        button.configure(fg_color=fg, hover_color=hover, state=status)
 
     def _set_all_buttons_state(self, state: str):
         """Pone todos los botones del sidebar en el mismo estado visual."""
