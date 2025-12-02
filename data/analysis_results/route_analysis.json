@@ -1,0 +1,552 @@
+{
+  "route_tests": {
+    "login_routes": {
+      "/html/login_inter.html": {
+        "status": 200,
+        "headers": {
+          "date": "Mon, 10 Nov 2025 10:04:31 GMT",
+          "content-type": "text/html; charset=utf-8",
+          "content-length": "11965",
+          "connection": "keep-alive",
+          "expires": "Mon, 10 Nov 2025 10:04:30 GMT",
+          "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
+          "x-frame-options": "SAMEORIGIN",
+          "x-content-type-options": "nosniff",
+          "x-xss-protection": "1; mode=block",
+          "pragma": "no-cache",
+          "x-download-options": "noopen",
+          "x-permitted-cross-domain-policies": "master-only",
+          "referrer-policy": "no-referrer-when-downgrade",
+          "accept-ranges": "bytes"
+        },
+        "body_length": 933
+      },
+      "/html/login_3bb.html": {
+        "status": 200,
+        "headers": {
+          "date": "Mon, 10 Nov 2025 10:04:31 GMT",
+          "content-type": "text/html; charset=utf-8",
+          "content-length": "9642",
+          "connection": "keep-alive",
+          "expires": "Mon, 10 Nov 2025 10:04:30 GMT",
+          "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
+          "x-frame-options": "SAMEORIGIN",
+          "x-content-type-options": "nosniff",
+          "x-xss-protection": "1; mode=block",
+          "pragma": "no-cache",
+          "x-download-options": "noopen",
+          "x-permitted-cross-domain-policies": "master-only",
+          "referrer-policy": "no-referrer-when-downgrade",
+          "accept-ranges": "bytes"
+        },
+        "body_length": 934
+      },
+      "/html/login_pldt.html": {
+        "status": 200,
+        "headers": {
+          "date": "Mon, 10 Nov 2025 10:04:31 GMT",
+          "content-type": "text/html; charset=utf-8",
+          "content-length": "6839",
+          "connection": "keep-alive",
+          "expires": "Mon, 10 Nov 2025 10:04:30 GMT",
+          "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
+          "x-frame-options": "SAMEORIGIN",
+          "x-content-type-options": "nosniff",
+          "x-xss-protection": "1; mode=block",
+          "pragma": "no-cache",
+          "x-download-options": "noopen",
+          "x-permitted-cross-domain-policies": "master-only",
+          "referrer-policy": "no-referrer-when-downgrade",
+          "accept-ranges": "bytes"
+        },
+        "body_length": 934
+      },
+      "/public/index.html": {
+        "status": 400,
+        "headers": {
+          "date": "Mon, 10 Nov 2025 10:04:31 GMT",
+          "content-type": "text/html; charset=utf-8",
+          "content-length": "150",
+          "connection": "close",
+          "x-frame-options": "SAMEORIGIN",
+          "x-content-type-options": "nosniff",
+          "x-xss-protection": "1; mode=block",
+          "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
+          "pragma": "no-cache",
+          "x-download-options": "noopen",
+          "x-permitted-cross-domain-policies": "master-only",
+          "referrer-policy": "no-referrer-when-downgrade"
+        },
+        "body_length": 150
+      },
+      "/html/login_paltel.html": {
+        "status": 400,
+        "headers": {
+          "date": "Mon, 10 Nov 2025 10:04:31 GMT",
+          "content-type": "text/html; charset=utf-8",
+          "content-length": "150",
+          "connection": "close",
+          "x-frame-options": "SAMEORIGIN",
+          "x-content-type-options": "nosniff",
+          "x-xss-protection": "1; mode=block",
+          "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
+          "pragma": "no-cache",
+          "x-download-options": "noopen",
+          "x-permitted-cross-domain-policies": "master-only",
+          "referrer-policy": "no-referrer-when-downgrade"
+        },
+        "body_length": 150
+      },
+      "/html/login_ais.html": {
+        "status": 200,
+        "headers": {
+          "date": "Mon, 10 Nov 2025 10:04:31 GMT",
+          "content-type": "text/html; charset=utf-8",
+          "content-length": "4716",
+          "connection": "keep-alive",
+          "expires": "Mon, 10 Nov 2025 10:04:30 GMT",
+          "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
+          "x-frame-options": "SAMEORIGIN",
+          "x-content-type-options": "nosniff",
+          "x-xss-protection": "1; mode=block",
+          "pragma": "no-cache",
+          "x-download-options": "noopen",
+          "x-permitted-cross-domain-policies": "master-only",
+          "referrer-policy": "no-referrer-when-downgrade",
+          "accept-ranges": "bytes"
+        },
+        "body_length": 934
+      },
+      "/html/login_mytm.html": {
+        "status": 200,
+        "headers": {
+          "date": "Mon, 10 Nov 2025 10:04:31 GMT",
+          "content-type": "text/html; charset=utf-8",
+          "content-length": "5725",
+          "connection": "keep-alive",
+          "expires": "Mon, 10 Nov 2025 10:04:30 GMT",
+          "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
+          "x-frame-options": "SAMEORIGIN",
+          "x-content-type-options": "nosniff",
+          "x-xss-protection": "1; mode=block",
+          "pragma": "no-cache",
+          "x-download-options": "noopen",
+          "x-permitted-cross-domain-policies": "master-only",
+          "referrer-policy": "no-referrer-when-downgrade",
+          "accept-ranges": "bytes"
+        },
+        "body_length": 934
+      },
+      "/html/login_ed.html": {
+        "status": 200,
+        "headers": {
+          "date": "Mon, 10 Nov 2025 10:04:31 GMT",
+          "content-type": "text/html; charset=utf-8",
+          "content-length": "6678",
+          "connection": "keep-alive",
+          "expires": "Mon, 10 Nov 2025 10:04:30 GMT",
+          "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
+          "x-frame-options": "SAMEORIGIN",
+          "x-content-type-options": "nosniff",
+          "x-xss-protection": "1; mode=block",
+          "pragma": "no-cache",
+          "x-download-options": "noopen",
+          "x-permitted-cross-domain-policies": "master-only",
+          "referrer-policy": "no-referrer-when-downgrade",
+          "accept-ranges": "bytes"
+        },
+        "body_length": 934
+      },
+      "/html/login_romania.html": {
+        "status": 200,
+        "headers": {
+          "date": "Mon, 10 Nov 2025 10:04:31 GMT",
+          "content-type": "text/html; charset=utf-8",
+          "content-length": "3604",
+          "connection": "keep-alive",
+          "expires": "Mon, 10 Nov 2025 10:04:30 GMT",
+          "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
+          "x-frame-options": "SAMEORIGIN",
+          "x-content-type-options": "nosniff",
+          "x-xss-protection": "1; mode=block",
+          "pragma": "no-cache",
+          "x-download-options": "noopen",
+          "x-permitted-cross-domain-policies": "master-only",
+          "referrer-policy": "no-referrer-when-downgrade",
+          "accept-ranges": "bytes"
+        },
+        "body_length": 934
+      },
+      "/html/login_magyar.html": {
+        "status": 200,
+        "headers": {
+          "date": "Mon, 10 Nov 2025 10:04:31 GMT",
+          "content-type": "text/html; charset=utf-8",
+          "content-length": "3604",
+          "connection": "keep-alive",
+          "expires": "Mon, 10 Nov 2025 10:04:30 GMT",
+          "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
+          "x-frame-options": "SAMEORIGIN",
+          "x-content-type-options": "nosniff",
+          "x-xss-protection": "1; mode=block",
+          "pragma": "no-cache",
+          "x-download-options": "noopen",
+          "x-permitted-cross-domain-policies": "master-only",
+          "referrer-policy": "no-referrer-when-downgrade",
+          "accept-ranges": "bytes"
+        },
+        "body_length": 934
+      },
+      "/html/login_bz_intelbras.html": {
+        "status": 200,
+        "headers": {
+          "date": "Mon, 10 Nov 2025 10:04:31 GMT",
+          "content-type": "text/html; charset=utf-8",
+          "content-length": "6577",
+          "connection": "keep-alive",
+          "expires": "Mon, 10 Nov 2025 10:04:30 GMT",
+          "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
+          "x-frame-options": "SAMEORIGIN",
+          "x-content-type-options": "nosniff",
+          "x-xss-protection": "1; mode=block",
+          "pragma": "no-cache",
+          "x-download-options": "noopen",
+          "x-permitted-cross-domain-policies": "master-only",
+          "referrer-policy": "no-referrer-when-downgrade",
+          "accept-ranges": "bytes"
+        },
+        "body_length": 934
+      },
+      "/new_ui/login_es_digi.html": {
+        "status": 400,
+        "headers": {
+          "date": "Mon, 10 Nov 2025 10:04:31 GMT",
+          "content-type": "text/html; charset=utf-8",
+          "content-length": "150",
+          "connection": "close",
+          "x-frame-options": "SAMEORIGIN",
+          "x-content-type-options": "nosniff",
+          "x-xss-protection": "1; mode=block",
+          "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
+          "pragma": "no-cache",
+          "x-download-options": "noopen",
+          "x-permitted-cross-domain-policies": "master-only",
+          "referrer-policy": "no-referrer-when-downgrade"
+        },
+        "body_length": 150
+      },
+      "/new_ui/login.html": {
+        "status": 400,
+        "headers": {
+          "date": "Mon, 10 Nov 2025 10:04:31 GMT",
+          "content-type": "text/html; charset=utf-8",
+          "content-length": "150",
+          "connection": "close",
+          "x-frame-options": "SAMEORIGIN",
+          "x-content-type-options": "nosniff",
+          "x-xss-protection": "1; mode=block",
+          "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
+          "pragma": "no-cache",
+          "x-download-options": "noopen",
+          "x-permitted-cross-domain-policies": "master-only",
+          "referrer-policy": "no-referrer-when-downgrade"
+        },
+        "body_length": 150
+      },
+      "/html/login_mex_netwey.html": {
+        "status": 200,
+        "headers": {
+          "date": "Mon, 10 Nov 2025 10:04:32 GMT",
+          "content-type": "text/html; charset=utf-8",
+          "content-length": "6069",
+          "connection": "keep-alive",
+          "expires": "Mon, 10 Nov 2025 10:04:31 GMT",
+          "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
+          "x-frame-options": "SAMEORIGIN",
+          "x-content-type-options": "nosniff",
+          "x-xss-protection": "1; mode=block",
+          "pragma": "no-cache",
+          "x-download-options": "noopen",
+          "x-permitted-cross-domain-policies": "master-only",
+          "referrer-policy": "no-referrer-when-downgrade",
+          "accept-ranges": "bytes"
+        },
+        "body_length": 934
+      }
+    },
+    "js_routes": {
+      "/js/jquery.js": {
+        "status": 200,
+        "headers": {
+          "date": "Mon, 10 Nov 2025 10:04:32 GMT",
+          "content-type": "application/javascript; charset=utf-8",
+          "content-length": "91669",
+          "connection": "keep-alive",
+          "expires": "Mon, 10 Nov 2025 10:04:31 GMT",
+          "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
+          "x-frame-options": "SAMEORIGIN",
+          "x-content-type-options": "nosniff",
+          "x-xss-protection": "1; mode=block",
+          "pragma": "no-cache",
+          "x-download-options": "noopen",
+          "x-permitted-cross-domain-policies": "master-only",
+          "referrer-policy": "no-referrer-when-downgrade",
+          "accept-ranges": "bytes"
+        },
+        "body_length": 920
+      },
+      "/js/xhr.js": {
+        "status": 200,
+        "headers": {
+          "date": "Mon, 10 Nov 2025 10:04:32 GMT",
+          "content-type": "application/javascript; charset=utf-8",
+          "content-length": "18136",
+          "connection": "keep-alive",
+          "expires": "Mon, 10 Nov 2025 10:04:31 GMT",
+          "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
+          "x-frame-options": "SAMEORIGIN",
+          "x-content-type-options": "nosniff",
+          "x-xss-protection": "1; mode=block",
+          "pragma": "no-cache",
+          "x-download-options": "noopen",
+          "x-permitted-cross-domain-policies": "master-only",
+          "referrer-policy": "no-referrer-when-downgrade",
+          "accept-ranges": "bytes"
+        },
+        "body_length": 920
+      },
+      "/js/versionControl.js": {
+        "status": 200,
+        "headers": {
+          "date": "Mon, 10 Nov 2025 10:04:32 GMT",
+          "content-type": "application/javascript; charset=utf-8",
+          "content-length": "537",
+          "connection": "keep-alive",
+          "expires": "Mon, 10 Nov 2025 10:04:31 GMT",
+          "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
+          "x-frame-options": "SAMEORIGIN",
+          "x-content-type-options": "nosniff",
+          "x-xss-protection": "1; mode=block",
+          "pragma": "no-cache",
+          "x-download-options": "noopen",
+          "x-permitted-cross-domain-policies": "master-only",
+          "referrer-policy": "no-referrer-when-downgrade",
+          "accept-ranges": "bytes"
+        },
+        "body_length": 537
+      },
+      "/js/access.js": {
+        "status": 200,
+        "headers": {
+          "date": "Mon, 10 Nov 2025 10:04:32 GMT",
+          "content-type": "application/javascript; charset=utf-8",
+          "content-length": "115692",
+          "connection": "keep-alive",
+          "expires": "Mon, 10 Nov 2025 10:04:31 GMT",
+          "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
+          "x-frame-options": "SAMEORIGIN",
+          "x-content-type-options": "nosniff",
+          "x-xss-protection": "1; mode=block",
+          "pragma": "no-cache",
+          "x-download-options": "noopen",
+          "x-permitted-cross-domain-policies": "master-only",
+          "referrer-policy": "no-referrer-when-downgrade",
+          "accept-ranges": "bytes"
+        },
+        "body_length": 781
+      }
+    },
+    "api_routes": {
+      "/get_device_name": {
+        "status": 400,
+        "headers": {
+          "date": "Mon, 10 Nov 2025 10:04:32 GMT",
+          "content-type": "text/html; charset=utf-8",
+          "content-length": "150",
+          "connection": "close",
+          "x-frame-options": "SAMEORIGIN",
+          "x-content-type-options": "nosniff",
+          "x-xss-protection": "1; mode=block",
+          "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
+          "pragma": "no-cache",
+          "x-download-options": "noopen",
+          "x-permitted-cross-domain-policies": "master-only",
+          "referrer-policy": "no-referrer-when-downgrade"
+        },
+        "body_length": 150
+      },
+      "/get_operator": {
+        "status": 400,
+        "headers": {
+          "date": "Mon, 10 Nov 2025 10:04:32 GMT",
+          "content-type": "text/html; charset=utf-8",
+          "content-length": "150",
+          "connection": "close",
+          "x-frame-options": "SAMEORIGIN",
+          "x-content-type-options": "nosniff",
+          "x-xss-protection": "1; mode=block",
+          "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
+          "pragma": "no-cache",
+          "x-download-options": "noopen",
+          "x-permitted-cross-domain-policies": "master-only",
+          "referrer-policy": "no-referrer-when-downgrade"
+        },
+        "body_length": 150
+      }
+    },
+    "user_agent_tests": {
+      "browser": {
+        "/get_device_name": {
+          "status": 400,
+          "headers": {
+            "date": "Mon, 10 Nov 2025 10:04:32 GMT",
+            "content-type": "text/html; charset=utf-8",
+            "content-length": "150",
+            "connection": "close",
+            "x-frame-options": "SAMEORIGIN",
+            "x-content-type-options": "nosniff",
+            "x-xss-protection": "1; mode=block",
+            "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
+            "pragma": "no-cache",
+            "x-download-options": "noopen",
+            "x-permitted-cross-domain-policies": "master-only",
+            "referrer-policy": "no-referrer-when-downgrade"
+          },
+          "body_length": 150
+        },
+        "/get_operator": {
+          "status": 400,
+          "headers": {
+            "date": "Mon, 10 Nov 2025 10:04:32 GMT",
+            "content-type": "text/html; charset=utf-8",
+            "content-length": "150",
+            "connection": "close",
+            "x-frame-options": "SAMEORIGIN",
+            "x-content-type-options": "nosniff",
+            "x-xss-protection": "1; mode=block",
+            "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
+            "pragma": "no-cache",
+            "x-download-options": "noopen",
+            "x-permitted-cross-domain-policies": "master-only",
+            "referrer-policy": "no-referrer-when-downgrade"
+          },
+          "body_length": 150
+        }
+      },
+      "mobile": {
+        "/get_device_name": {
+          "status": 400,
+          "headers": {
+            "date": "Mon, 10 Nov 2025 10:04:32 GMT",
+            "content-type": "text/html; charset=utf-8",
+            "content-length": "150",
+            "connection": "close",
+            "x-frame-options": "SAMEORIGIN",
+            "x-content-type-options": "nosniff",
+            "x-xss-protection": "1; mode=block",
+            "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
+            "pragma": "no-cache",
+            "x-download-options": "noopen",
+            "x-permitted-cross-domain-policies": "master-only",
+            "referrer-policy": "no-referrer-when-downgrade"
+          },
+          "body_length": 150
+        },
+        "/get_operator": {
+          "status": 400,
+          "headers": {
+            "date": "Mon, 10 Nov 2025 10:04:32 GMT",
+            "content-type": "text/html; charset=utf-8",
+            "content-length": "150",
+            "connection": "close",
+            "x-frame-options": "SAMEORIGIN",
+            "x-content-type-options": "nosniff",
+            "x-xss-protection": "1; mode=block",
+            "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
+            "pragma": "no-cache",
+            "x-download-options": "noopen",
+            "x-permitted-cross-domain-policies": "master-only",
+            "referrer-policy": "no-referrer-when-downgrade"
+          },
+          "body_length": 150
+        }
+      },
+      "curl": {
+        "/get_device_name": {
+          "status": 400,
+          "headers": {
+            "date": "Mon, 10 Nov 2025 10:04:32 GMT",
+            "content-type": "text/html; charset=utf-8",
+            "content-length": "150",
+            "connection": "close",
+            "x-frame-options": "SAMEORIGIN",
+            "x-content-type-options": "nosniff",
+            "x-xss-protection": "1; mode=block",
+            "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
+            "pragma": "no-cache",
+            "x-download-options": "noopen",
+            "x-permitted-cross-domain-policies": "master-only",
+            "referrer-policy": "no-referrer-when-downgrade"
+          },
+          "body_length": 150
+        },
+        "/get_operator": {
+          "status": 400,
+          "headers": {
+            "date": "Mon, 10 Nov 2025 10:04:32 GMT",
+            "content-type": "text/html; charset=utf-8",
+            "content-length": "150",
+            "connection": "close",
+            "x-frame-options": "SAMEORIGIN",
+            "x-content-type-options": "nosniff",
+            "x-xss-protection": "1; mode=block",
+            "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
+            "pragma": "no-cache",
+            "x-download-options": "noopen",
+            "x-permitted-cross-domain-policies": "master-only",
+            "referrer-policy": "no-referrer-when-downgrade"
+          },
+          "body_length": 150
+        }
+      },
+      "ont": {
+        "/get_device_name": {
+          "status": 400,
+          "headers": {
+            "date": "Mon, 10 Nov 2025 10:04:32 GMT",
+            "content-type": "text/html; charset=utf-8",
+            "content-length": "150",
+            "connection": "close",
+            "x-frame-options": "SAMEORIGIN",
+            "x-content-type-options": "nosniff",
+            "x-xss-protection": "1; mode=block",
+            "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
+            "pragma": "no-cache",
+            "x-download-options": "noopen",
+            "x-permitted-cross-domain-policies": "master-only",
+            "referrer-policy": "no-referrer-when-downgrade"
+          },
+          "body_length": 150
+        },
+        "/get_operator": {
+          "status": 400,
+          "headers": {
+            "date": "Mon, 10 Nov 2025 10:04:32 GMT",
+            "content-type": "text/html; charset=utf-8",
+            "content-length": "150",
+            "connection": "close",
+            "x-frame-options": "SAMEORIGIN",
+            "x-content-type-options": "nosniff",
+            "x-xss-protection": "1; mode=block",
+            "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
+            "pragma": "no-cache",
+            "x-download-options": "noopen",
+            "x-permitted-cross-domain-policies": "master-only",
+            "referrer-policy": "no-referrer-when-downgrade"
+          },
+          "body_length": 150
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "metadata": {
+    "date": "2025-11-10T12:24:40.208260",
+    "host": "192.168.100.1",
+    "model": "MOD001",
+    "serial_number": "FHTTC1166D5C",
+    "device_name": "HG6145F1",
+    "operator": "MEX_TP"
+  },
+  "tests": {
+    "USB_PORT": {
+      "name": "USB_PORT",
+      "status": "FAIL",
+      "details": {
+        "error": "Requiere session valida (login completo)",
+        "note": "Basic Auth insuficiente para este metodo"
+      }
+    },
+    "TX_POWER": {
+      "name": "TX_POWER",
+      "status": "FAIL",
+      "details": {
+        "error": "Requiere session valida (login completo)",
+        "note": "Basic Auth insuficiente - necesita do_login"
+      }
+    },
+    "RX_POWER": {
+      "name": "RX_POWER",
+      "status": "FAIL",
+      "details": {
+        "error": "Requiere session valida (login completo)",
+        "note": "Basic Auth insuficiente - necesita do_login"
+      }
+    },
+    "WIFI_24GHZ": {
+      "name": "WIFI_24GHZ",
+      "status": "FAIL",
+      "details": {
+        "error": "Requiere session valida (login completo)",
+        "note": "Basic Auth insuficiente - necesita do_login"
+      }
+    },
+    "WIFI_5GHZ": {
+      "name": "WIFI_5GHZ",
+      "status": "FAIL",
+      "details": {
+        "error": "Requiere session valida (login completo)",
+        "note": "Basic Auth insuficiente - necesita do_login"
+      }
+    }
+  }
+}

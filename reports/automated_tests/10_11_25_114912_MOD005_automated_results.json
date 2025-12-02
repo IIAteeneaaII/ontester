@@ -1,0 +1,78 @@
+{
+  "metadata": {
+    "date": "2025-11-10T11:49:11.420286",
+    "host": "192.168.100.1",
+    "model": "MOD005",
+    "serial_number": "FHTTC1166D5C",
+    "device_name": "HG6145F1",
+    "operator": "MEX_TP"
+  },
+  "tests": {
+    "PWD_PASS": {
+      "name": "PWD_PASS",
+      "status": "PASS",
+      "details": {
+        "serial_number": "FHTTC1166D5C",
+        "operator": "MEX_TP",
+        "method": "AJAX get_operator"
+      }
+    },
+    "FACTORY_RESET_PASS": {
+      "name": "FACTORY_RESET_PASS",
+      "status": "SKIP",
+      "details": {
+        "reason": "Test no destructivo - requiere verificacion manual"
+      }
+    },
+    "USB_PORT": {
+      "name": "USB_PORT",
+      "status": "FAIL",
+      "details": {
+        "error": "Requiere session valida (login completo)",
+        "note": "Basic Auth insuficiente para este metodo"
+      }
+    },
+    "SOFTWARE_PASS": {
+      "name": "SOFTWARE_PASS",
+      "status": "PASS",
+      "details": {
+        "model_name": "HG6145F1",
+        "method": "AJAX get_device_name",
+        "operator": "MEX_TP",
+        "serial": "FHTTC1166D5C"
+      }
+    },
+    "TX_POWER": {
+      "name": "TX_POWER",
+      "status": "FAIL",
+      "details": {
+        "error": "Requiere session valida (login completo)",
+        "note": "Basic Auth insuficiente - necesita do_login"
+      }
+    },
+    "RX_POWER": {
+      "name": "RX_POWER",
+      "status": "FAIL",
+      "details": {
+        "error": "Requiere session valida (login completo)",
+        "note": "Basic Auth insuficiente - necesita do_login"
+      }
+    },
+    "WIFI_24GHZ": {
+      "name": "WIFI_24GHZ",
+      "status": "FAIL",
+      "details": {
+        "error": "Requiere session valida (login completo)",
+        "note": "Basic Auth insuficiente - necesita do_login"
+      }
+    },
+    "WIFI_5GHZ": {
+      "name": "WIFI_5GHZ",
+      "status": "FAIL",
+      "details": {
+        "error": "Requiere session valida (login completo)",
+        "note": "Basic Auth insuficiente - necesita do_login"
+      }
+    }
+  }
+}

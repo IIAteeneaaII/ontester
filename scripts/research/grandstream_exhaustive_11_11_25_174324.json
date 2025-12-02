@@ -1,0 +1,125 @@
+{
+  "timestamp": "2025-11-11T17:43:24.648535",
+  "host": "192.168.100.1",
+  "detailed_results": {
+    "Método 1": {
+      "success": true,
+      "data": {},
+      "method": "HTML Parsing"
+    },
+    "Método 2": {
+      "success": false,
+      "data": {},
+      "method": "Status Pages"
+    },
+    "Método 3": {
+      "success": false,
+      "data": {},
+      "method": "CGI Endpoints"
+    },
+    "Método 4": {
+      "success": false,
+      "data": {},
+      "method": "AJAX Style"
+    },
+    "Método 5": {
+      "success": false,
+      "data": {},
+      "method": "XML Config"
+    },
+    "Método 6": {
+      "success": false,
+      "data": {},
+      "method": "JSON API"
+    },
+    "Método 7": {
+      "success": false,
+      "data": {},
+      "method": "SNMP",
+      "note": "SNMP requiere librería adicional - Puerto 161"
+    },
+    "Método 8": {
+      "success": true,
+      "data": {
+        "responses": [
+          "HTTP/1.1 200 OK\r\nCACHE-CONTROL: max-age=1800\r\nDATE: Tue, 11 Nov 2025 17:43:18 GMT\r\nEXT:\r\nLOCATION: http://192.168.100.1:49652/gatedesc.xml\r\nOPT: \"http://schemas.upnp.org/upnp/1/0/\"; ns=01\r\n01-NLS: 325882c6-aa35-11f0-81ad-e9f517bbd59c\r\nSERVER: Linux/4.19.183, UPnP/1.0, Portable SDK for UPnP devices/1.6.21\r\nX-User-Agent: redsonic\r\nST: upnp:rootdevice\r\nUSN: uuid:75802409-bccb-40e7-8e6c-fa095ecce13e::upnp:rootdevice\r\n\r\n",
+          "HTTP/1.1 200 OK\r\nCACHE-CONTROL: max-age=1800\r\nDATE: Tue, 11 Nov 2025 17:43:18 GMT\r\nEXT:\r\nLOCATION: http://192.168.100.1:49652/gatedesc.xml\r\nOPT: \"http://schemas.upnp.org/upnp/1/0/\"; ns=01\r\n01-NLS: 325882c6-aa35-11f0-81ad-e9f517bbd59c\r\nSERVER: Linux/4.19.183, UPnP/1.0, Portable SDK for UPnP devices/1.6.21\r\nX-User-Agent: redsonic\r\nST: uuid:75802409-bccb-40e7-8e6c-fa095ecce13e\r\nUSN: uuid:75802409-bccb-40e7-8e6c-fa095ecce13e\r\n\r\n",
+          "HTTP/1.1 200 OK\r\nCACHE-CONTROL: max-age=1800\r\nDATE: Tue, 11 Nov 2025 17:43:18 GMT\r\nEXT:\r\nLOCATION: http://192.168.100.1:49652/gatedesc.xml\r\nOPT: \"http://schemas.upnp.org/upnp/1/0/\"; ns=01\r\n01-NLS: 325882c6-aa35-11f0-81ad-e9f517bbd59c\r\nSERVER: Linux/4.19.183, UPnP/1.0, Portable SDK for UPnP devices/1.6.21\r\nX-User-Agent: redsonic\r\nST: urn:schemas-upnp-org:device:InternetGatewayDevice:1\r\nUSN: uuid:75802409-bccb-40e7-8e6c-fa095ecce13e::urn:schemas-upnp-org:device:InternetGatewayDevice:1\r\n\r\n",
+          "HTTP/1.1 200 OK\r\nCACHE-CONTROL: max-age=1800\r\nDATE: Tue, 11 Nov 2025 17:43:18 GMT\r\nEXT:\r\nLOCATION: http://192.168.100.1:49652/gatedesc.xml\r\nOPT: \"http://schemas.upnp.org/upnp/1/0/\"; ns=01\r\n01-NLS: 325882c6-aa35-11f0-81ad-e9f517bbd59c\r\nSERVER: Linux/4.19.183, UPnP/1.0, Portable SDK for UPnP devices/1.6.21\r\nX-User-Agent: redsonic\r\nST: urn:schemas-dummy-com:service:Dummy:1\r\nUSN: uuid:75802409-bccb-40e7-8e6c-fa095ecce13e::urn:schemas-dummy-com:service:Dummy:1\r\n\r\n",
+          "HTTP/1.1 200 OK\r\nCACHE-CONTROL: max-age=1800\r\nDATE: Tue, 11 Nov 2025 17:43:18 GMT\r\nEXT:\r\nLOCATION: http://192.168.100.1:49652/gatedesc.xml\r\nOPT: \"http://schemas.upnp.org/upnp/1/0/\"; ns=01\r\n01-NLS: 325882c6-aa35-11f0-81ad-e9f517bbd59c\r\nSERVER: Linux/4.19.183, UPnP/1.0, Portable SDK for UPnP devices/1.6.21\r\nX-User-Agent: redsonic\r\nST: uuid:75802409-bccb-40e7-8e6c-fa095ecce13e\r\nUSN: uuid:75802409-bccb-40e7-8e6c-fa095ecce13e\r\n\r\n",
+          "HTTP/1.1 200 OK\r\nCACHE-CONTROL: max-age=1800\r\nDATE: Tue, 11 Nov 2025 17:43:18 GMT\r\nEXT:\r\nLOCATION: http://192.168.100.1:49652/gatedesc.xml\r\nOPT: \"http://schemas.upnp.org/upnp/1/0/\"; ns=01\r\n01-NLS: 325882c6-aa35-11f0-81ad-e9f517bbd59c\r\nSERVER: Linux/4.19.183, UPnP/1.0, Portable SDK for UPnP devices/1.6.21\r\nX-User-Agent: redsonic\r\nST: urn:schemas-upnp-org:device:WANDevice:1\r\nUSN: uuid:75802409-bccb-40e7-8e6c-fa095ecce13e::urn:schemas-upnp-org:device:WANDevice:1\r\n\r\n",
+          "HTTP/1.1 200 OK\r\nCACHE-CONTROL: max-age=1800\r\nDATE: Tue, 11 Nov 2025 17:43:18 GMT\r\nEXT:\r\nLOCATION: http://192.168.100.1:49652/gatedesc.xml\r\nOPT: \"http://schemas.upnp.org/upnp/1/0/\"; ns=01\r\n01-NLS: 325882c6-aa35-11f0-81ad-e9f517bbd59c\r\nSERVER: Linux/4.19.183, UPnP/1.0, Portable SDK for UPnP devices/1.6.21\r\nX-User-Agent: redsonic\r\nST: urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1\r\nUSN: uuid:75802409-bccb-40e7-8e6c-fa095ecce13e::urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1\r\n\r\n",
+          "HTTP/1.1 200 OK\r\nCACHE-CONTROL: max-age=1800\r\nDATE: Tue, 11 Nov 2025 17:43:18 GMT\r\nEXT:\r\nLOCATION: http://192.168.100.1:49652/gatedesc.xml\r\nOPT: \"http://schemas.upnp.org/upnp/1/0/\"; ns=01\r\n01-NLS: 325882c6-aa35-11f0-81ad-e9f517bbd59c\r\nSERVER: Linux/4.19.183, UPnP/1.0, Portable SDK for UPnP devices/1.6.21\r\nX-User-Agent: redsonic\r\nST: uuid:75802409-bccb-40e7-8e6c-fa095ecce13e\r\nUSN: uuid:75802409-bccb-40e7-8e6c-fa095ecce13e\r\n\r\n",
+          "HTTP/1.1 200 OK\r\nCACHE-CONTROL: max-age=1800\r\nDATE: Tue, 11 Nov 2025 17:43:18 GMT\r\nEXT:\r\nLOCATION: http://192.168.100.1:49652/gatedesc.xml\r\nOPT: \"http://schemas.upnp.org/upnp/1/0/\"; ns=01\r\n01-NLS: 325882c6-aa35-11f0-81ad-e9f517bbd59c\r\nSERVER: Linux/4.19.183, UPnP/1.0, Portable SDK for UPnP devices/1.6.21\r\nX-User-Agent: redsonic\r\nST: urn:schemas-upnp-org:device:WANConnectionDevice:1\r\nUSN: uuid:75802409-bccb-40e7-8e6c-fa095ecce13e::urn:schemas-upnp-org:device:WANConnectionDevice:1\r\n\r\n",
+          "HTTP/1.1 200 OK\r\nCACHE-CONTROL: max-age=1800\r\nDATE: Tue, 11 Nov 2025 17:43:18 GMT\r\nEXT:\r\nLOCATION: http://192.168.100.1:49652/gatedesc.xml\r\nOPT: \"http://schemas.upnp.org/upnp/1/0/\"; ns=01\r\n01-NLS: 325882c6-aa35-11f0-81ad-e9f517bbd59c\r\nSERVER: Linux/4.19.183, UPnP/1.0, Portable SDK for UPnP devices/1.6.21\r\nX-User-Agent: redsonic\r\nST: urn:schemas-upnp-org:service:WANIPConnection:1\r\nUSN: uuid:75802409-bccb-40e7-8e6c-fa095ecce13e::urn:schemas-upnp-org:service:WANIPConnection:1\r\n\r\n"
+        ]
+      },
+      "method": "UPnP"
+    },
+    "Método 9": {
+      "success": false,
+      "data": {},
+      "method": "SIP Headers",
+      "note": "SIP requiere librería SIP - Puerto 5060"
+    },
+    "Método 10": {
+      "success": true,
+      "data": {
+        "banner": "\r\n------acl IP:192.168.100.17 --------\r\n\u0001\u0003\"\u001fLogin: "
+      },
+      "method": "Telnet Banner"
+    },
+    "Método 11": {
+      "success": false,
+      "data": {
+        "all_headers": {
+          "Date": "Tue, 11 Nov 2025 17:43:22 GMT",
+          "Content-Type": "text/html; charset=utf-8",
+          "Content-Length": "2519",
+          "Connection": "keep-alive",
+          "Expires": "Tue, 11 Nov 2025 17:43:21 GMT",
+          "Cache-Control": "no-cache, no-cache, no-store, max-age=0, must-revalidate",
+          "X-Frame-Options": "SAMEORIGIN",
+          "X-Content-Type-Options": "nosniff",
+          "X-XSS-Protection": "1; mode=block",
+          "pragma": "no-cache",
+          "X-Download-Options": "noopen",
+          "X-Permitted-Cross-Domain-Policies": "master-only",
+          "Referrer-Policy": "no-referrer-when-downgrade",
+          "Accept-Ranges": "bytes"
+        },
+        "interesting": {}
+      },
+      "method": "HTTP Headers"
+    },
+    "Método 12": {
+      "success": false,
+      "data": {},
+      "method": "JavaScript Parsing"
+    }
+  },
+  "consolidated_info": {
+    "Método 8_responses": [
+      "HTTP/1.1 200 OK\r\nCACHE-CONTROL: max-age=1800\r\nDATE: Tue, 11 Nov 2025 17:43:18 GMT\r\nEXT:\r\nLOCATION: http://192.168.100.1:49652/gatedesc.xml\r\nOPT: \"http://schemas.upnp.org/upnp/1/0/\"; ns=01\r\n01-NLS: 325882c6-aa35-11f0-81ad-e9f517bbd59c\r\nSERVER: Linux/4.19.183, UPnP/1.0, Portable SDK for UPnP devices/1.6.21\r\nX-User-Agent: redsonic\r\nST: upnp:rootdevice\r\nUSN: uuid:75802409-bccb-40e7-8e6c-fa095ecce13e::upnp:rootdevice\r\n\r\n",
+      "HTTP/1.1 200 OK\r\nCACHE-CONTROL: max-age=1800\r\nDATE: Tue, 11 Nov 2025 17:43:18 GMT\r\nEXT:\r\nLOCATION: http://192.168.100.1:49652/gatedesc.xml\r\nOPT: \"http://schemas.upnp.org/upnp/1/0/\"; ns=01\r\n01-NLS: 325882c6-aa35-11f0-81ad-e9f517bbd59c\r\nSERVER: Linux/4.19.183, UPnP/1.0, Portable SDK for UPnP devices/1.6.21\r\nX-User-Agent: redsonic\r\nST: uuid:75802409-bccb-40e7-8e6c-fa095ecce13e\r\nUSN: uuid:75802409-bccb-40e7-8e6c-fa095ecce13e\r\n\r\n",
+      "HTTP/1.1 200 OK\r\nCACHE-CONTROL: max-age=1800\r\nDATE: Tue, 11 Nov 2025 17:43:18 GMT\r\nEXT:\r\nLOCATION: http://192.168.100.1:49652/gatedesc.xml\r\nOPT: \"http://schemas.upnp.org/upnp/1/0/\"; ns=01\r\n01-NLS: 325882c6-aa35-11f0-81ad-e9f517bbd59c\r\nSERVER: Linux/4.19.183, UPnP/1.0, Portable SDK for UPnP devices/1.6.21\r\nX-User-Agent: redsonic\r\nST: urn:schemas-upnp-org:device:InternetGatewayDevice:1\r\nUSN: uuid:75802409-bccb-40e7-8e6c-fa095ecce13e::urn:schemas-upnp-org:device:InternetGatewayDevice:1\r\n\r\n",
+      "HTTP/1.1 200 OK\r\nCACHE-CONTROL: max-age=1800\r\nDATE: Tue, 11 Nov 2025 17:43:18 GMT\r\nEXT:\r\nLOCATION: http://192.168.100.1:49652/gatedesc.xml\r\nOPT: \"http://schemas.upnp.org/upnp/1/0/\"; ns=01\r\n01-NLS: 325882c6-aa35-11f0-81ad-e9f517bbd59c\r\nSERVER: Linux/4.19.183, UPnP/1.0, Portable SDK for UPnP devices/1.6.21\r\nX-User-Agent: redsonic\r\nST: urn:schemas-dummy-com:service:Dummy:1\r\nUSN: uuid:75802409-bccb-40e7-8e6c-fa095ecce13e::urn:schemas-dummy-com:service:Dummy:1\r\n\r\n",
+      "HTTP/1.1 200 OK\r\nCACHE-CONTROL: max-age=1800\r\nDATE: Tue, 11 Nov 2025 17:43:18 GMT\r\nEXT:\r\nLOCATION: http://192.168.100.1:49652/gatedesc.xml\r\nOPT: \"http://schemas.upnp.org/upnp/1/0/\"; ns=01\r\n01-NLS: 325882c6-aa35-11f0-81ad-e9f517bbd59c\r\nSERVER: Linux/4.19.183, UPnP/1.0, Portable SDK for UPnP devices/1.6.21\r\nX-User-Agent: redsonic\r\nST: uuid:75802409-bccb-40e7-8e6c-fa095ecce13e\r\nUSN: uuid:75802409-bccb-40e7-8e6c-fa095ecce13e\r\n\r\n",
+      "HTTP/1.1 200 OK\r\nCACHE-CONTROL: max-age=1800\r\nDATE: Tue, 11 Nov 2025 17:43:18 GMT\r\nEXT:\r\nLOCATION: http://192.168.100.1:49652/gatedesc.xml\r\nOPT: \"http://schemas.upnp.org/upnp/1/0/\"; ns=01\r\n01-NLS: 325882c6-aa35-11f0-81ad-e9f517bbd59c\r\nSERVER: Linux/4.19.183, UPnP/1.0, Portable SDK for UPnP devices/1.6.21\r\nX-User-Agent: redsonic\r\nST: urn:schemas-upnp-org:device:WANDevice:1\r\nUSN: uuid:75802409-bccb-40e7-8e6c-fa095ecce13e::urn:schemas-upnp-org:device:WANDevice:1\r\n\r\n",
+      "HTTP/1.1 200 OK\r\nCACHE-CONTROL: max-age=1800\r\nDATE: Tue, 11 Nov 2025 17:43:18 GMT\r\nEXT:\r\nLOCATION: http://192.168.100.1:49652/gatedesc.xml\r\nOPT: \"http://schemas.upnp.org/upnp/1/0/\"; ns=01\r\n01-NLS: 325882c6-aa35-11f0-81ad-e9f517bbd59c\r\nSERVER: Linux/4.19.183, UPnP/1.0, Portable SDK for UPnP devices/1.6.21\r\nX-User-Agent: redsonic\r\nST: urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1\r\nUSN: uuid:75802409-bccb-40e7-8e6c-fa095ecce13e::urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1\r\n\r\n",
+      "HTTP/1.1 200 OK\r\nCACHE-CONTROL: max-age=1800\r\nDATE: Tue, 11 Nov 2025 17:43:18 GMT\r\nEXT:\r\nLOCATION: http://192.168.100.1:49652/gatedesc.xml\r\nOPT: \"http://schemas.upnp.org/upnp/1/0/\"; ns=01\r\n01-NLS: 325882c6-aa35-11f0-81ad-e9f517bbd59c\r\nSERVER: Linux/4.19.183, UPnP/1.0, Portable SDK for UPnP devices/1.6.21\r\nX-User-Agent: redsonic\r\nST: uuid:75802409-bccb-40e7-8e6c-fa095ecce13e\r\nUSN: uuid:75802409-bccb-40e7-8e6c-fa095ecce13e\r\n\r\n",
+      "HTTP/1.1 200 OK\r\nCACHE-CONTROL: max-age=1800\r\nDATE: Tue, 11 Nov 2025 17:43:18 GMT\r\nEXT:\r\nLOCATION: http://192.168.100.1:49652/gatedesc.xml\r\nOPT: \"http://schemas.upnp.org/upnp/1/0/\"; ns=01\r\n01-NLS: 325882c6-aa35-11f0-81ad-e9f517bbd59c\r\nSERVER: Linux/4.19.183, UPnP/1.0, Portable SDK for UPnP devices/1.6.21\r\nX-User-Agent: redsonic\r\nST: urn:schemas-upnp-org:device:WANConnectionDevice:1\r\nUSN: uuid:75802409-bccb-40e7-8e6c-fa095ecce13e::urn:schemas-upnp-org:device:WANConnectionDevice:1\r\n\r\n",
+      "HTTP/1.1 200 OK\r\nCACHE-CONTROL: max-age=1800\r\nDATE: Tue, 11 Nov 2025 17:43:18 GMT\r\nEXT:\r\nLOCATION: http://192.168.100.1:49652/gatedesc.xml\r\nOPT: \"http://schemas.upnp.org/upnp/1/0/\"; ns=01\r\n01-NLS: 325882c6-aa35-11f0-81ad-e9f517bbd59c\r\nSERVER: Linux/4.19.183, UPnP/1.0, Portable SDK for UPnP devices/1.6.21\r\nX-User-Agent: redsonic\r\nST: urn:schemas-upnp-org:service:WANIPConnection:1\r\nUSN: uuid:75802409-bccb-40e7-8e6c-fa095ecce13e::urn:schemas-upnp-org:service:WANIPConnection:1\r\n\r\n"
+    ],
+    "Método 10_banner": "\r\n------acl IP:192.168.100.17 --------\r\n\u0001\u0003\"\u001fLogin: "
+  },
+  "summary": {
+    "total_methods": 12,
+    "successful_methods": 3,
+    "methods_with_data": [
+      "Método 1",
+      "Método 8",
+      "Método 10"
+    ]
+  }
+}

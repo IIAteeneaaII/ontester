@@ -1,0 +1,631 @@
+{
+  "timestamp": "2025-11-10T10:52:32.331411",
+  "host": "192.168.100.1",
+  "total_tested": 69,
+  "accessible": [
+    {
+      "endpoint": "/",
+      "status_code": 200,
+      "accessible": true,
+      "content_length": 2519,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/"
+    },
+    {
+      "endpoint": "/index.html",
+      "status_code": 200,
+      "accessible": true,
+      "content_length": 2519,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/index.html"
+    }
+  ],
+  "not_accessible": [
+    {
+      "endpoint": "/main.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/main.html"
+    },
+    {
+      "endpoint": "/home.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/home.html"
+    },
+    {
+      "endpoint": "/login.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/login.html"
+    },
+    {
+      "endpoint": "/html/status.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/html/status.html"
+    },
+    {
+      "endpoint": "/status.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/status.html"
+    },
+    {
+      "endpoint": "/html/status/status.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/html/status/status.html"
+    },
+    {
+      "endpoint": "/html/status/pon_info.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/html/status/pon_info.html"
+    },
+    {
+      "endpoint": "/pon_link_info_inter.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/pon_link_info_inter.html"
+    },
+    {
+      "endpoint": "/html/pon_status_inter.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/html/pon_status_inter.html"
+    },
+    {
+      "endpoint": "/status/pon.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/status/pon.html"
+    },
+    {
+      "endpoint": "/pon_status.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/pon_status.html"
+    },
+    {
+      "endpoint": "/optical_info.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/optical_info.html"
+    },
+    {
+      "endpoint": "/pon_info.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/pon_info.html"
+    },
+    {
+      "endpoint": "/gpon_status.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/gpon_status.html"
+    },
+    {
+      "endpoint": "/epon_status.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/epon_status.html"
+    },
+    {
+      "endpoint": "/html/bbsp/wlan/wlan.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/html/bbsp/wlan/wlan.html"
+    },
+    {
+      "endpoint": "/html/wlan/wlan.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/html/wlan/wlan.html"
+    },
+    {
+      "endpoint": "/html/wlan/wlan_5g.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/html/wlan/wlan_5g.html"
+    },
+    {
+      "endpoint": "/wifi_info_inter.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/wifi_info_inter.html"
+    },
+    {
+      "endpoint": "/wifi_info_inter5g.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/wifi_info_inter5g.html"
+    },
+    {
+      "endpoint": "/wlan_24g.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/wlan_24g.html"
+    },
+    {
+      "endpoint": "/wlan_5g.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/wlan_5g.html"
+    },
+    {
+      "endpoint": "/wireless_24g.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/wireless_24g.html"
+    },
+    {
+      "endpoint": "/wireless_5g.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/wireless_5g.html"
+    },
+    {
+      "endpoint": "/wireless_settings.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/wireless_settings.html"
+    },
+    {
+      "endpoint": "/network/wifi.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/network/wifi.html"
+    },
+    {
+      "endpoint": "/network/wifi_5g.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/network/wifi_5g.html"
+    },
+    {
+      "endpoint": "/html/wlbasic.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/html/wlbasic.html"
+    },
+    {
+      "endpoint": "/wlan.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/wlan.html"
+    },
+    {
+      "endpoint": "/wlan/basic.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/wlan/basic.html"
+    },
+    {
+      "endpoint": "/get_device_name",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/get_device_name"
+    },
+    {
+      "endpoint": "/version.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/version.html"
+    },
+    {
+      "endpoint": "/system_info.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/system_info.html"
+    },
+    {
+      "endpoint": "/device_info.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/device_info.html"
+    },
+    {
+      "endpoint": "/html/status/device_info.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/html/status/device_info.html"
+    },
+    {
+      "endpoint": "/html/deviceinfo.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/html/deviceinfo.html"
+    },
+    {
+      "endpoint": "/info.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/info.html"
+    },
+    {
+      "endpoint": "/usb_inter.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/usb_inter.html"
+    },
+    {
+      "endpoint": "/usb_status.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/usb_status.html"
+    },
+    {
+      "endpoint": "/html/usb/usb.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/html/usb/usb.html"
+    },
+    {
+      "endpoint": "/storage.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/storage.html"
+    },
+    {
+      "endpoint": "/html/main/reboot.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/html/main/reboot.html"
+    },
+    {
+      "endpoint": "/system_reboot.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/system_reboot.html"
+    },
+    {
+      "endpoint": "/reboot.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/reboot.html"
+    },
+    {
+      "endpoint": "/html/syscmd.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/html/syscmd.html"
+    },
+    {
+      "endpoint": "/html/status/lan_info.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/html/status/lan_info.html"
+    },
+    {
+      "endpoint": "/html/status/wan_info.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/html/status/wan_info.html"
+    },
+    {
+      "endpoint": "/network_status.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/network_status.html"
+    },
+    {
+      "endpoint": "/lan.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/lan.html"
+    },
+    {
+      "endpoint": "/wan.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/wan.html"
+    },
+    {
+      "endpoint": "/html/management.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/html/management.html"
+    },
+    {
+      "endpoint": "/management.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/management.html"
+    },
+    {
+      "endpoint": "/system.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/system.html"
+    },
+    {
+      "endpoint": "/admin.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/admin.html"
+    },
+    {
+      "endpoint": "/html/advanced.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/html/advanced.html"
+    },
+    {
+      "endpoint": "/advanced.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/advanced.html"
+    },
+    {
+      "endpoint": "/api/system/info",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/api/system/info"
+    },
+    {
+      "endpoint": "/api/device/info",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/api/device/info"
+    },
+    {
+      "endpoint": "/api/pon/status",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/api/pon/status"
+    },
+    {
+      "endpoint": "/api/wifi/status",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/api/wifi/status"
+    },
+    {
+      "endpoint": "/html/ssmp/wlanbasic/wlanbasic.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/html/ssmp/wlanbasic/wlanbasic.html"
+    },
+    {
+      "endpoint": "/html/ssmp/poninfo/poninfo.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/html/ssmp/poninfo/poninfo.html"
+    },
+    {
+      "endpoint": "/html/ssmp/deviceinfo/deviceinfo.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/html/ssmp/deviceinfo/deviceinfo.html"
+    },
+    {
+      "endpoint": "/getpage.gch?pid=1002",
+      "status_code": 403,
+      "accessible": false,
+      "content_length": 146,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/getpage.gch?pid=1002"
+    },
+    {
+      "endpoint": "/getpage.gch?pid=1001",
+      "status_code": 403,
+      "accessible": false,
+      "content_length": 146,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/getpage.gch?pid=1001"
+    },
+    {
+      "endpoint": "/ponstatusinfo.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/ponstatusinfo.html"
+    },
+    {
+      "endpoint": "/wlansetting.html",
+      "status_code": 400,
+      "accessible": false,
+      "content_length": 150,
+      "has_html": true,
+      "has_json": false,
+      "url": "http://192.168.100.1/wlansetting.html"
+    }
+  ],
+  "errors": []
+}

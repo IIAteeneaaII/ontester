@@ -1,0 +1,81 @@
+{
+  "timestamp": "2025-11-11T16:52:44.083320",
+  "host": "192.168.100.1",
+  "authentication": {
+    "logged_in": true,
+    "sessionid": "h9d9dDo9"
+  },
+  "pon_info_ajax": null,
+  "pon_info_scraped": null,
+  "all_methods_tested": {
+    "get_pon_info": {
+      "accessible": true,
+      "has_data": false,
+      "data": {
+        "session_valid": 0
+      }
+    },
+    "get_pon_status": {
+      "accessible": false,
+      "status": 403
+    },
+    "get_optical_info": {
+      "accessible": false,
+      "status": 403
+    },
+    "get_optical_status": {
+      "accessible": false,
+      "status": 403
+    },
+    "get_optical_power": {
+      "accessible": false,
+      "status": 403
+    },
+    "get_pon_link_info": {
+      "accessible": false,
+      "status": 403
+    },
+    "get_poninfo": {
+      "accessible": false,
+      "status": 403
+    },
+    "get_ont_info": {
+      "accessible": false,
+      "status": 403
+    },
+    "get_ont_status": {
+      "accessible": false,
+      "status": 403
+    },
+    "get_fiber_info": {
+      "accessible": false,
+      "status": 403
+    },
+    "get_gpon_info": {
+      "accessible": false,
+      "status": 403
+    },
+    "get_epon_info": {
+      "accessible": false,
+      "status": 403
+    },
+    "get_olt_info": {
+      "accessible": false,
+      "status": 403
+    },
+    "get_transceiver_info": {
+      "accessible": false,
+      "status": 403
+    },
+    "get_sfp_info": {
+      "accessible": false,
+      "status": 403
+    },
+    "get_ddm_info": {
+      "accessible": false,
+      "status": 403
+    }
+  },
+  "final_data": {},
+  "report": "\n================================================================================\nREPORTE DE INFORMACIÓN PON/ÓPTICA\n================================================================================\nTimestamp: 2025-11-11 16:52:44\nHost: 192.168.100.1\n\n[-] No se pudo obtener información PON"
+}

@@ -1,0 +1,98 @@
+{
+  "device_info": {},
+  "available_apis": {
+    "/get_device_name": {
+      "status": 400,
+      "content_type": "text/html; charset=utf-8",
+      "body_length": 150
+    },
+    "/get_operator": {
+      "status": 400,
+      "content_type": "text/html; charset=utf-8",
+      "body_length": 150
+    },
+    "/pon_link_info_inter.html": {
+      "status": 400,
+      "content_type": "text/html; charset=utf-8",
+      "body_length": 150
+    },
+    "/wifi_info_inter.html": {
+      "status": 400,
+      "content_type": "text/html; charset=utf-8",
+      "body_length": 150
+    },
+    "/wifi_info_inter5g.html": {
+      "status": 400,
+      "content_type": "text/html; charset=utf-8",
+      "body_length": 150
+    }
+  },
+  "security": {
+    "X-Frame-Options": "SAMEORIGIN",
+    "X-Content-Type-Options": "nosniff",
+    "X-XSS-Protection": "1; mode=block",
+    "Content-Security-Policy": null,
+    "Strict-Transport-Security": null,
+    "Access-Control-Allow-Origin": null
+  },
+  "services": {
+    "wifi": {
+      "available": false,
+      "paths": {
+        "/wifi_info_inter.html": {
+          "status": 400,
+          "accessible": false
+        },
+        "/wifi_info_inter5g.html": {
+          "status": 400,
+          "accessible": false
+        }
+      }
+    },
+    "pon": {
+      "available": false,
+      "paths": {
+        "/pon_link_info_inter.html": {
+          "status": 400,
+          "accessible": false
+        }
+      }
+    },
+    "voip": {
+      "available": false,
+      "paths": {
+        "/voice_info_inter.html": {
+          "status": 400,
+          "accessible": false
+        }
+      }
+    },
+    "ethernet": {
+      "available": false,
+      "paths": {
+        "/ethernetPorts.html": {
+          "status": 400,
+          "accessible": false
+        }
+      }
+    },
+    "dhcp": {
+      "available": false,
+      "paths": {
+        "/dhcp_user_list_inter.html": {
+          "status": 400,
+          "accessible": false
+        }
+      }
+    },
+    "management": {
+      "available": false,
+      "paths": {
+        "/admin_management_inter.html": {
+          "status": 400,
+          "accessible": false
+        }
+      }
+    }
+  }
+}

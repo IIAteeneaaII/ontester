@@ -1,0 +1,18 @@
+{
+  "PON_INFO": [],
+  "WIFI_24": [],
+  "WIFI_5": [],
+  "DEVICE_INFO": [],
+  "USB_INFO": [],
+  "RESET": [],
+  "VERSION": [],
+  "STATUS": [
+    {
+      "path": "/index.html",
+      "accessible": "SIN_AUTH",
+      "status_no_auth": 200,
+      "status_with_auth": 200,
+      "size": 2519
+    }
+  ]
+}
