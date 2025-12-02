@@ -30,8 +30,13 @@ for url in urls_to_try:
         
         if r.status_code == 200 and len(r.text) > 500:
             print(f"  ✓ Encontrada (Status: {r.status_code}, Size: {len(r.text)} bytes)")
-            
             soup = BeautifulSoup(r.text, 'html.parser')
+            """ PRUEBAS TODO """
+            headers = {'Authorization': 'root admin'}
+            r2 = requests.get(url, headers=headers, verify=False, timeout=10)
+            print("\n", r.url)
+            print("\n", soup)
+            """ fin pruebas """
             tables = soup.find_all('table')
             
             if tables:

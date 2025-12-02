@@ -1,0 +1,282 @@
+{
+  "timestamp": "2025-11-12T14:50:58.948050",
+  "host": "192.168.100.1",
+  "total_tested": 43,
+  "accessible": [
+    {
+      "method": "get_heartbeat",
+      "status": 200,
+      "accessible": true,
+      "data": {
+        "session_valid": 0
+      },
+      "type": "json"
+    },
+    {
+      "method": "get_refresh_sessionid",
+      "status": 200,
+      "accessible": true,
+      "data": {
+        "sessionid": "4OH01QrQ"
+      },
+      "type": "json"
+    },
+    {
+      "method": "get_pon_info",
+      "status": 200,
+      "accessible": true,
+      "data": {
+        "session_valid": 0
+      },
+      "type": "json"
+    },
+    {
+      "method": "get_wifi_status",
+      "status": 200,
+      "accessible": true,
+      "data": {
+        "session_valid": 0
+      },
+      "type": "json"
+    },
+    {
+      "method": "get_usb_info",
+      "status": 200,
+      "accessible": true,
+      "data": {
+        "session_valid": 0
+      },
+      "type": "json"
+    }
+  ],
+  "not_accessible": [
+    {
+      "method": "get_device_name",
+      "status": 0,
+      "accessible": false,
+      "error": "HTTPConnectionPool(host='192.168.100.1', port=80): Max retries exceeded with url: /cgi-bin/ajax?ajaxmethod=get_device_name&_=1762980658.948156 (Caused by ConnectTimeoutError(<urllib3.connection.HTTPConnection object at 0x0000016CCD830050>, 'Connection to 192.168.100.1 timed out. (connect timeout=5)'))"
+    },
+    {
+      "method": "get_operator",
+      "status": 0,
+      "accessible": false,
+      "error": "HTTPConnectionPool(host='192.168.100.1', port=80): Max retries exceeded with url: /cgi-bin/ajax?ajaxmethod=get_operator&_=1762980663.94999 (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000016CCD7D3D90>: Failed to establish a new connection: [WinError 10053] Se ha anulado una conexión establecida por el software en su equipo host'))"
+    },
+    {
+      "method": "get_system_info",
+      "status": 403,
+      "accessible": false,
+      "error": "Content-type: text/plain\n\n{}\n"
+    },
+    {
+      "method": "get_device_info",
+      "status": 403,
+      "accessible": false,
+      "error": "Content-type: text/plain\n\n{}\n"
+    },
+    {
+      "method": "get_device_status",
+      "status": 403,
+      "accessible": false,
+      "error": "Content-type: text/plain\n\n{}\n"
+    },
+    {
+      "method": "get_hardware_version",
+      "status": 403,
+      "accessible": false,
+      "error": "Content-type: text/plain\n\n{}\n"
+    },
+    {
+      "method": "get_software_version",
+      "status": 403,
+      "accessible": false,
+      "error": "Content-type: text/plain\n\n{}\n"
+    },
+    {
+      "method": "get_sysinfo",
+      "status": 403,
+      "accessible": false,
+      "error": "Content-type: text/plain\n\n{}\n"
+    },
+    {
+      "method": "get_pon_status",
+      "status": 403,
+      "accessible": false,
+      "error": "Content-type: text/plain\n\n{}\n"
+    },
+    {
+      "method": "get_optical_info",
+      "status": 403,
+      "accessible": false,
+      "error": "Content-type: text/plain\n\n{}\n"
+    },
+    {
+      "method": "get_optical_status",
+      "status": 403,
+      "accessible": false,
+      "error": "Content-type: text/plain\n\n{}\n"
+    },
+    {
+      "method": "get_pon_link_info",
+      "status": 403,
+      "accessible": false,
+      "error": "Content-type: text/plain\n\n{}\n"
+    },
+    {
+      "method": "get_poninfo",
+      "status": 403,
+      "accessible": false,
+      "error": "Content-type: text/plain\n\n{}\n"
+    },
+    {
+      "method": "get_optical_power",
+      "status": 403,
+      "accessible": false,
+      "error": "Content-type: text/plain\n\n{}\n"
+    },
+    {
+      "method": "get_wlan_info",
+      "status": 403,
+      "accessible": false,
+      "error": "Content-type: text/plain\n\n{}\n"
+    },
+    {
+      "method": "get_wlan_status",
+      "status": 403,
+      "accessible": false,
+      "error": "Content-type: text/plain\n\n{}\n"
+    },
+    {
+      "method": "get_wlan_basic",
+      "status": 403,
+      "accessible": false,
+      "error": "Content-type: text/plain\n\n{}\n"
+    },
+    {
+      "method": "get_wifi_info",
+      "status": 403,
+      "accessible": false,
+      "error": "Content-type: text/plain\n\n{}\n"
+    },
+    {
+      "method": "get_wlan_24g",
+      "status": 403,
+      "accessible": false,
+      "error": "Content-type: text/plain\n\n{}\n"
+    },
+    {
+      "method": "get_wlan_5g",
+      "status": 403,
+      "accessible": false,
+      "error": "Content-type: text/plain\n\n{}\n"
+    },
+    {
+      "method": "get_wireless_info",
+      "status": 403,
+      "accessible": false,
+      "error": "Content-type: text/plain\n\n{}\n"
+    },
+    {
+      "method": "get_lan_info",
+      "status": 403,
+      "accessible": false,
+      "error": "Content-type: text/plain\n\n{}\n"
+    },
+    {
+      "method": "get_wan_info",
+      "status": 403,
+      "accessible": false,
+      "error": "Content-type: text/plain\n\n{}\n"
+    },
+    {
+      "method": "get_network_status",
+      "status": 403,
+      "accessible": false,
+      "error": "Content-type: text/plain\n\n{}\n"
+    },
+    {
+      "method": "get_dhcp_info",
+      "status": 403,
+      "accessible": false,
+      "error": "Content-type: text/plain\n\n{}\n"
+    },
+    {
+      "method": "get_ip_info",
+      "status": 403,
+      "accessible": false,
+      "error": "Content-type: text/plain\n\n{}\n"
+    },
+    {
+      "method": "get_net_info",
+      "status": 403,
+      "accessible": false,
+      "error": "Content-type: text/plain\n\n{}\n"
+    },
+    {
+      "method": "get_usb_status",
+      "status": 403,
+      "accessible": false,
+      "error": "Content-type: text/plain\n\n{}\n"
+    },
+    {
+      "method": "get_storage_info",
+      "status": 403,
+      "accessible": false,
+      "error": "Content-type: text/plain\n\n{}\n"
+    },
+    {
+      "method": "get_user_info",
+      "status": 403,
+      "accessible": false,
+      "error": "Content-type: text/plain\n\n{}\n"
+    },
+    {
+      "method": "get_login_info",
+      "status": 403,
+      "accessible": false,
+      "error": "Content-type: text/plain\n\n{}\n"
+    },
+    {
+      "method": "get_session_info",
+      "status": 403,
+      "accessible": false,
+      "error": "Content-type: text/plain\n\n{}\n"
+    },
+    {
+      "method": "get_status",
+      "status": 403,
+      "accessible": false,
+      "error": "Content-type: text/plain\n\n{}\n"
+    },
+    {
+      "method": "get_config",
+      "status": 403,
+      "accessible": false,
+      "error": "Content-type: text/plain\n\n{}\n"
+    },
+    {
+      "method": "get_statistics",
+      "status": 403,
+      "accessible": false,
+      "error": "Content-type: text/plain\n\n{}\n"
+    },
+    {
+      "method": "get_all_info",
+      "status": 403,
+      "accessible": false,
+      "error": "Content-type: text/plain\n\n{}\n"
+    },
+    {
+      "method": "get_diagnostic_info",
+      "status": 403,
+      "accessible": false,
+      "error": "Content-type: text/plain\n\n{}\n"
+    },
+    {
+      "method": "get_log_info",
+      "status": 403,
+      "accessible": false,
+      "error": "Content-type: text/plain\n\n{}\n"
+    }
+  ]
+}

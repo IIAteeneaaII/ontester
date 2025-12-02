@@ -1,0 +1,27 @@
+{
+  "timestamp": "2025-11-12T14:59:57.167346",
+  "host": "192.168.100.1",
+  "sessionid": "5pBNxltY",
+  "wifi_24g": {
+    "detected": true,
+    "enabled": true,
+    "working": true,
+    "method_used": "device_accessibility_check",
+    "reason": "Detectado por accesibilidad del dispositivo (heurística)",
+    "note": "Sin datos específicos de WiFi - autenticación requerida"
+  },
+  "wifi_5g": {
+    "detected": true,
+    "enabled": true,
+    "working": true,
+    "method_used": "device_accessibility_check",
+    "reason": "Detectado por accesibilidad del dispositivo (heurística)",
+    "note": "Sin datos específicos de WiFi - autenticación requerida"
+  },
+  "summary": {
+    "wifi_24g_working": true,
+    "wifi_5g_working": true,
+    "both_working": true,
+    "at_least_one_working": true
+  }
+}

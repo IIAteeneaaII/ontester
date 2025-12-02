@@ -1,0 +1,27 @@
+============================================================
+REPORTE DE PRUEBAS AUTOMATIZADAS - ONT
+============================================================
+Fecha: 27/11/2025 11:12:49
+Modelo: Unknown (MOD002)
+Host: 192.168.1.1
+MAC Address: No disponible
+Serie: None
+
+RESULTADOS:
+------------------------------------------------------------
+[-] basic: False
+[-] usb: True
+[-] lan: True
+[-] wifi: True
+[-] fibra: True
+[-] mac: True
+[-] Contraseña: False
+[X] USB_PORT: FAIL
+[X] TX_POWER: FAIL
+[X] RX_POWER: FAIL
+[X] WIFI_24GHZ: FAIL
+[X] WIFI_5GHZ: FAIL
+
+------------------------------------------------------------
+RESUMEN: 0 PASS | 5 FAIL | 7 SKIP
+============================================================
