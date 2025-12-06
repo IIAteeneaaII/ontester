@@ -37,8 +37,8 @@ class CommonMixin:
         
         # Obtener información del dispositivo
         # Usar model_display_name si está disponible (nombre comercial correcto)
-        device_name = self.test_results['metadata'].get('model_display_name') or \
-                     self.test_results['metadata'].get('device_name', 'Unknown')
+        device_name = self.test_results['metadata'].get('device_name', 'Unknown') or \
+                        self.test_results['metadata'].get('model_display_name')
         device_type = self.test_results['metadata'].get('device_type', 'ONT')
         mac_address = self.test_results['metadata'].get('mac_address', 'No disponible')
         serial_number = self.test_results['metadata'].get('serial_number', 'No disponible')
@@ -849,8 +849,47 @@ class CommonMixin:
         except Exception as e:
             return {"success": False, "error": str(e)}
     
+    def _resultados_json_corto(self, fecha, modelo, sn, mac, sftVer, wifi24, wifi5, passWifi, ping, reset, usb, tx, rx, w24, w5):
+        # Validar si ha pasado los tests
+        valido = (
+            ping == "PASS"
+            and reset == "PASS"
+            and usb == "PASS"
+            and float(tx) > 0
+            and float(rx) > -28
+            and bool(w24)
+            and bool(w5)
+        )
+
+        resultado = {
+            "info": {
+                "modelo": modelo,
+                "fecha_test": fecha,
+                "sn": sn,
+                "mac": mac,
+                "sftVer": sftVer,
+                "wifi24": wifi24,
+                "wifi5": wifi5,
+                "passWifi": passWifi
+            },
+            "tests": {
+                "ping": ping,
+                "reset": reset,
+                "usb": usb,
+                "tx": tx,
+                "rx": rx,
+                "w24": w24,
+                "w5": w5
+            },
+            "valido": valido
+        }
+
+        return resultado
+    
     def _resultadosFiber(self):
         # Valores informativos
+        fecha = self.test_results['metadata'].get('timestamp') # "2025-11-28T13:51:32.497520"
+        modelo = self.test_results['metadata']['device_name'] # modelo 
         sn = self.test_results['metadata']['base_info']['raw_data'].get('gponsn') #sn
         mac = self.test_results['metadata']['base_info']['raw_data'].get('brmac') #mac
         sftVer = self.test_results['metadata']['base_info']['raw_data'].get('SoftwareVersion') #nombre sft
@@ -866,9 +905,16 @@ class CommonMixin:
         rx = self.test_results['metadata']['base_info'].get('rx_power_dbm') # valor negativo
         w24 = self.test_results['tests']['WIFI_24GHZ']['details'].get('enabled') # true
         w5 = self.test_results['tests']['WIFI_5GHZ']['details'].get('enabled') # true
+
+        # Obtener los resultados como json
+        resultado = {}
+        resultado = self._resultados_json_corto(fecha, modelo, sn, mac, sftVer, wifi24, wifi5, passWifi, ping, reset, usb, tx, rx, w24, w5)
+        return resultado
     
     def _resultadosZTE(self):
         # Valores informativos
+        fecha = self.test_results['metadata'].get('timestamp') # "2025-11-28T13:51:32.497520"
+        modelo = self.test_results['metadata']['model'] # modelo 
         sn = self.test_results['metadata'].get('serial_number') #sn
         ruta_mac = self.test_results['tests']['mac']['details']['WAN_COMFIG']
         mac = None
@@ -880,8 +926,8 @@ class CommonMixin:
         ruta_wifi = self.test_results['tests']['wifi']['details']['WLANAP']
         essids_validos = [
             ap["ESSID"]
-            for ap in wlanaps
-            if "ESSID" in ap and "SSID" not in ap["ESSID"]
+            for ap in ruta_wifi
+                if "ESSID" in ap and "SSID" not in ap["ESSID"]
         ]
         wifi24 = essids_validos[0] if essids_validos else None
         wifi5 = essids_validos[0] if essids_validos else None
@@ -889,7 +935,7 @@ class CommonMixin:
 
         # Tests
         ping = "PASS" # si llega hasta aqui es que se le puede hacer ping
-        reset = True # ya está implementado y si no se resetea no hace nada
+        reset = "PASS" # ya está implementado y si no se resetea no hace nada
         usb_ruta = self.test_results['tests']['usb']['details'] # ruta donde estará o no el valor buscado
         usb = "USBDEV" in usb_ruta # True or False
         tx = self.test_results['tests']['fibra']['details']['PON_OPTICALPARA'].get('RxPower') # valor negativo
@@ -897,8 +943,18 @@ class CommonMixin:
         w24 = self.test_results['tests']['wifi']['details']['WLANSETTING'][0]["RadioStatus"] # valor 1 si activo
         w5 = self.test_results['tests']['wifi']['details']['WLANSETTING'][1]["RadioStatus"] # valor 1 si activo
 
+        usb_final="ERROR"
+        if(usb):
+            usb_final="PASS"
+        # Obtener los resultados como json
+        resultado = {}
+        resultado = self._resultados_json_corto(fecha,modelo, sn, mac, sftVer, wifi24, wifi5, passWifi, ping, reset, usb_final, tx, rx, w24, w5)
+        return resultado
+    
     def _resultadosHuawei(self):
         # Valores informativos
+        fecha = self.test_results['metadata'].get('timestamp') # "2025-11-28T13:51:32.497520"
+        modelo = self.test_results['metadata']['model'] # modelo 
         sn = self.test_results['metadata'].get('serial_number') #sn
         mac = self.test_results['tests']['hw_mac'].get('data') # mac
         sftVer = self.test_results['tests']['hw_device']['data'].get('software_version') # sft version
@@ -908,29 +964,75 @@ class CommonMixin:
 
         # Tests
         ping = "PASS" # sin poder hacer ping no se podría avanzar tanto
-        reset = True # ya se resetea
+        reset = "PASS" # ya se resetea
         usb = self.test_results['tests']['hw_usb']['data'].get('connected') # true or false
         tx = self.test_results['tests']['hw_optical']['data'].get('tx_optical_power') # -- dBm si no tiene conexion
         rx = self.test_results['tests']['hw_optical']['data'].get('rx_optical_power') # -- dBm si no tiene conexion
         w24 = self.test_results['tests']['hw_wifi24']['data'].get('status') # Enabled si true
         w5 = self.test_results['tests']['hw_wifi5']['data'].get('status') # Enabled si true
 
+        usb_final="ERROR"
+        w24_final=False
+        w5_final=False
+        tx_final=-60.0
+        rx_final=-60.0
+        if(usb):
+            usb_final="PASS"
+        if(w24 == "Enabled"):
+            w24_final = True
+        if(w5 == "Enabled"):
+            w5_final = True
+        if(tx != "-- dBm"):
+            tx_final = tx
+        if(rx != "-- dBm"):
+            rx_final = rx
+        # Obtener los resultados como json
+        resultado = {}
+        resultado = self._resultados_json_corto(fecha, modelo, sn, mac, sftVer, wifi24, wifi5, passWifi, ping, reset, usb_final, tx_final, rx_final, w24_final, w5_final)
+        return resultado
     # Aqui voy a poner el resultado de las pruebas de todos los modelos
-    # PD para Atenea, si quieres puedes modificarla para que devuelva un Dict o algo
+    # PD para Atenea, las funciones devuelven un dict con la siguiente estructura:
+    """
+    resultado = {
+        "info": {
+            "modelo": modelo,
+            "sn": sn,
+            "mac": mac,
+            "sftVer": sftVer,
+            "wifi24": wifi24,
+            "wifi5": wifi5,
+            "passWifi": passWifi,
+        },
+        "tests": {
+            "ping": ping,
+            "reset": reset,
+            "usb": usb,
+            "tx": tx,
+            "rx": rx,
+            "w24": w24,
+            "w5": w5,
+        },
+        "valido": valido, 
+    }
+    """
     def _resultados_finales(self):
+        res = {}
         # Identificar el modelo
         if (self.model == "MOD001"):
             #Fiber | ont
-            self._resultadosFiber()
+            res = self._resultadosFiber()
         elif (self.model == "MOD002"):
             #zte | ont
-            self._resultadosZTE()
+            res = self._resultadosZTE()
         elif (self.model == "MOD003" or self.model == "MOD004" or self.model == "MOD005"):
             #huawei | ont
-            self._resultadosHuawei()
+            res = self._resultadosHuawei()
         elif (self.model == "MOD006"):
             #grandstream | empresarial
             print("A este modelo aun le falta")
         else:
             #otro modelo
             print("Sin reporte de resultados, modelo no admitido")
+
+        return res
+    
