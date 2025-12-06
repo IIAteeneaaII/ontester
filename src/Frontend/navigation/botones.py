@@ -27,6 +27,14 @@ PANEL_BTN_KWARGS = {
     "text_color": "white",
 }
 
+# ---------- Estilo común: botones superiores grandes ----------
+TOP_BTN_KWARGS = {
+    "height": 100,
+    "corner_radius": 10,
+    "font": ("Segoe UI", 12, "bold"),
+    "text_color": "#2C3E50",
+}
+
 # Carpeta de iconos
 ASSETS_DIR = Path(__file__).resolve().parent.parent / "assets" / "icons"
 
@@ -149,6 +157,68 @@ def boton_salir(parent, command=None):
 # =============================================
 
 
+# ========= Botones superiores grandes (4 botones principales) =========
+def boton_cambiar_estacion(parent, command=None):
+    """Botón gris para cambiar estación."""
+    return ctk.CTkButton(
+        parent,
+        text="CAMBIAR ESTACIÓN\n👤",
+        command=command,
+        fg_color="#B8B8B8",
+        hover_color="#A0A0A0",
+        **TOP_BTN_KWARGS
+    )
+
+
+def boton_modificar_etiquetado(parent, command=None):
+    """Botón rosa para modificar etiquetado."""
+    return ctk.CTkButton(
+        parent,
+        text="MODIFICAR ETIQUETADO\n🏷️",
+        command=command,
+        fg_color="#F1B4BB",
+        hover_color="#E89BA3",
+        **TOP_BTN_KWARGS
+    )
+
+
+def boton_modificar_parametros(parent, command=None):
+    """Botón azul para modificar parámetros."""
+    return ctk.CTkButton(
+        parent,
+        text="MODIFICAR PARÁMETROS\n⚙️",
+        command=command,
+        fg_color="#A8DADC",
+        hover_color="#8FC9CB",
+        **TOP_BTN_KWARGS
+    )
+
+
+def boton_prueba(parent, command=None):
+    """Botón rosa para prueba."""
+    return ctk.CTkButton(
+        parent,
+        text="PRUEBA\n🔧",
+        command=command,
+        fg_color="#F1B4BB",
+        hover_color="#E89BA3",
+        **TOP_BTN_KWARGS
+    )
+
+
+def boton_nuevo_tema(parent, command=None):
+    """Botón naranja para nuevo tema."""
+    return ctk.CTkButton(
+        parent,
+        text="NUEVO TEMA\n📋",
+        command=command,
+        fg_color="#F4A261",
+        hover_color="#E89350",
+        **TOP_BTN_KWARGS
+    )
+# =============================================
+
+
 # ========= Botones del panel central =========
 # (los 8 cuadritos: PING, FACTORY RESET, SOFTWARE, USB PORT, TX POWER, RX POWER, WIFI 2.4, WIFI 5.0)
 
@@ -223,3 +293,49 @@ def panel_boton_wifi_50(parent, command=None):
         **PANEL_BTN_KWARGS
     )
 # =============================================
+
+
+# ========= Botones del panel de detalles =========
+# Botones para el panel derecho de "Escaneos del día"
+
+def boton_imprimir_etiqueta(parent, command=None):
+    """
+    Botón azul claro para imprimir etiqueta.
+    Incluye ícono de impresora si está disponible.
+    """
+    imprimir_icon = _cargar_icono("printer_icon.png", size=(24, 24))
+    return ctk.CTkButton(
+        parent,
+        text="IMPRIMIR ETIQUETA",
+        image=imprimir_icon,
+        compound="top" if imprimir_icon is not None else "center",
+        command=command,
+        height=100,
+        corner_radius=8,
+        font=("Segoe UI", 12, "bold"),
+        fg_color="#5DADE2",
+        hover_color="#3498DB",
+        text_color="white",
+    )
+
+
+def boton_borrar(parent, command=None):
+    """
+    Botón rojo/rosado para borrar registro.
+    Incluye ícono de basurero si está disponible.
+    """
+    borrar_icon = _cargar_icono("delete_icon.png", size=(24, 24))
+    return ctk.CTkButton(
+        parent,
+        text="BORRAR",
+        image=borrar_icon,
+        compound="top" if borrar_icon is not None else "center",
+        command=command,
+        height=100,
+        corner_radius=8,
+        font=("Segoe UI", 12, "bold"),
+        fg_color="#EC7063",
+        hover_color="#E74C3C",
+        text_color="white",
+    )
+# ================================================
