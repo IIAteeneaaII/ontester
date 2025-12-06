@@ -396,7 +396,7 @@ class FiberMixin:
             print("[RESET] Buscando menú Management (first_menu_manage)...")
             try:
                 # Intentar primero por ID específico proporcionado
-                mgmt_link = self.find_element_anywhere(driver, By.ID, "first_menu_manage", timeout=2)
+                mgmt_link = self.find_element_anywhere(driver, By.ID, "first_menu_manage", timeout=3)
                 
                 if not mgmt_link:
                     # Fallback a texto

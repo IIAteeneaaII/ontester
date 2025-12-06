@@ -97,6 +97,7 @@ class ONTAutomatedTester:
             # MOD001: FIBERHOME HG6145F
             "FIBERHOME HG6145F": "MOD001",
             "HG6145F": "MOD001",
+            "HG6145F1": "MOD001",
             
             # MOD006: GRANDSTREAM HT818
             "GRANDSTREAM HT818": "MOD006",

@@ -21,6 +21,8 @@ from typing import Dict, Any, List
 import xml.etree.ElementTree as ET
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
+from datetime import datetime
+from pathlib import Path
 MAC_REGEX = re.compile(r"([0-9A-Fa-f]{2}(?:(?::|-)?[0-9A-Fa-f]{2}){5})")
 # Selenium para login automático
 try:
@@ -44,6 +46,8 @@ from mixins.huawei_mixin import HuaweiMixin
 from mixins.fiber_mixin import FiberMixin
 from mixins.grandstream_mixin import GrandStreamMixin
 from mixins.common_mixin import CommonMixin
+# IMPORTAR EL CERTIFICADO
+from certificado.certificado import generarCertificado
 
 class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, CommonMixin):
     def __init__(self, host: str, model: str = None):
@@ -104,6 +108,7 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
             # MOD001: FIBERHOME HG6145F
             "FIBERHOME HG6145F": "MOD001",
             "HG6145F": "MOD001",
+            "HG6145F1": "MOD001",
             
             # MOD006: GRANDSTREAM HT818
             "GRANDSTREAM HT818": "MOD006",
@@ -380,21 +385,6 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
         print(f"Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
         print("="*60 + "\n")
         
-        # A partir de aqui es donde se tiene que hacer la verificacion de modelos
-        # Primero el login 
-        # if (self.model == "MOD001"):
-        #     #FIBER
-        #     # Intentar login primero (obtiene serial y model name, auto-detecta modelo)
-        #     if not self.login():
-        #         print("[!] Error: No se pudo autenticar")
-        #         return self.test_results
-        # elif (self.model == "MOD002"):
-        #     #ZTE
-        #     if not self.login():
-        #         print("[X] ERROR: No se inició sesion en modelo ZTE")
-
-        # if not self.login():
-        #         print("[!] Error: No se pudo autenticar (modelo general)")
         login_ok = self.login()
 
         if not login_ok:
@@ -438,10 +428,6 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
             for test_func in common_tests:
                 result = test_func()
                 self.test_results["tests"][result["name"]] = result
-        elif (self.model == "MOD002"):
-            # Extraer info primero
-            print("En teoría ya se extrajo info del ZTE")
-            # self.zte_info()
         # Ejecutar tests específicos según el tipo
         if device_type == "ATA":
             print(f"\n[*] Dispositivo ATA detectado - Ejecutando tests VoIP ({len(ata_tests)} tests)...")
@@ -454,6 +440,14 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
                 result = test_func()
                 self.test_results["tests"][result["name"]] = result
         
+        # Provisionalmente aqui se va a generar el certificado
+        generar = True # bandera para seleccionar si se hace o no el certificado (se fuerza porque no se pasa la fibra)
+        # Posteriormente se puede validar con la ultima variable del JSON que contiene si es valido o no
+        # Obtener el dict con la info
+        res = self._resultados_finales()
+        if(generar):
+            ruta = generarCertificado(res)
+            print(f"\n[REPORT] Certificado generado en: {ruta}")
         return self.test_results
         
 def main():
