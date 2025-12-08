@@ -1,0 +1,28 @@
+============================================================
+REPORTE DE PRUEBAS AUTOMATIZADAS - ONT
+============================================================
+Fecha: 08/12/2025 12:29:23
+Modelo: Unknown (MOD002)
+Host: 192.168.1.1
+MAC Address: No disponible
+Serie: ZTE0QJNM6F42679
+
+RESULTADOS:
+------------------------------------------------------------
+[-] basic: True
+[-] usb: True
+[-] lan: True
+[-] wifi: True
+[-] fibra: True
+[-] mac: True
+[-] Contraseña: False
+[X] potencia_wifi: FAIL
+[X] USB_PORT: FAIL
+[X] TX_POWER: FAIL
+[X] RX_POWER: FAIL
+[X] WIFI_24GHZ: FAIL
+[X] WIFI_5GHZ: FAIL
+
+------------------------------------------------------------
+RESUMEN: 0 PASS | 6 FAIL | 7 SKIP
+============================================================

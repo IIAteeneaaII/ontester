@@ -849,6 +849,233 @@ class CommonMixin:
         except Exception as e:
             return {"success": False, "error": str(e)}
     
+# Para la potencia de la red
+    def scan_wifi_windows(self,
+                      target_ssid: Optional[str] = None,
+                      retries: int = 3,
+                      delay: float = 1.0,
+                      debug: bool = False) -> List[Dict[str, Any]]:
+        """
+        Escanea redes WiFi en Windows usando 'netsh wlan show networks mode=bssid'.
+
+        - Hace varios intentos (retries) con pausa (delay) para mitigar que
+        algunas redes no aparezcan en un solo escaneo.
+        - Si target_ssid se indica, filtra las redes por ese SSID
+        (case-insensitive, strip).
+        """
+        cmd = ["netsh", "wlan", "show", "networks", "mode=bssid"]
+
+        all_networks: List[Dict[str, Any]] = []
+
+        def parse_output(output: str) -> List[Dict[str, Any]]:
+            networks: List[Dict[str, Any]] = []
+            current_ssid: Optional[str] = None
+            current_bssid_index = 0
+
+            for line in output.splitlines():
+                line = line.strip()
+
+                # SSID 1 : NombreRed
+                if line.startswith("SSID ") and " : " in line:
+                    parts = line.split(" : ", 1)
+                    current_ssid = parts[1].strip()
+                    current_bssid_index = 0
+                    continue
+
+                if current_ssid is None:
+                    continue
+
+                # Inicio de un nuevo BSSID
+                if line.startswith("BSSID "):
+                    current_bssid_index += 1
+                    networks.append({
+                        "ssid": current_ssid,
+                        "bssid_index": current_bssid_index,
+                        "bssid": None,
+                        "signal_percent": None,
+                        "channel": None,
+                        "radio_type": None,
+                    })
+                    continue
+
+                if not networks:
+                    continue
+
+                net = networks[-1]
+
+                if line.lower().startswith("bssid "):
+                    parts = line.split(" : ", 1)
+                    if len(parts) == 2:
+                        net["bssid"] = parts[1].strip()
+
+                elif line.lower().startswith("señal") or line.lower().startswith("signal"):
+                    # Señal : 99%
+                    m = re.search(r"(\d+)%", line)
+                    if m:
+                        net["signal_percent"] = int(m.group(1))
+
+                elif line.lower().startswith("tipo de radio") or line.lower().startswith("radio type"):
+                    parts = line.split(" : ", 1)
+                    if len(parts) == 2:
+                        net["radio_type"] = parts[1].strip()
+
+                elif line.lower().startswith("canal") or line.lower().startswith("channel"):
+                    parts = line.split(" : ", 1)
+                    if len(parts) == 2:
+                        try:
+                            net["channel"] = int(parts[1].strip())
+                        except ValueError:
+                            net["channel"] = parts[1].strip()
+
+                # --- NUEVO BLOQUE: fallback cuando la 'ñ' se rompe ---
+                elif '%' in line and net.get("signal_percent") is None:
+                    # Evitar líneas tipo "Uso del canal : 24 (%)" u otras métricas
+                    lower = line.lower()
+                    if "uso del canal" in lower or "capacidad disponible" in lower:
+                        pass  # ignorar
+                    else:
+                        m = re.search(r"(\d+)%", line)
+                        if m:
+                            net["signal_percent"] = int(m.group(1))
+            return networks
+
+        for attempt in range(retries):
+            proc = subprocess.run(cmd, capture_output=True)
+            # decodificar con la codificación de consola típica
+            try:
+                output = proc.stdout.decode("cp850", errors="ignore")
+            except Exception:
+                output = proc.stdout.decode(errors="ignore")
+
+            nets = parse_output(output)
+
+            if debug:
+                print(f"[SCAN WIFI] Intento {attempt+1}, {len(nets)} redes:")
+                for n in nets:
+                    print(f"  SSID='{n['ssid']}', signal={n['signal_percent']}%, ch={n['channel']}")
+
+            # añadir a la lista total sin duplicar por (ssid, bssid)
+            for n in nets:
+                if not any(m["ssid"] == n["ssid"] and m["bssid"] == n["bssid"] for m in all_networks):
+                    all_networks.append(n)
+
+            # si buscamos un SSID concreto y ya apareció, podemos parar
+            if target_ssid:
+                t = target_ssid.strip().lower()
+                if any(n["ssid"] and n["ssid"].strip().lower() == t for n in all_networks):
+                    break
+
+            time.sleep(delay)
+
+        # filtro final por SSID, si se pide
+        if target_ssid:
+            t = target_ssid.strip().lower()
+            all_networks = [n for n in all_networks if n["ssid"] and n["ssid"].strip().lower() == t]
+
+        return all_networks
+
+    def test_wifi_rssi_windows(self, ssid_24: str, ssid_5: str) -> dict:
+        """
+        Test de cobertura WiFi usando scan_wifi_windows (Windows).
+        Busca RSSI (en %) para 2.4 GHz y 5 GHz y lo compara contra umbrales
+        definidos en self.wifi_rssi_thresholds.
+
+        El resultado se guarda en self.test_results['tests']['potencia_wifi'].
+        """
+        print("[TEST] WIFI_RSSI_WINDOWS")
+
+        # Asegurar estructura de umbrales (en %)
+        if not hasattr(self, "wifi_rssi_thresholds"):
+            self.wifi_rssi_thresholds = {
+                "2.4G": {"min_percent": 60}, # TODO cambiar valor por variable
+                "5G":   {"min_percent": 60},
+            }
+
+        result = {
+            "name": "potencia_wifi",
+            "status": "FAIL",
+            "details": {
+                "ssid_24": ssid_24,
+                "ssid_5": ssid_5,
+                "best_24_percent": None,
+                "best_5_percent": None,
+                "min_24_percent": None,
+                "min_5_percent": None,
+                "pass_24": False,
+                "pass_5": False,
+                "thresholds": self.wifi_rssi_thresholds,
+                "raw_24": [],
+                "raw_5": [],
+                "errors": [],
+            },
+        }
+
+        # --- obtener redes ---
+        nets_24 = self.scan_wifi_windows(ssid_24)
+        nets_5  = self.scan_wifi_windows(ssid_5)
+
+        result["details"]["raw_24"] = nets_24
+        result["details"]["raw_5"]  = nets_5
+
+        if not nets_24:
+            result["details"]["errors"].append(f"No se encontró red 2.4G: {ssid_24}")
+        if not nets_5:
+            result["details"]["errors"].append(f"No se encontró red 5G: {ssid_5}")
+
+        if not nets_24 and not nets_5:
+            self.test_results["tests"]["potencia_wifi"] = result
+            return result
+
+        # --- mejor señal por banda (en %) ---
+        def _best_signal(net_list):
+            if not net_list:
+                return None
+            return max(
+                (n for n in net_list if n.get("signal_percent") is not None),
+                key=lambda n: n["signal_percent"],
+                default=None,
+            )
+
+        best_24 = _best_signal(nets_24)
+        best_5  = _best_signal(nets_5)
+
+        if best_24:
+            p24 = best_24["signal_percent"]
+            result["details"]["best_24_percent"] = p24
+
+        if best_5:
+            p5 = best_5["signal_percent"]
+            result["details"]["best_5_percent"] = p5
+
+        # --- umbrales en % ---
+        th = self.wifi_rssi_thresholds
+
+        min24 = th.get("2.4G", {}).get("min_percent", 60) # TODO cambiar valor por variable
+        min5  = th.get("5G",   {}).get("min_percent", 60)
+
+        result["details"]["min_24_percent"] = min24
+        result["details"]["min_5_percent"] = min5
+
+        # --- evaluación PASS/FAIL ---
+        p24 = result["details"]["best_24_percent"]
+        p5  = result["details"]["best_5_percent"]
+
+        pass_24 = p24 is not None and p24 >= min24
+        pass_5  = p5  is not None and p5  >= min5
+
+        result["details"]["pass_24"] = bool(pass_24)
+        result["details"]["pass_5"]  = bool(pass_5)
+
+        if pass_24 and pass_5:
+            result["status"] = "PASS"
+        else:
+            result["status"] = "FAIL"
+
+        # guardar siempre en la ruta fija
+        self.test_results["tests"]["potencia_wifi"] = result
+        return result
+
+
     def _resultados_json_corto(self, fecha, modelo, sn, mac, sftVer, wifi24, wifi5, passWifi, ping, reset, usb, tx, rx, w24, w5):
         # Validar si ha pasado los tests
         valido = (
@@ -906,6 +1133,23 @@ class CommonMixin:
         w24 = self.test_results['tests']['WIFI_24GHZ']['details'].get('enabled') # true
         w5 = self.test_results['tests']['WIFI_5GHZ']['details'].get('enabled') # true
 
+        rssi_2g = int(self.test_results['tests']["WIFI_24GHZ"]["details"]["data"]["wifi_status"][0]["rssi_2g"]) # valor negativo con la potencia del wifi
+        rssi_5g = int(self.test_results['tests']["WIFI_24GHZ"]["details"]["data"]["wifi_status"][0]["rssi_5g"]) # valor negativo con la potencia del wifi
+
+        min_valor_wifi = self._getMinWifi24Signal()
+        min_valor_wifi5 = self._getMinWifi5Signal()
+        max_valor_wifi = self._getMaxWifi24Signal()
+        max_valor_wifi5 = self._getMaxWifi5Signal()
+
+        if(rssi_2g >= min_valor_wifi and rssi_2g <= max_valor_wifi):
+            w24 = True
+        else:
+            w24 = False
+
+        if(rssi_5g >= min_valor_wifi5 and rssi_5g <= max_valor_wifi5):
+            w5 = True
+        else:
+            w5 = False
         # Obtener los resultados como json
         resultado = {}
         resultado = self._resultados_json_corto(fecha, modelo, sn, mac, sftVer, wifi24, wifi5, passWifi, ping, reset, usb, tx, rx, w24, w5)
@@ -922,7 +1166,7 @@ class CommonMixin:
             if cfg.get("ConnTrigger") == "AlwaysOn":
                 mac = cfg.get("WorkIFMac")  # aquí está la MAC
                 break
-        sftVer = self.test_results['tests']['basic']['DEVINFO'].get('SoftwareVer') #sft version
+        sftVer = self.test_results['tests']['basic']['details']['DEVINFO'].get('SoftwareVer') #sft version
         ruta_wifi = self.test_results['tests']['wifi']['details']['WLANAP']
         essids_validos = [
             ap["ESSID"]
@@ -930,7 +1174,7 @@ class CommonMixin:
                 if "ESSID" in ap and "SSID" not in ap["ESSID"]
         ]
         wifi24 = essids_validos[0] if essids_validos else None
-        wifi5 = essids_validos[0] if essids_validos else None
+        wifi5 = essids_validos[1] if essids_validos else None
         passWifi = self.test_results['tests']['Contraseña']['details'].get('password')
 
         # Tests
@@ -946,6 +1190,38 @@ class CommonMixin:
         usb_final="ERROR"
         if(usb):
             usb_final="PASS"
+
+        # validar la potencia del wifi
+        # verificar que el reporte no tenga errores
+        pot = self.test_results["tests"]["potencia_wifi"]
+        details = pot["details"]
+        raw_24 = details["raw_24"]
+        raw_5 = details["raw_5"]
+
+        # Obtener configuraciones de minimos en porcentajes
+        min_valor_wifi = self._getMinWifi24SignalPercent()
+        min_valor_wifi5 = self._getMinWifi5SignalPercent()
+        # Verificar que NO estén vacías
+        if details["raw_24"]:
+            # wifi 2.4 con valor || validar si la potencia es mayor a la esperada TODO cambiar por variable
+            net = next((n for n in raw_24 if n["ssid"] == wifi24), None)
+            if net and net["signal_percent"] >= min_valor_wifi:
+                w24 = True
+            else:
+                w24 = False
+        else:
+            w24 = False
+
+        # Verificar que NO estén vacías
+        if details["raw_5"]:
+            # wifi 2.4 con valor || validar si la potencia es mayor a la esperada TODO cambiar por variable
+            net = next((n for n in raw_5 if n["ssid"] == wifi5), None)
+            if net and net["signal_percent"] >= min_valor_wifi5:
+                w5 = True
+            else:
+                w5 = False
+        else:
+            w5 = False
         # Obtener los resultados como json
         resultado = {}
         resultado = self._resultados_json_corto(fecha,modelo, sn, mac, sftVer, wifi24, wifi5, passWifi, ping, reset, usb_final, tx, rx, w24, w5)
@@ -972,23 +1248,49 @@ class CommonMixin:
         w5 = self.test_results['tests']['hw_wifi5']['data'].get('status') # Enabled si true
 
         usb_final="ERROR"
-        w24_final=False
-        w5_final=False
         tx_final=-60.0
         rx_final=-60.0
         if(usb):
             usb_final="PASS"
-        if(w24 == "Enabled"):
-            w24_final = True
-        if(w5 == "Enabled"):
-            w5_final = True
         if(tx != "-- dBm"):
             tx_final = tx
         if(rx != "-- dBm"):
             rx_final = rx
+
+        # validar la potencia del wifi
+        # verificar que el reporte no tenga errores
+        pot = self.test_results["tests"]["potencia_wifi"]
+        details = pot["details"]
+        raw_24 = details["raw_24"]
+        raw_5 = details["raw_5"]
+        
+        # Obtener configuraciones de minimos en porcentajes
+        min_valor_wifi = self._getMinWifi24SignalPercent()
+        min_valor_wifi5 = self._getMinWifi5SignalPercent()
+        # Verificar que NO estén vacías
+        if details["raw_24"]:
+            # wifi 2.4 con valor || validar si la potencia es mayor a la esperada TODO cambiar por variable
+            net = next((n for n in raw_24 if n["ssid"] == wifi24), None)
+            if net and net["signal_percent"] >= min_valor_wifi:
+                w24 = True
+            else:
+                w24 = False
+        else:
+            w24 = False
+
+        # Verificar que NO estén vacías
+        if details["raw_5"]:
+            # wifi 2.4 con valor || validar si la potencia es mayor a la esperada TODO cambiar por variable
+            net = next((n for n in raw_5 if n["ssid"] == wifi5), None)
+            if net and net["signal_percent"] >= min_valor_wifi5:
+                w5 = True
+            else:
+                w5 = False
+        else:
+            w5 = False
         # Obtener los resultados como json
         resultado = {}
-        resultado = self._resultados_json_corto(fecha, modelo, sn, mac, sftVer, wifi24, wifi5, passWifi, ping, reset, usb_final, tx_final, rx_final, w24_final, w5_final)
+        resultado = self._resultados_json_corto(fecha, modelo, sn, mac, sftVer, wifi24, wifi5, passWifi, ping, reset, usb_final, tx_final, rx_final, w24, w5)
         return resultado
     # Aqui voy a poner el resultado de las pruebas de todos los modelos
     # PD para Atenea, las funciones devuelven un dict con la siguiente estructura:

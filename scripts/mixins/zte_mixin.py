@@ -1,19 +1,11 @@
-import argparse
-import json
-import os
-import sys
-import socket
-import subprocess
-import platform
-import re
 import time
-import requests
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 import xml.etree.ElementTree as ET
-from bs4 import BeautifulSoup
 from urllib.parse import urljoin
+import subprocess
+import re
 try:
     from selenium import webdriver
     from selenium.webdriver.common.by import By
@@ -627,24 +619,6 @@ class ZTEMixin:
         xml_fibra = f"{self.base_url}/?_type=menuData&_tag=optical_info_lua.lua&_={guid}"
         # MAC
         xml_mac = f"{self.base_url}/?_type=menuData&_tag=wan_internetstatus_lua.lua&TypeUplink=2&pageType=1&_={guid}"
-
-        urls_xml = [
-            xml_url,   # devmgr_statusmgr_lua
-            xml_usb,   # usb_homepage_lua
-            xml_lan,   # status_lan_info_lua
-            xml_wifi,  # wlan_wlansssidconf_lua
-            xml_fibra, # optical_info_lua
-            xml_mac,   # wan_internetstatus_lua
-        ]
-
-        funciones = [
-            self.info_zte_basic,
-            self.nav_usb,
-            self.nav_lan,
-            self.nav_wifi,
-            self.nav_fibra,
-            self.nav_mac,
-        ]
         
         #Update para generar reportes
         pruebas = [
@@ -655,12 +629,6 @@ class ZTEMixin:
             ("fibra", self.nav_fibra,      xml_fibra),
             ("mac",   self.nav_mac,        xml_mac),
         ]
-
-        resultado_prueba = {
-            "router_ip": self.base_url,
-            "timestamp": datetime.now().isoformat(timespec="seconds"),
-            "tests": {}  # aquí vamos a meter basic, usb, lan, wifi, fibra, mac
-        }
         
         try:
             print("Opcion 1:\n")
@@ -708,6 +676,22 @@ class ZTEMixin:
                     "details": pswd,          # aquí va el json parseado de ese XML
                 }
                 self.test_results["tests"][result["name"]] = result
+            
+            # Potencia del wifi (solo windows)
+            ruta_wifi = self.test_results['tests']['wifi']['details']['WLANAP']
+            essids_validos = [
+                ap["ESSID"]
+                for ap in ruta_wifi
+                    if "ESSID" in ap and "SSID" not in ap["ESSID"]
+            ]
+            wifi24 = essids_validos[0] if essids_validos else None
+            wifi5 = essids_validos[1] if essids_validos else None
+
+            # buscar tanto para 2.4GHz como 5GHz        
+            self.test_wifi_rssi_windows(wifi24, wifi5)
+
+            # all_nets = self.scan_wifi_windows(debug=True)  # debug
+
             #Guardar a archivo
             self.save_results2("test_mod002")
         except Exception as e:

@@ -1,0 +1,143 @@
+{
+  "metadata": {
+    "host": "192.168.100.1",
+    "model": "HG8145X6-10",
+    "timestamp": "2025-12-08T13:24:45.977893",
+    "serial_number": "48575443045219AF"
+  },
+  "tests": {
+    "hw_device": {
+      "name": "hw_device",
+      "data": {
+        "model": "HG8145X6-10",
+        "serial_number": "48575443045219AF",
+        "serial_raw": "48575443045219AF (HWTC045219AF)",
+        "software_version": "V5R022C00S229"
+      }
+    },
+    "hw_optical": {
+      "name": "hw_optical",
+      "data": {
+        "tx_optical_power": "-- dBm",
+        "rx_optical_power": "-- dBm"
+      }
+    },
+    "hw_lan": {
+      "name": "hw_lan",
+      "data": {
+        "ports": [
+          {
+            "port": "1",
+            "mode": "Full-duplex",
+            "speed": "1000 Mbit/s",
+            "status": "Up"
+          },
+          {
+            "port": "2",
+            "mode": "--",
+            "speed": "--",
+            "status": "Down"
+          },
+          {
+            "port": "3",
+            "mode": "--",
+            "speed": "--",
+            "status": "Down"
+          },
+          {
+            "port": "4",
+            "mode": "--",
+            "speed": "--",
+            "status": "Down"
+          }
+        ]
+      }
+    },
+    "hw_wifi24": {
+      "name": "hw_wifi24",
+      "data": {
+        "band": "2.4GHz",
+        "status": "Enabled",
+        "ssid": "Totalplay-19AF"
+      }
+    },
+    "hw_wifi5": {
+      "name": "hw_wifi5",
+      "data": {
+        "band": "5GHz",
+        "status": "Enabled",
+        "ssid": "Totalplay-19AF-5G"
+      }
+    },
+    "hw_mac": {
+      "name": "hw_mac",
+      "data": "A8:50:81:06:C2:92"
+    },
+    "hw_wifi24_pass": {
+      "name": "hw_wifi24_pass",
+      "data": {
+        "band": "2.4GHz",
+        "password": "19AFC292X4uGaz8z"
+      }
+    },
+    "hw_wifi5_pass": {
+      "name": "hw_wifi5_pass",
+      "data": {
+        "band": "5GHz",
+        "password": "19AFC292X4uGaz8z"
+      }
+    },
+    "hw_usb": {
+      "name": "hw_usb",
+      "data": {
+        "connected": false,
+        "status": "usb desconectado",
+        "value": "",
+        "label": "No USB Device"
+      }
+    },
+    "potencia_wifi": {
+      "name": "potencia_wifi",
+      "status": "PASS",
+      "details": {
+        "ssid_24": "Totalplay-19AF",
+        "ssid_5": "Totalplay-19AF-5G",
+        "best_24_percent": 100,
+        "best_5_percent": 100,
+        "min_24_percent": 60,
+        "min_5_percent": 60,
+        "pass_24": true,
+        "pass_5": true,
+        "thresholds": {
+          "2.4G": {
+            "min_percent": 60
+          },
+          "5G": {
+            "min_percent": 60
+          }
+        },
+        "raw_24": [
+          {
+            "ssid": "Totalplay-19AF",
+            "bssid_index": 1,
+            "bssid": null,
+            "signal_percent": 100,
+            "channel": 11,
+            "radio_type": "802.11ax"
+          }
+        ],
+        "raw_5": [
+          {
+            "ssid": "Totalplay-19AF-5G",
+            "bssid_index": 1,
+            "bssid": null,
+            "signal_percent": 100,
+            "channel": 36,
+            "radio_type": "802.11ax"
+          }
+        ],
+        "errors": []
+      }
+    }
+  }
+}

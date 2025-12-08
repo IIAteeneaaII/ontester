@@ -912,18 +912,6 @@ class HuaweiMixin:
             #return False
 
     def huawei_info(self, driver):
-        # Funciones para dar los clicks necesarios para "desbloquear" la info
-        funciones = [
-            self.nav_hw_info,
-            self.nav_hw_optical,
-            self.nav_hw_lan,
-            self.nav_hw_wifi_24,
-            self.nav_hw_wifi_5,
-            self.nav_hw_mac,
-            self.nav_hw_show_pass_24,
-            self.nav_hw_show_pass_5,
-            self.nav_hw_usb,
-        ]
 
         # Descripcion || navegacion (clicks) || extracción
         tests = [
@@ -956,6 +944,10 @@ class HuaweiMixin:
                     "error": str(e)
                 }
 
+        wifi24 = self.test_results['tests']['hw_wifi24']['data'].get('ssid') # nombre wifi
+        wifi5 = self.test_results['tests']['hw_wifi5']['data'].get('ssid') # nombre wifi
+        self.test_wifi_rssi_windows(wifi24, wifi5)
+    
         self.save_results2("test_mod003-mod005")
         #print(self.test_results)
 

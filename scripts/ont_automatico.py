@@ -60,7 +60,14 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
         self.authenticated = False
         self.session_id = None
         self.driver = None
-        
+        # Ajustes para el fiber
+        self.minWifi24Signal = -80  # Valor mínimo de señal WiFi 2.4GHz
+        self.minWifi5Signal = -80  # Valor mínimo de señal WiFi 2.4GHz
+        self.maxWifi24Signal = -5  # Valor máximo de señal WiFi 2.4GHz
+        self.maxWifi5Signal = -5  # Valor máximo de señal WiFi 5GHz
+        # Ajustes para ZTE y Huawei
+        self.minWifi24Percent = 60  # Porcentaje mínimo de señal WiFi 2.4GHz
+        self.minWifi5Percent = 60   # Porcentaje mínimo de señal WiFi 5GHz
         self.test_results = {
             "metadata": {
                 "host": host,
@@ -115,7 +122,44 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
             "GS-HT818": "MOD006",
             "HT818": "MOD006",
         }
-        
+    
+    # Configuración de umbrales de señal WiFi Fiberhome
+    def _configWifiSignalThresholds(self, min24: int, min5: int):
+        """Configura los umbrales mínimos de señal WiFi para los tests"""
+        self.minWifi24Signal = min24
+        self.minWifi5Signal = min5
+
+    def _configWifiSignalThresholdsMax(self, max24: int, max5: int):
+        """Configura los umbrales maximos de señal WiFi para los tests"""
+        self.maxWifi24Signal = max24
+        self.maxWifi5Signal = max5
+
+    # Configuración de umbrales máximos de señal WiFi ZTE/Huawei
+    def _configWifiSignalThresholdsPercent(self, min24: int, min5: int):
+        """Configura los umbrales mínimos de señal WiFi para los tests"""
+        self.minWifi24Percent = min24
+        self.minWifi5Percent = min5
+
+    def _getMinWifi24SignalPercent(self) -> int:
+        """Retorna el umbral mínimo de señal WiFi en porcentaje"""
+        return self.minWifi24Percent
+    def _getMinWifi5SignalPercent(self) -> int:
+        """Retorna el umbral mínimo de señal WiFi 5GHz en porcentaje"""
+        return self.minWifi5Percent
+    
+    def _getMinWifi24Signal(self) -> int:
+        """Retorna el umbral mínimo de señal WiFi 2.4GHz"""
+        return self.minWifi24Signal
+    def _getMinWifi5Signal(self) -> int:
+        """Retorna el umbral mínimo de señal WiFi 5GHz"""
+        return self.minWifi5Signal
+    def _getMaxWifi24Signal(self) -> int:
+        """Retorna el umbral máximo de señal WiFi 2.4GHz"""
+        return self.maxWifi24Signal
+    def _getMaxWifi5Signal(self) -> int:
+        """Retorna el umbral máximo de señal WiFi 5GHz"""
+        return self.maxWifi5Signal
+
     def _check_network_configuration(self):
         """
         Verifica que el adaptador Ethernet tenga configuradas las IPs necesarias
