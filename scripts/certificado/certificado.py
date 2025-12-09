@@ -25,6 +25,7 @@ def generarCertificado(resultado: dict):
     fechaTest = info.get("fecha_test","01/01/0001")
     dt = datetime.fromisoformat(fechaTest)
     fechaTest = dt.strftime("%d/%m/%Y")
+    fechaHoy = datetime.now().strftime("%d/%m/%Y")
     contexto = {
         # header
         "sn": info.get("sn", ""),
@@ -50,7 +51,7 @@ def generarCertificado(resultado: dict):
         "w5_test": tests.get("w5",""),
 
         # footer
-        "fecha_certificado": timestamp
+        "fecha_certificado": fechaHoy
     }
 
     html_renderizado = template.render(**contexto)

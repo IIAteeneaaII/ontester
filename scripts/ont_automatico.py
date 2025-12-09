@@ -77,6 +77,28 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
             },
             "tests": {}
         }
+
+        self.opcionesTest = {
+            "info": {
+                "sn": True,
+                "mac": True,
+                "ssid_24ghz": True,
+                "ssid_5ghz": True,
+                "software_version": True,
+                "wifi_password": True,
+                "model": True
+            },
+            "tests": {
+                "ping": True,
+                "factory_reset": True,
+                "software_update": True,
+                "usb_port": True,
+                "tx_power": True,
+                "rx_power": True,
+                "wifi_24ghz_signal": True,
+                "wifi_5ghz_signal": True
+            }
+        }
         
         # Deshabilitar warnings SSL
         requests.packages.urllib3.disable_warnings()
@@ -472,6 +494,7 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
             for test_func in common_tests:
                 result = test_func()
                 self.test_results["tests"][result["name"]] = result
+            # print(json.dumps(self.test_results, indent=2, ensure_ascii=False)) 
         # Ejecutar tests específicos según el tipo
         if device_type == "ATA":
             print(f"\n[*] Dispositivo ATA detectado - Ejecutando tests VoIP ({len(ata_tests)} tests)...")
@@ -484,6 +507,10 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
                 result = test_func()
                 self.test_results["tests"][result["name"]] = result
         
+        
+        return self.test_results
+
+    def _generarCertificado(self):
         # Provisionalmente aqui se va a generar el certificado
         generar = True # bandera para seleccionar si se hace o no el certificado (se fuerza porque no se pasa la fibra)
         # Posteriormente se puede validar con la ultima variable del JSON que contiene si es valido o no
@@ -492,8 +519,7 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
         if(generar):
             ruta = generarCertificado(res)
             print(f"\n[REPORT] Certificado generado en: {ruta}")
-        return self.test_results
-        
+
 def main():
     parser = argparse.ArgumentParser(description="ONT Automated Test Suite")
     parser.add_argument("--host", help="IP de la ONT (opcional, se detecta automáticamente si se omite)")
@@ -558,15 +584,48 @@ def main():
     elif args.mode == 'retest':
         # Modo retest: solo tests fallidos
         run_retest_mode(args.host, args.model, args.output)
-    else:
-        # Modo test: todos los tests
-        tester = ONTAutomatedTester(args.host, args.model)
-        tester.run_all_tests()
-        
-        # Mostrar reporte en consola
-        if(args.model != "MOD003" and args.model != "MOD004" and args.model != "MOD005"):
-            print("\n" + tester.generate_report())
-            tester.save_results(args.output) # Guardar resultados
+    # else:
+    # Modo test: todos los tests
+
+    # No importa las pruebas a realizar, la extracción siempre se debe obtener
+    """
+    INFO: 
+    - SN
+    - MAC
+    - SSID WiFi 2.4GHz
+    - SSID WiFi 5GHz
+    - Versión Software
+    - WiFi Password
+    - Modelo
+    PRUEBAS:
+    - Ping
+    - Factory Reset
+    - Software Update
+    - USB Port
+    - TX Power
+    - RX Power
+    - WiFi 2.4GHz Signal
+    - WiFi 5GHz Signal
+    """
+    tester = ONTAutomatedTester(args.host, args.model)
+    opc = tester.opcionesTest
+    opc["tests"]["factory_reset"] = False # Deshabilitar factory reset automatico
+    opc["tests"]["software_update"] = False # Deshabilitar factory reset automatico
+    opc["tests"]["tx_power"] = False # Deshabilitar factory reset automatico
+    opc["tests"]["rx_power"] = False # Deshabilitar factory reset automatico
+    opc["tests"]["wifi_24ghz_signal"] = False # Deshabilitar factory reset automatico
+    opc["tests"]["wifi_5ghz_signal"] = False # Deshabilitar factory reset automatico
+    tester.run_all_tests() # No hace falta pasar parametros, como pertenece a la misma instancia
+    
+    # Mostrar reporte en consola
+    if(args.model != "MOD003" and args.model != "MOD004" and args.model != "MOD005"):
+        print("\n" + tester.generate_report())
+        tester.save_results(args.output) # Guardar resultados
+
+    # Para generar certificado verificar si todos los tests se están ejecutando
+    todo_tests_on = all(tester.opcionesTest["tests"].values())
+    if(todo_tests_on):
+        tester._generarCertificado()
     
 
 def generate_label(host: str, model: str = None):

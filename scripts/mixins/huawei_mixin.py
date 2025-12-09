@@ -916,16 +916,25 @@ class HuaweiMixin:
         # Descripcion || navegacion (clicks) || extracción
         tests = [
             ("hw_device",  self.nav_hw_info,       self.parse_hw_device),
-            ("hw_optical", self.nav_hw_optical,    self.parse_hw_optical),
+            #("hw_optical", self.nav_hw_optical,    self.parse_hw_optical),
             ("hw_lan",     self.nav_hw_lan,        self.parse_hw_lan),
             ("hw_wifi24",  self.nav_hw_wifi_24,    self.parse_hw_wifi24),
             ("hw_wifi5",   self.nav_hw_wifi_5,     self.parse_hw_wifi5),
             ("hw_mac",     self.nav_hw_mac,        self.parse_hw_mac),
             ("hw_wifi24_pass", self.nav_hw_show_pass_24, self.parse_hw_wifi24_pass),
             ("hw_wifi5_pass",  self.nav_hw_show_pass_5,  self.parse_hw_wifi5_pass),
-            ("hw_usb",  self.nav_hw_usb, self.read_hw_usb_status)
+            #("hw_usb",  self.nav_hw_usb, self.read_hw_usb_status)
         ]
-        
+
+        # Verificar opciones a testear
+        optTest = self.opcionesTest
+        tests_opts = optTest.get("tests", {})
+        if tests_opts.get("tx_power", True) and tests_opts.get("rx_power", True):
+            tests.append( ("hw_optical", self.nav_hw_optical,    self.parse_hw_optical) )
+        if tests_opts.get("usb_port", True):
+            tests.append( ("hw_usb",  self.nav_hw_usb, self.read_hw_usb_status) )
+        if tests_opts.get("software_update", True):
+            print("SKIP de momento")
         # Recorrer todas las funciones de clicks + extraer el DOM
         # Usar try/except para cada paso para evitar que un fallo detenga todo el proceso
         for name, nav_func, parse_func in tests:
@@ -946,7 +955,10 @@ class HuaweiMixin:
 
         wifi24 = self.test_results['tests']['hw_wifi24']['data'].get('ssid') # nombre wifi
         wifi5 = self.test_results['tests']['hw_wifi5']['data'].get('ssid') # nombre wifi
-        self.test_wifi_rssi_windows(wifi24, wifi5)
+
+        # Verificar si se tienen que probar las señales wifi
+        if tests_opts.get("wifi_24ghz_signal", True) and tests_opts.get("wifi_5ghz_signal", True):
+            self.test_wifi_rssi_windows(wifi24, wifi5)
     
         self.save_results2("test_mod003-mod005")
         #print(self.test_results)
@@ -1166,13 +1178,17 @@ class HuaweiMixin:
                 else:
                     # no reset de fabrica
                     # print("[INFO] No se saltó la página de configuración inicial o no se encontraron los skips")
-                    reset = self._reset_factory_huawei(driver)
-                    time.sleep(100)
-                    if(reset):
-                        loginBool = self._login_huawei()
-                        return loginBool
-                    else:
-                        print("[INFO] No se reseteo de fabrica")
+                    # Verificar si se tiene que hacer el reset de fabrica
+                    optTest = self.opcionesTest
+                    tests_opts = optTest.get("tests", {})
+                    if tests_opts.get("factory_reset", True):
+                        reset = self._reset_factory_huawei(driver)
+                        time.sleep(100)
+                        if(reset):
+                            loginBool = self._login_huawei()
+                            return loginBool
+                        else:
+                            print("[INFO] No se reseteo de fabrica")
                 # Peticiones desde aqui para no cerrar el driver
                 
                 self.huawei_info(driver)

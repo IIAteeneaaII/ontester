@@ -780,7 +780,10 @@ class CommonMixin:
                     wifi_info = self._extract_wifi_info()
                 
                 if wifi_info:
-                    self.test_results['metadata']['base_info']['wifi_info'] = wifi_info
+                    # Asegurar estructura
+                    meta = self.test_results.setdefault("metadata", {})
+                    base = meta.setdefault("base_info", {})
+                    base["wifi_info"] = wifi_info
                     if wifi_info.get('ssid_24ghz'):
                         print(f"[AUTH] WiFi 2.4GHz: {wifi_info['ssid_24ghz']}")
                     if wifi_info.get('ssid_5ghz'):
@@ -1127,7 +1130,7 @@ class CommonMixin:
         # Tests
         ping = self.test_results['tests']['PING_CONNECTIVITY'].get('status') # pass
         reset = self.test_results['tests']['FACTORY_RESET_PASS'].get('status') # pass
-        usb = self.test_results['tests']['FACTORY_RESET_PASS'].get('status') # pass
+        usb = self.test_results['tests']['USB_PORT'].get('status') # pass
         tx = self.test_results['metadata']['base_info'].get('tx_power_dbm') # valor negativo
         rx = self.test_results['metadata']['base_info'].get('rx_power_dbm') # valor negativo
         w24 = self.test_results['tests']['WIFI_24GHZ']['details'].get('enabled') # true
@@ -1203,6 +1206,7 @@ class CommonMixin:
         min_valor_wifi5 = self._getMinWifi5SignalPercent()
         # Verificar que NO estén vacías
         if details["raw_24"]:
+            print("Hay datos de 2.4G")
             # wifi 2.4 con valor || validar si la potencia es mayor a la esperada TODO cambiar por variable
             net = next((n for n in raw_24 if n["ssid"] == wifi24), None)
             if net and net["signal_percent"] >= min_valor_wifi:
@@ -1214,6 +1218,7 @@ class CommonMixin:
 
         # Verificar que NO estén vacías
         if details["raw_5"]:
+            print("Hay datos de 5G")
             # wifi 2.4 con valor || validar si la potencia es mayor a la esperada TODO cambiar por variable
             net = next((n for n in raw_5 if n["ssid"] == wifi5), None)
             if net and net["signal_percent"] >= min_valor_wifi5:

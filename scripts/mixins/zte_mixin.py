@@ -620,16 +620,29 @@ class ZTEMixin:
         # MAC
         xml_mac = f"{self.base_url}/?_type=menuData&_tag=wan_internetstatus_lua.lua&TypeUplink=2&pageType=1&_={guid}"
         
+        # Obtener las opciones de test
+        optTest = self.opcionesTest
+        tests_opts = optTest.get("tests", {})
+        print("[DEBUG] Opciones de test recibidas (ZTE):", tests_opts) 
         #Update para generar reportes
         pruebas = [
-            ("basic", self.info_zte_basic, xml_url),
-            ("usb",   self.nav_usb,        xml_usb),
-            ("lan",   self.nav_lan,        xml_lan),
-            ("wifi",  self.nav_wifi,       xml_wifi),
-            ("fibra", self.nav_fibra,      xml_fibra),
-            ("mac",   self.nav_mac,        xml_mac),
+            # VACIO para solo agregar las que se piden en opciones
+            ("basic", self.info_zte_basic, xml_url), # Esta es info, por lo que siempre se ejecuta
+            # ("usb",   self.nav_usb,        xml_usb), # ok
+            ("lan",   self.nav_lan,        xml_lan), # Lan forma parte de la info basica
+            ("wifi",  self.nav_wifi,       xml_wifi), # Esta parte del wifi es para la info basica
+            # ("fibra", self.nav_fibra,      xml_fibra), # ok
+            ("mac",   self.nav_mac,        xml_mac), # Mac forma parte de la info basica
         ]
         
+        if tests_opts.get("usb_port", True): # Ejecutando True por defecto
+            pruebas.append( ("usb",   self.nav_usb,        xml_usb) )
+        if tests_opts.get("sofware_update", True):
+            print("SKIP")
+        if tests_opts.get("tx_power", True) and tests_opts.get("rx_power", True):
+            pruebas.append( ("fibra", self.nav_fibra,      xml_fibra) )
+
+
         try:
             print("Opcion 1:\n")
             xml_final = ""
@@ -677,18 +690,20 @@ class ZTEMixin:
                 }
                 self.test_results["tests"][result["name"]] = result
             
-            # Potencia del wifi (solo windows)
-            ruta_wifi = self.test_results['tests']['wifi']['details']['WLANAP']
-            essids_validos = [
-                ap["ESSID"]
-                for ap in ruta_wifi
-                    if "ESSID" in ap and "SSID" not in ap["ESSID"]
-            ]
-            wifi24 = essids_validos[0] if essids_validos else None
-            wifi5 = essids_validos[1] if essids_validos else None
+            # Aqui sí validar si se verifica la potencia del wifi
+            if tests_opts.get("wifi_24ghz_signal", True) and tests_opts.get("wifi_5ghz_signal", True):
+                # Potencia del wifi (solo windows)
+                ruta_wifi = self.test_results['tests']['wifi']['details']['WLANAP']
+                essids_validos = [
+                    ap["ESSID"]
+                    for ap in ruta_wifi
+                        if "ESSID" in ap and "SSID" not in ap["ESSID"]
+                ]
+                wifi24 = essids_validos[0] if essids_validos else None
+                wifi5 = essids_validos[1] if essids_validos else None
 
-            # buscar tanto para 2.4GHz como 5GHz        
-            self.test_wifi_rssi_windows(wifi24, wifi5)
+                # buscar tanto para 2.4GHz como 5GHz        
+                self.test_wifi_rssi_windows(wifi24, wifi5)
 
             # all_nets = self.scan_wifi_windows(debug=True)  # debug
 
@@ -868,20 +883,24 @@ class ZTEMixin:
                 # Esperar a que cargue la página principal (varios indicadores posibles)
                 time.sleep(5)  # Dar tiempo para procesar login
 
-                if (reset is False):
-                    # Antes de ejecutar las demás pruebas hay que resetear de fabrica
-                    resetZTE = self._reset_factory_zte(driver)
-                    print("[INFO] Esperando a que el ZTE reinicie tras Factory Reset...")
-                    time.sleep(100)  # espera
-                    if (resetZTE):
-                        reset = True
-                        self._login_zte(True) # Es necesario volver a loggearse después del reset
-                        driver.quit()
-                        return True
-                    else:
-                        print("[WARNING] No se pudo resetear, saltando pruebas")
-                        driver.quit()
-                        return False
+                # Verificar si se tiene que hacer factory reset
+                optTest = self.opcionesTest
+                tests_opts = optTest.get("tests", {})
+                if tests_opts.get("factory_reset", True):
+                    if (reset is False):
+                        # Antes de ejecutar las demás pruebas hay que resetear de fabrica
+                        resetZTE = self._reset_factory_zte(driver)
+                        print("[INFO] Esperando a que el ZTE reinicie tras Factory Reset...")
+                        time.sleep(100)  # espera
+                        if (resetZTE):
+                            reset = True
+                            self._login_zte(True) # Es necesario volver a loggearse después del reset
+                            driver.quit()
+                            return True
+                        else:
+                            print("[WARNING] No se pudo resetear, saltando pruebas")
+                            driver.quit()
+                            return False
                 #Petición extra:
                 # Utilizando selenium para darle click a un boton || Tactica extrema, no intentar en casa
                 button_selectors = [

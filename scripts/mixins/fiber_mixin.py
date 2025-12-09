@@ -753,6 +753,12 @@ class FiberMixin:
             except ValueError:
                 pass
         
+        # ya que hay 147 llamadas a base_info, voy a poner aqui la info del wifi - U
+        wifi_info = self._extract_wifi_allwan()
+        meta = self.test_results.setdefault("metadata", {})
+        base = meta.setdefault("base_info", {})
+        base["wifi_info"] = wifi_info
+        extracted["wifi_info"] = wifi_info
         return extracted
     
     def _decrypt_wifi_credential(self, encrypted_hex: str) -> str:
@@ -1099,7 +1105,6 @@ class FiberMixin:
             wifi_status = self._ajax_get('get_wifi_status')
             if wifi_status.get('session_valid') == 1 and wifi_status.get('wifi_status'):
                 wifi_networks = wifi_status['wifi_status']
-                
                 for network in wifi_networks:
                     # Solo procesar redes habilitadas
                     if network.get('Enable') != '1':
@@ -1271,37 +1276,73 @@ class FiberMixin:
         return result
     
     def test_usb_port(self) -> Dict[str, Any]:
-        """Test 3: Deteccion de puerto USB"""
-        print("[TEST] USB PORT - Deteccion")
-        
-        result = {
+        """Test 3: Detección de puerto(s) USB"""
+        print("[TEST] USB PORT - Detección")
+
+        result: Dict[str, Any] = {
             "name": "USB_PORT",
             "status": "FAIL",
             "details": {}
         }
-        
-        # Verificar capacidades desde get_base_info
-        base_info = self.test_results['metadata'].get('base_info')
-        if base_info:
-            usb_ports = base_info.get('usb_ports', 0)
-            usb_status = base_info.get('usb_status')
-            
-            if usb_ports > 0:
-                result["status"] = "PASS"
-                result["details"]["method"] = "AJAX get_base_info"
-                result["details"]["usb_ports_detected"] = usb_ports
-                result["details"]["hardware_capability"] = f"{usb_ports} puerto(s) USB"
-                
-                if usb_status:
-                    result["details"]["usb_status"] = usb_status
-                    result["details"]["note"] = f"Estado: {usb_status}"
-                    
-                return result
-        
-        # Si no hay base_info, el test falla
-        result["details"]["error"] = "No se pudo obtener información de hardware"
-        result["details"]["note"] = "get_base_info no disponible"
-        
+
+        # 1) Capacidad de hardware desde base_info
+        base_info = self.test_results.get("metadata", {}).get("base_info")
+        if not base_info:
+            result["details"]["error"] = "No se pudo obtener información de hardware (base_info)."
+            result["details"]["note"] = "get_base_info no disponible"
+            return result
+
+        usb_ports = base_info.get("usb_ports", base_info.get("usb_port_num", 0))
+        usb_status = base_info.get("usb_status")
+
+        result["details"]["hardware_method"] = "AJAX get_base_info"
+        result["details"]["usb_ports_capacity"] = usb_ports
+        if usb_status is not None:
+            result["details"]["usb_status_flag"] = usb_status
+
+        # Si el modelo no declara puertos USB, nada más que hacer
+        if usb_ports <= 0:
+            result["details"]["note"] = "El equipo no reporta puertos USB en base_info."
+            return result
+
+        # 2) Dispositivos conectados vía get_ftpclient_info
+        try:
+            ftp_info = self._ajax_get("get_ftpclient_info")
+        except Exception as e:
+            result["details"]["error"] = f"Error llamando get_ftpclient_info: {e}"
+            result["details"]["method"] = "AJAX get_ftpclient_info"
+            return result
+
+        if ftp_info.get("session_valid") != 1:
+            result["details"]["error"] = f"get_ftpclient_info devolvió session_valid={ftp_info.get('session_valid')}"
+            result["details"]["method"] = "AJAX get_ftpclient_info"
+            return result
+
+        usb_list_raw = ftp_info.get("UsbList") or ""
+
+        devices = [d for d in re.split(r"[,\s]+", usb_list_raw) if d]
+        connected_count = len(devices)
+
+        result["details"]["method"] = "AJAX get_base_info + AJAX get_ftpclient_info"
+        result["details"]["usb_devices_connected"] = connected_count
+        result["details"]["usb_devices_list"] = devices
+        result["details"]["usb_list_raw"] = usb_list_raw
+
+        # 3) Comparar capacidad vs dispositivos detectados
+        if connected_count == usb_ports:
+            result["status"] = "PASS"
+            result["details"]["note"] = (
+                f"Capacidad de hardware: {usb_ports} puerto(s); "
+                f"dispositivos detectados: {connected_count} (OK)."
+            )
+        else:
+            result["status"] = "FAIL"
+            result["details"]["note"] = (
+                f"Capacidad de hardware: {usb_ports} puerto(s); "
+                f"dispositivos detectados: {connected_count}. "
+                "Revisar conexión de memorias USB o posible fallo de puerto."
+            )
+
         return result
     
     def test_software_version(self) -> Dict[str, Any]:
@@ -1456,16 +1497,15 @@ class FiberMixin:
                     result["details"]["note"] = "Password encriptada (use Selenium para versión sin encriptar)"
                 result["details"]["channel"] = wifi_info.get('channel_24ghz', 'N/A')
                 result["details"]["enabled"] = wifi_info.get('enabled_24ghz', False)
-                return result
+                # return result
         
         # Prioridad 2: Intentar metodo AJAX get_wifi_status
         wifi_status = self._ajax_get('get_wifi_status')
         
-        if wifi_status.get('session_valid') == 1:
-            result["status"] = "PASS"
-            result["details"]["method"] = "AJAX get_wifi_status"
-            result["details"]["data"] = wifi_status
-        elif wifi_status.get('session_valid') == 0:
+        result["status"] = "PASS"
+        result["details"]["method"] = "AJAX get_wifi_status"
+        result["details"]["data"] = wifi_status
+        if wifi_status.get('session_valid') == 0:
             result["details"]["error"] = "Requiere session valida (login completo)"
             result["details"]["note"] = "Basic Auth insuficiente - necesita do_login"
         else:
@@ -1509,16 +1549,16 @@ class FiberMixin:
                     result["details"]["note"] = "Password encriptada (use Selenium para versión sin encriptar)"
                 result["details"]["channel"] = wifi_info.get('channel_5ghz', 'N/A')
                 result["details"]["enabled"] = wifi_info.get('enabled_5ghz', False)
-                return result
+                # return result
         
         # Prioridad 2: Usa el mismo metodo que 2.4GHz (get_wifi_status devuelve ambas bandas)
         wifi_status = self._ajax_get('get_wifi_status')
         
-        if wifi_status.get('session_valid') == 1:
-            result["status"] = "PASS"
-            result["details"]["method"] = "AJAX get_wifi_status"
-            result["details"]["data"] = wifi_status
-        elif wifi_status.get('session_valid') == 0:
+        
+        result["status"] = "PASS"
+        result["details"]["method"] = "AJAX get_wifi_status"
+        result["details"]["data"] = wifi_status
+        if wifi_status.get('session_valid') == 0:
             result["details"]["error"] = "Requiere session valida (login completo)"
             result["details"]["note"] = "Basic Auth insuficiente - necesita do_login"
         else:
