@@ -460,10 +460,11 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
         # Determinar qué tests ejecutar según el tipo de dispositivo
         device_type = self.test_results['metadata'].get('device_type', 'ONT')
         
+        # IMPORTANTE Las opciones modificadas aqui solo entran en vigor para el FIBERHOME
         # Tests comunes a todos los dispositivos
         common_tests = [
             self.test_pwd_pass,
-            self.test_factory_reset,
+            #self.test_factory_reset,
             self.test_ping_connectivity,
             self.test_http_connectivity,
             self.test_port_scan,
@@ -471,15 +472,29 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
             self.test_software_version,
         ]
         
+        optTest = self.opcionesTest
+        tests_opts = optTest.get("tests", {})
+        if tests_opts.get("factory_reset", True):
+            common_tests.append(self.test_factory_reset)
+
         # Tests específicos de ONT
         ont_tests = [
-            self.test_usb_port,
-            self.test_tx_power,
-            self.test_rx_power,
-            self.test_wifi_24ghz,
-            self.test_wifi_5ghz
+            #self.test_usb_port,
+            #self.test_tx_power,
+            #self.test_rx_power,
+            #self.test_wifi_24ghz,
+            #self.test_wifi_5ghz
         ]
         
+        if tests_opts.get("usb_port", True):
+            ont_tests.append(self.test_usb_port)
+        if tests_opts.get("tx_power", True) and tests_opts.get("rx_power", True):
+            ont_tests.append(self.test_tx_power)
+            ont_tests.append(self.test_rx_power)
+        if tests_opts.get("wifi_24ghz_signal", True) and tests_opts.get("wifi_5ghz_signal", True):
+            ont_tests.append(self.test_wifi_24ghz)
+            ont_tests.append(self.test_wifi_5ghz)
+
         # Tests específicos de ATA (Grandstream HT818)
         ata_tests = [
             self.test_voip_lines,

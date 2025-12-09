@@ -10,7 +10,7 @@ import time
 import requests
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 import xml.etree.ElementTree as ET
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
@@ -157,30 +157,6 @@ class CommonMixin:
         print("El nombre de la red wifi 2.4 es: ", w2)
         print("El nombre de la red wifi 5 es: ", w5)
 
-        if (self.model == "MOD001"):
-            print("\nREPORTE DE PRUEBAS \n")
-            ping = self.test_results['tests']['PING_CONNECTIVITY'].get('status')
-            factory_reset = self.test_results['tests']['FACTORY_RESET_PASS'].get('status')
-            sftUpdate = "SKIP"
-            usb_port = self.test_results['tests']['USB_PORT']['details'].get('usb_status')
-            tx = self.test_results['tests']['TX_POWER']['details'].get('tx_power_dbm') # VALORES BUENOS => mientras sea positivo  """
-            rx = self.test_results['tests']['RX_POWER']['details'].get('rx_power_dbm') # FALTA CONFIRMACION DE VALORES (entre -8 y -28)"""
-            wifi2 = self.test_results['tests']['WIFI_24GHZ'].get('status')
-            wifi5 = self.test_results['tests']['WIFI_5GHZ'].get('status')
-            print("Prueba de ping: ", ping)
-            print("Factory reset: ",factory_reset)
-            print("Software update: ", sftUpdate)
-            print("Prueba de puertos usb: ",usb_port)
-            txpass = False
-            rxpass = False
-            if(float(tx) > 0):
-                txpass = True
-            if(float(rx) > -28): # ASEGURARSE DEL VALOR """
-                rxpass = True
-            print("Prueba tx: ", txpass)
-            print("Prueba rx: ", rxpass)
-            print("Prueba wifi 2.4: ", wifi2)
-            print("Prueba wifi 5: ",wifi5)
         print("\n" + "+"*60)
 
     def save_results2(self, base_dir: str):
@@ -852,7 +828,7 @@ class CommonMixin:
         except Exception as e:
             return {"success": False, "error": str(e)}
     
-# Para la potencia de la red
+    # Para la potencia de la red
     def scan_wifi_windows(self,
                       target_ssid: Optional[str] = None,
                       retries: int = 3,
