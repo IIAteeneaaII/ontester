@@ -124,9 +124,8 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
             # En la empresa se conoce coloquialmente como "X6"
             "HUAWEI HG8145X6-10": "MOD003",
             "HG8145X6-10": "MOD003",
-            "HUAWEI HG8145X6": "MOD003",
-            "HG8145X6": "MOD003",
-            "HG6145F1": "MOD003",  # ModelName reportado por software (incorrecto pero real)
+            "HUAWEI HG8145X6": "MOD007", # Nuevo modelo, MOD007
+            "HG8145X6": "MOD007",
             
             # MOD002: ZTE ZXHN F670L
             "ZTE ZXHN F670L": "MOD002",
@@ -633,7 +632,7 @@ def main():
     tester.run_all_tests() # No hace falta pasar parametros, como pertenece a la misma instancia
     
     # Mostrar reporte en consola
-    if(args.model != "MOD003" and args.model != "MOD004" and args.model != "MOD005"):
+    if(args.model == "MOD001"):
         print("\n" + tester.generate_report())
         tester.save_results(args.output) # Guardar resultados
 
