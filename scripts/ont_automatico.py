@@ -90,14 +90,12 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
             "HG8145V5": "MOD004",
             
             # MOD003: HUAWEI HG8145X6-10
-            # NOTA: El Huawei HG8145X6-10 reporta "HG6145F1" por firmware (bug del dispositivo)
             # La etiqueta física dice "Huawei OptiXstar HG8145X6-10"
             # En la empresa se conoce coloquialmente como "X6"
             "HUAWEI HG8145X6-10": "MOD003",
             "HG8145X6-10": "MOD003",
-            "HUAWEI HG8145X6": "MOD003",
-            "HG8145X6": "MOD003",
-            "HG6145F1": "MOD003",  # ModelName reportado por software (incorrecto pero real)
+            "HUAWEI HG8145X6": "MOD007", # Nuevo modelo, será el MOD007 internamente
+            "HG8145X6": "MOD007",
             
             # MOD002: ZTE ZXHN F670L
             "ZTE ZXHN F670L": "MOD002",
