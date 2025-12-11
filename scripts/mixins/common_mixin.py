@@ -1054,6 +1054,11 @@ class CommonMixin:
         self.test_results["tests"]["potencia_wifi"] = result
         return result
 
+    def searchBins(self, ruta):
+        ruta = Path(ruta)
+        for item in ruta.glob("*.bin"):
+            return str(item)
+        return None
 
     def _resultados_json_corto(self, fecha, modelo, sn, mac, sftVer, wifi24, wifi5, passWifi, ping, reset, usb, tx, rx, w24, w5):
         # Validar si ha pasado los tests

@@ -1,0 +1,93 @@
+{
+  "metadata": {
+    "host": "192.168.100.1",
+    "model": "HG8145X6",
+    "timestamp": "2025-12-10T09:08:50.621262",
+    "serial_number": "485754431A8EDCAA"
+  },
+  "tests": {
+    "hw_device": {
+      "name": "hw_device",
+      "data": {
+        "model": "HG8145X6",
+        "serial_number": "485754431A8EDCAA",
+        "serial_raw": "485754431A8EDCAA (HWTC1A8EDCAA)",
+        "software_version": "V5R022C00S232"
+      }
+    },
+    "hw_lan": {
+      "name": "hw_lan",
+      "data": {
+        "ports": [
+          {
+            "port": "1",
+            "mode": "Full-duplex",
+            "speed": "1000 Mbit/s",
+            "status": "Up"
+          },
+          {
+            "port": "2",
+            "mode": "--",
+            "speed": "--",
+            "status": "Down"
+          },
+          {
+            "port": "3",
+            "mode": "--",
+            "speed": "--",
+            "status": "Down"
+          },
+          {
+            "port": "4",
+            "mode": "--",
+            "speed": "--",
+            "status": "Down"
+          }
+        ]
+      }
+    },
+    "hw_wifi24": {
+      "name": "hw_wifi24",
+      "data": {
+        "band": "2.4GHz",
+        "status": "Enabled",
+        "ssid": "Totalplay-DCAA"
+      }
+    },
+    "hw_wifi5": {
+      "name": "hw_wifi5",
+      "data": {
+        "band": "5GHz",
+        "status": "Enabled",
+        "ssid": "Totalplay-DCAA-5G"
+      }
+    },
+    "hw_mac": {
+      "name": "hw_mac",
+      "data": "6C:14:6E:5E:73:0B"
+    },
+    "hw_wifi24_pass": {
+      "name": "hw_wifi24_pass",
+      "data": {
+        "band": "2.4GHz",
+        "password": "DCAA730BTV65zFBz"
+      }
+    },
+    "hw_wifi5_pass": {
+      "name": "hw_wifi5_pass",
+      "data": {
+        "band": "5GHz",
+        "password": "DCAA730BTV65zFBz"
+      }
+    },
+    "hw_usb": {
+      "name": "hw_usb",
+      "data": {
+        "connected": false,
+        "status": "usb desconectado",
+        "value": "",
+        "label": "No USB Device"
+      }
+    }
+  }
+}

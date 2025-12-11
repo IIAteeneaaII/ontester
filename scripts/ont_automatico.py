@@ -136,7 +136,7 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
             # MOD001: FIBERHOME HG6145F
             "FIBERHOME HG6145F": "MOD001",
             "HG6145F": "MOD001",
-            "HG6145F1": "MOD001",
+            "HG6145F1": "MOD008",
             
             # MOD006: GRANDSTREAM HT818
             "GRANDSTREAM HT818": "MOD006",
@@ -365,6 +365,9 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
             # Detectar Fiberhome (buscar elementos específicos)
             if any(keyword in html for keyword in ['fiberhome', 'hg6145f', 'user_name', 'loginpp', 'fh-text-security']):
                 print("[AUTH] Dispositivo Fiberhome detectado automáticamente")
+                if 'hg6145f1' in html:
+                    self.model = "MOD008"
+                    print(f"[AUTH] Modelo asignado: {self.model}")
                 if not self.model:
                     self.model = "MOD001"
                     print(f"[AUTH] Modelo asignado: {self.model}")
@@ -381,6 +384,8 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
                         else:
                             self.model = "MOD004"
                     elif 'hg8145x6' in html or 'hg6145f1' in html:
+                        self.model = "MOD007"
+                    elif 'hg8145x6-10' in html:
                         self.model = "MOD003"
                     else:
                         # Default to MOD004 for unknown Huawei
@@ -432,10 +437,12 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
         display_names = {
             "MOD003": "HG8145X6-10",  # Nombre comercial usado en la empresa (coloquialmente "X6")
             "MOD001": "HG6145F",
+            "MOD008": "HG6145F1",
             "MOD002": "F670L",
             "MOD004": "HG8145V5",
             "MOD005": "HG8145V5 SMALL",
-            "MOD006": "HT818"
+            "MOD006": "HT818",
+            "MOD007": "HG8145X6",
         }
         
         return display_names.get(model_code, reported_name or model_code)
@@ -483,6 +490,7 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
             #self.test_rx_power,
             #self.test_wifi_24ghz,
             #self.test_wifi_5ghz
+            #self.test_sft_update
         ]
         
         if tests_opts.get("usb_port", True):
@@ -502,12 +510,15 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
         ]
         
         # De momento solo para fiber, se puede agregar condiciones con el operador or "||"
-        if(self.model == "MOD001"):
+        if(self.model == "MOD001" or self.model == "MOD008"):
             # Ejecutar tests comunes
             print(f"\n[*] Ejecutando tests comunes ({len(common_tests)} tests)...")
             for test_func in common_tests:
                 result = test_func()
                 self.test_results["tests"][result["name"]] = result
+            
+            if tests_opts.get("software_update", True):
+                self.test_sft_update() # Se tiene que ejecutar después de lo demás ya que requiere otro login
             # print(json.dumps(self.test_results, indent=2, ensure_ascii=False)) 
         # Ejecutar tests específicos según el tipo
         if device_type == "ATA":
@@ -624,11 +635,12 @@ def main():
     tester = ONTAutomatedTester(args.host, args.model)
     opc = tester.opcionesTest
     opc["tests"]["factory_reset"] = False # Deshabilitar factory reset automatico
-    opc["tests"]["software_update"] = False # Deshabilitar factory reset automatico
+    opc["tests"]["software_update"] = True # Deshabilitar factory reset automatico
     opc["tests"]["tx_power"] = False # Deshabilitar factory reset automatico
     opc["tests"]["rx_power"] = False # Deshabilitar factory reset automatico
     opc["tests"]["wifi_24ghz_signal"] = False # Deshabilitar factory reset automatico
     opc["tests"]["wifi_5ghz_signal"] = False # Deshabilitar factory reset automatico
+    opc["tests"]["usb_port"] = True
     tester.run_all_tests() # No hace falta pasar parametros, como pertenece a la misma instancia
     
     # Mostrar reporte en consola
