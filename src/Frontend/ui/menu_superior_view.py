@@ -1,12 +1,17 @@
 import customtkinter as ctk
 
-
 class MenuSuperiorDesplegable(ctk.CTkFrame):
     """
     Menú desplegable superior VERTICAL.
 
     Muestra un botón tipo hamburguesa (☰) y, al hacer clic,
     despliega un panel VERTICALMENTE hacia abajo.
+
+    Rutas:
+    - ONT TESTER   -> tester_view.py (TesterView)
+    - BASE DIARIA  -> escaneos_dia_view.py (EscaneosDiaView)
+    - BASE GLOBAL  -> reporte_global_view.py (ReporteGlobalView)
+    - OTROS        -> propiedades_view.py (TesterMainView)
     """
 
     def __init__(
@@ -15,19 +20,21 @@ class MenuSuperiorDesplegable(ctk.CTkFrame):
         on_open_tester=None,
         on_open_base_diaria=None,
         on_open_base_global=None,
-        on_open_otros=None,
-        **kwargs
+        on_open_propiedades=None,
+        on_open_otros=None,   # lo usas desde propiedades_view
     ):
-        super().__init__(parent, fg_color="transparent", **kwargs)
+        # ⚠️ NO pasar kwargs con callbacks a CTkFrame
+        super().__init__(parent, fg_color="transparent")
 
-        # Ventana raíz para poder pintar el menú flotando
+        # Ventana raíz para poder abrir Toplevels y posicionar el menú
         self.root = self.winfo_toplevel()
 
-        # Callbacks externos
+        # Callbacks externos (opcionales)
         self.on_open_tester = on_open_tester
         self.on_open_base_diaria = on_open_base_diaria
         self.on_open_base_global = on_open_base_global
-        self.on_open_otros = on_open_otros
+        # Aceptamos ambos nombres: on_open_propiedades / on_open_otros
+        self.on_open_propiedades = on_open_propiedades or on_open_otros
 
         self.menu_abierto = False
 
@@ -54,7 +61,7 @@ class MenuSuperiorDesplegable(ctk.CTkFrame):
             border_width=2,
             border_color="#6B9080",
             width=200,
-            height=220
+            height=220,
         )
 
         # Contenedor interno para los botones en VERTICAL
@@ -106,8 +113,8 @@ class MenuSuperiorDesplegable(ctk.CTkFrame):
         )
         btn_base_global.pack(pady=5)
 
-        # Botón: OTROS
-        btn_otros = ctk.CTkButton(
+        # Botón: OTROS (PROPIEDADES)
+        btn_propiedades = ctk.CTkButton(
             botones_container,
             text="OTROS",
             width=180,
@@ -117,14 +124,15 @@ class MenuSuperiorDesplegable(ctk.CTkFrame):
             hover_color="#3B8CC2",
             text_color="white",
             font=ctk.CTkFont(size=12, weight="bold"),
-            command=self._handle_otros,
+            command=self._handle_propiedades,
         )
-        btn_otros.pack(pady=5)
+        btn_propiedades.pack(pady=5)
 
-    # ---------- Lógica de despliegue ----------
+    # =========================================================
+    #               LÓGICA DE DESPLIEGUE DEL MENÚ
+    # =========================================================
 
     def toggle_menu(self):
-        print("🔘 Toggle menu llamado")
         if self.menu_abierto:
             self.cerrar_menu()
         else:
@@ -132,8 +140,6 @@ class MenuSuperiorDesplegable(ctk.CTkFrame):
 
     def abrir_menu(self):
         """Calcula posición del botón y muestra el menú VERTICALMENTE hacia abajo."""
-        print("📂 Abriendo menú...")
-        
         # Forzar actualización de geometría
         self.root.update_idletasks()
         self.update_idletasks()
@@ -150,101 +156,72 @@ class MenuSuperiorDesplegable(ctk.CTkFrame):
         ry = self.root.winfo_rooty()
 
         # Coordenadas relativas a la ventana
-        # Menú empieza justo debajo del botón (alineado a la izquierda)
-        x_rel = bx - rx
-        y_rel = by - ry + bh + 4
-
-        print(f"📍 Posición del menú: x={x_rel}, y={y_rel}")
+        x_rel = bx - rx          # alineado a la izquierda del botón
+        y_rel = by - ry + bh + 4 # justo debajo del botón
 
         self.menu_frame.place(x=x_rel, y=y_rel)
         self.menu_frame.lift()
         self.menu_abierto = True
-        
-        print("✅ Menú abierto")
 
     def cerrar_menu(self):
-        print("❌ Cerrando menú...")
         self.menu_frame.place_forget()
         self.menu_abierto = False
 
-    # ---------- Callbacks internos ----------
+    # =========================================================
+    #     UTILIDAD: ABRIR UNA VISTA EN UNA NUEVA CTkToplevel
+    # =========================================================
+
+    def _abrir_en_toplevel(self, view_cls, titulo: str, geometry: str = "1400x800"):
+        """
+        Crea una nueva ventana CTkToplevel con la vista indicada.
+        """
+        top = ctk.CTkToplevel(self.root)
+        top.title(titulo)
+        top.geometry(geometry)
+
+        vista = view_cls(top)
+        vista.pack(fill="both", expand=True)
+
+        top.focus()
+
+    # =========================================================
+    #          HANDLERS DE CADA OPCIÓN DEL MENÚ
+    # =========================================================
 
     def _handle_ont_tester(self):
-        print("🔧 Handler ONT TESTER")
+        """ONT TESTER -> tester_view.py"""
         if self.on_open_tester:
+            # Usar callback si te lo pasan desde fuera
             self.on_open_tester()
         else:
-            print("➡️  Click en ONT TESTER")
+            # Fallback: abrir ventana con TesterView
+            from src.Frontend.ui.tester_view import TesterView
+            self._abrir_en_toplevel(TesterView, "ONT TESTER", "1200x600")
         self.cerrar_menu()
 
     def _handle_base_diaria(self):
-        print("📅 Handler BASE DIARIA")
+        """BASE DIARIA -> escaneos_dia_view.py"""
         if self.on_open_base_diaria:
             self.on_open_base_diaria()
         else:
-            print("➡️  Click en BASE DIARIA")
+            from src.Frontend.ui.escaneos_dia_view import EscaneosDiaView
+            self._abrir_en_toplevel(EscaneosDiaView, "BASE DIARIA - Escaneos del Día", "1400x800")
         self.cerrar_menu()
 
     def _handle_base_global(self):
-        print("🌍 Handler BASE GLOBAL")
+        """BASE GLOBAL -> reporte_global_view.py"""
         if self.on_open_base_global:
             self.on_open_base_global()
         else:
-            print("➡️  Click en BASE GLOBAL")
+            from src.Frontend.ui.reporte_global_view import ReporteGlobalView
+            self._abrir_en_toplevel(ReporteGlobalView, "BASE GLOBAL - Reporte Global", "1400x900")
         self.cerrar_menu()
 
-    def _handle_otros(self):
-        print("⚙️  Handler OTROS")
-        if self.on_open_otros:
-            self.on_open_otros()
+    def _handle_propiedades(self):
+        """OTROS -> propiedades_view.py (TesterMainView)"""
+        if self.on_open_propiedades:
+            self.on_open_propiedades()
         else:
-            print("➡️  Click en OTROS")
+            from src.Frontend.ui.propiedades_view import TesterMainView
+            self._abrir_en_toplevel(TesterMainView, "OTROS - Propiedades", "1400x700")
         self.cerrar_menu()
-
-
-# Test del menú
-if __name__ == "__main__":
-    ctk.set_appearance_mode("light")
-    ctk.set_default_color_theme("blue")
-
-    app = ctk.CTk()
-    app.title("Test Menú Desplegable Vertical")
-    app.geometry("1200x700")
-
-    # Frame verde superior
-    header = ctk.CTkFrame(app, fg_color="#6B9080", height=70)
-    header.pack(fill="x", side="top")
-    header.pack_propagate(False)
-
-    # Menú
-    menu = MenuSuperiorDesplegable(
-        header,
-        on_open_tester=lambda: print("🔹 Navegar a ONT TESTER"),
-        on_open_base_diaria=lambda: print("🔹 Navegar a BASE DIARIA"),
-        on_open_base_global=lambda: print("🔹 Navegar a BASE GLOBAL"),
-        on_open_otros=lambda: print("🔹 Navegar a OTROS")
-    )
-    menu.pack(side="left", padx=20, pady=10)
-
-    # Título
-    titulo = ctk.CTkLabel(
-        header,
-        text="ONT TESTER - REPARANDO EN ESTACIÓN 09",
-        font=ctk.CTkFont(size=18, weight="bold"),
-        text_color="white"
-    )
-    titulo.pack(side="left", padx=20)
-
-    # Contenido
-    contenido = ctk.CTkFrame(app, fg_color="#E8F4F8")
-    contenido.pack(fill="both", expand=True)
-
-    label = ctk.CTkLabel(
-        contenido,
-        text="Haz clic en el menú hamburguesa ☰\nEl menú se desplegará verticalmente ↓",
-        font=ctk.CTkFont(size=16),
-        justify="center"
-    )
-    label.pack(pady=50)
-
-    app.mainloop()
