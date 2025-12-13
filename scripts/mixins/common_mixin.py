@@ -225,7 +225,7 @@ class CommonMixin:
             service = Service(ChromeDriverManager().install())
             driver = webdriver.Chrome(service=service, options=chrome_options)
             driver.set_page_load_timeout(timeout)
-            
+            self.driver = driver
             # Navegar a la página principal (el router redirigirá al login)
             # Usar IP directa en lugar de login.html para evitar bloqueo de nginx
             base_url = f"http://{self.host}/"

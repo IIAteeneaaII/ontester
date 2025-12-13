@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Dict, Any, List
 import xml.etree.ElementTree as ET
 from bs4 import BeautifulSoup
+from collections import deque
 from urllib.parse import urljoin
 try:
     from selenium import webdriver
@@ -68,9 +69,6 @@ class FiberMixin:
 
             service = Service(ChromeDriverManager().install())
             driver = webdriver.Chrome(service=service, options=chrome_options)
-            
-            # Guardar referencia al driver
-            self.driver = driver
             
             # --- LIMPIEZA DE SESIONES PREVIA (MEJORADA CON POST) ---
             print("[SELENIUM] FORZANDO CIERRE DE SESIONES ACTIVAS...")
@@ -237,6 +235,8 @@ class FiberMixin:
                 for cookie in selenium_cookies:
                     self.session.cookies.set(cookie['name'], cookie['value'])
                 
+                # Guardar referencia al driver
+                self.driver = driver
                 return True
             else:
                 print(f"[ERROR] Login fallido, seguimos en login page ({current_url})")
@@ -328,6 +328,11 @@ class FiberMixin:
                                 else:
                                     print("[ERROR] Reintento falló - sesión aún activa")
                                     print("[INFO] Cierre manualmente la sesión desde otro navegador o espere timeout")
+                                    if driver:
+                                        try:
+                                            driver.quit()
+                                        except:
+                                            pass
                                     return False
                         except Exception as e:
                             print(f"[ERROR] Error en reintento: {e}")
@@ -335,9 +340,12 @@ class FiberMixin:
                 except Exception as e:
                     print(f"[ERROR] Error verificando sesión: {e}")
                     pass
-                    
+                    if driver:
+                        try:
+                            driver.quit()
+                        except:
+                            pass
                 return False
-                
         except Exception as e:
             print(f"[ERROR] Excepción en login Fiberhome: {e}")
             if driver:
@@ -346,322 +354,197 @@ class FiberMixin:
                 except:
                     pass
             return False
-    
-    def _login_fiberhomeSuper(self) -> bool:
-        """
-        Login específico para Fiberhome usando Selenium.
-        Soporta navegación a reset de fábrica y skip wizard.
-        """
-        if not SELENIUM_AVAILABLE:
-            print("[ERROR] Selenium no está disponible para Fiberhome")
-            return False
-        self.driver.quit()
-        driver = None
-        headless = True # DEBUG: Visible para el usuario
-        try:
-            print(f"[SELENIUM] Iniciando login Fiberhome a {self.host}...")
-            
-            # Configurar opciones de Chrome
-            chrome_options = Options()
-            if headless:
-                chrome_options.add_argument('--headless=new')
-            chrome_options.add_argument('--no-sandbox')
-            chrome_options.add_argument('--disable-dev-shm-usage')
-            chrome_options.add_argument('--disable-gpu')
-            chrome_options.add_argument('--ignore-certificate-errors')
-            chrome_options.add_argument('--allow-insecure-localhost')
-            
-            # Evitar detección de automatización
-            chrome_options.add_argument("--disable-blink-features=AutomationControlled")
-            chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
-            chrome_options.add_experimental_option('useAutomationExtension', False)
-            
-            # Deshabilitar guardado de contraseñas
-            prefs = {
-                "credentials_enable_service": False,
-                "profile.password_manager_enabled": False
-            }
-            chrome_options.add_experimental_option("prefs", prefs)
-
-            service = Service(ChromeDriverManager().install())
-            driver = webdriver.Chrome(service=service, options=chrome_options)
-            
-            # Guardar referencia al driver
-            self.driver = driver
-            
-            # --- LIMPIEZA DE SESIONES PREVIA (MEJORADA CON POST) ---
-            print("[SELENIUM] FORZANDO CIERRE DE SESIONES ACTIVAS...")
-            try:
-                # PASO 1: Navegar a login para establecer contexto
-                driver.set_page_load_timeout(5)
-                try:
-                    print("[SELENIUM] Navegando a login para verificar sesiones...")
-                    driver.get(f"http://{self.host}/html/login_inter.html")
-                    time.sleep(1)
-                    
-                    # Verificar si hay alerta de sesión activa Y ACEPTARLA
-                    try:
-                        alert = driver.switch_to.alert
-                        alert_text = alert.text
-                        if "already" in alert_text.lower() or "logged" in alert_text.lower():
-                            print(f"[SELENIUM] ⚠️ Sesión activa detectada: '{alert_text[:60]}...'")
-                            print("[SELENIUM] Aceptando alerta para forzar cierre...")
-                            alert.accept()
-                            time.sleep(2)  # Esperar a que el servidor procese
-                        else:
-                            alert.accept()
-                    except:
-                        print("[SELENIUM] No hay alerta de sesión activa")
-                        pass
-                except Exception as e:
-                    print(f"[SELENIUM] Error verificando login: {e}")
-                
-                # PASO 2: POST logout explícito usando JavaScript
-                print("[SELENIUM] Enviando comandos de logout...")
-                logout_commands = [
-                    f"fetch('http://{self.host}/cgi-bin/do_logout', {{method: 'POST', credentials: 'include'}}).catch(() => {{}})",
-                    f"fetch('http://{self.host}/html/logout.html', {{method: 'GET', credentials: 'include'}}).catch(() => {{}})",
-                    f"document.cookie.split(';').forEach(c => {{document.cookie = c.trim().split('=')[0] + '=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;'}})"
-                ]
-                
-                for cmd in logout_commands:
-                    try:
-                        driver.execute_script(cmd)
-                        time.sleep(0.3)
-                    except:
-                        pass
-                
-                # PASO 3: Limpiar cookies del navegador
-                driver.delete_all_cookies()
-                print("[SELENIUM] Cookies eliminadas")
-                
-                # PASO 4: Recargar página de login LIMPIA
-                print("[SELENIUM] Recargando login limpio...")
-                driver.get(f"http://{self.host}/html/login_inter.html")
-                time.sleep(1)
-                
-                # PASO 5: Verificar si TODAVÍA hay alerta
-                try:
-                    alert = driver.switch_to.alert
-                    print(f"[SELENIUM] ⚠️ ALERTA PERSISTENTE: {alert.text[:60]}")
-                    alert.accept()
-                    time.sleep(2)
-                    
-                    # Si persiste, esperar más tiempo para que el servidor libere la sesión
-                    print("[SELENIUM] Esperando 5s para que el servidor libere sesión...")
-                    time.sleep(5)
-                    
-                    # Recargar una vez más
-                    driver.get(f"http://{self.host}/html/login_inter.html")
-                    time.sleep(1)
-                except:
-                    print("[SELENIUM] ✓ Login limpio - sin alertas")
-                
-                driver.set_page_load_timeout(30)  # Restaurar timeout
-                print("[SELENIUM] ✓ Limpieza de sesiones completada")
-            except Exception as e:
-                print(f"[WARN] Error en limpieza previa: {e}")
-            # -----------------------------------
-
-            # Ya estamos en la página de login después de la limpieza
-            # Esperar a que cargue completamente
-            wait = WebDriverWait(driver, 10)
-            
-            # 2. Ingresar credenciales
-            # Fiberhome suele usar 'user_name' y 'loginpp' o 'password'
-            try:
-                user_field = wait.until(EC.presence_of_element_located((By.ID, "user_name")))
-                print("[SELENIUM] Campo username encontrado: id='user_name'")
-                user_field.clear()
-                user_field.send_keys('admin')
-                
-                try:
-                    pass_field = driver.find_element(By.ID, "loginpp")
-                    print("[SELENIUM] Campo password encontrado: id='loginpp'")
-                except:
-                    pass_field = driver.find_element(By.ID, "password")
-                    print("[SELENIUM] Campo password encontrado: id='password'")
-                
-                pass_field.clear()
-                pass_field.send_keys('z#Wh46QN@52Rm%j5')
-                
-                # 3. Click Login
-                # Intentar varios IDs comunes para el botón
-                login_btn = None
-                for btn_id in ["login_btn", "login", "LoginId"]:
-                    try:
-                        login_btn = driver.find_element(By.ID, btn_id)
-                        print(f"[SELENIUM] Botón login encontrado: id='{btn_id}'")
-                        break
-                    except:
-                        continue
-                
-                if login_btn:
-                    login_btn.click()
-                    
-                    # Verificar si hay alerta de "Usuario ya logueado"
-                    try:
-                        WebDriverWait(driver, 3).until(EC.alert_is_present())
-                        alert = driver.switch_to.alert
-                        print(f"[SELENIUM] Alerta tras login: {alert.text}")
-                        alert.accept()
-                        time.sleep(1)
-                    except:
-                        pass
-                else:
-                    print("[ERROR] No se encontró botón de login")
-                    return False
-                
-            except TimeoutException:
-                print("[ERROR] No se encontraron campos de login Fiberhome")
-                return False
-            
-            # 4. Verificar login exitoso
-            time.sleep(3)
-            current_url = driver.current_url
-            print(f"[DEBUG] URL actual tras login: {current_url}")
-            
-            if "login_inter.html" in current_url or "login" in current_url.split('/')[-1]:
-                print("[WARNING] URL no cambió tras click. Intentando ENTER en password...")
-                try:
-                    from selenium.webdriver.common.keys import Keys
-                    pass_field.send_keys(Keys.ENTER)
-                    time.sleep(3)
-                    
-                    # Verificar alerta de nuevo
-                    try:
-                        WebDriverWait(driver, 3).until(EC.alert_is_present())
-                        alert = driver.switch_to.alert
-                        print(f"[SELENIUM] Alerta tras ENTER: {alert.text}")
-                        alert.accept()
-                        time.sleep(1)
-                    except:
-                        pass
-                        
-                    current_url = driver.current_url
-                except Exception as e:
-                    print(f"[ERROR] Falló intento de ENTER: {e}")
-
-            if "login_inter.html" not in current_url and "login" not in current_url.split('/')[-1]:
-                print("[AUTH] Login Fiberhome exitoso (URL cambió)")
-                
-                # Intentar saltar wizard si existe
-                self.fh_maybe_skip_initial_guide(driver)
-                
-                # Obtener cookies para requests
-                selenium_cookies = driver.get_cookies()
-                for cookie in selenium_cookies:
-                    self.session.cookies.set(cookie['name'], cookie['value'])
-                
-                return True
-            else:
-                print(f"[ERROR] Login fallido, seguimos en login page ({current_url})")
-                
-                # Verificar si es por sesión activa
-                try:
-                    body_text = driver.find_element(By.TAG_NAME, "body").text.lower()
-                    page_source = driver.page_source.lower()
-                    
-                    if "already" in body_text or "logged" in body_text or "sesión" in page_source:
-                        print("[AUTH] ⚠️ SESIÓN ACTIVA DETECTADA - Intentando forzar cierre...")
-                        
-                        # Intentar URLs de logout
-                        logout_urls = [
-                            f"http://{self.host}/cgi-bin/do_logout",
-                            f"http://{self.host}/html/logout.html",
-                            f"http://{self.host}/logout"
-                        ]
-                        
-                        for url in logout_urls:
-                            try:
-                                driver.get(url)
-                                time.sleep(1)
-                            except:
-                                pass
-                        
-                        # Limpiar cookies de nuevo
-                        driver.delete_all_cookies()
-                        
-                        print("[AUTH] Esperando 5s para que servidor libere sesión...")
-                        time.sleep(5)
-                        
-                        print("[AUTH] REINTENTANDO LOGIN...")
-                        driver.get(f"http://{self.host}/html/login_inter.html")
-                        time.sleep(2)
-                        
-                        # REINTENTAR LOGIN COMPLETO
-                        try:
-                            # Esperar y verificar alerta
-                            try:
-                                alert = driver.switch_to.alert
-                                print(f"[AUTH] Alerta detectada: {alert.text[:60]}")
-                                alert.accept()
-                                time.sleep(2)
-                            except:
-                                pass
-                            
-                            # Reingresar credenciales
-                            wait = WebDriverWait(driver, 10)
-                            user_field = wait.until(EC.presence_of_element_located((By.ID, "user_name")))
-                            user_field.clear()
-                            user_field.send_keys('root')
-                            
-                            try:
-                                pass_field = driver.find_element(By.ID, "loginpp")
-                            except:
-                                pass_field = driver.find_element(By.ID, "password")
-                            
-                            pass_field.clear()
-                            pass_field.send_keys('admin')
-                            
-                            # Click login
-                            login_btn = None
-                            for btn_id in ["login_btn", "login", "LoginId"]:
-                                try:
-                                    login_btn = driver.find_element(By.ID, btn_id)
-                                    break
-                                except:
-                                    continue
-                            
-                            if login_btn:
-                                login_btn.click()
-                                time.sleep(3)
-                                
-                                # Verificar éxito
-                                current_url = driver.current_url
-                                if "login_inter.html" not in current_url:
-                                    print("[AUTH] ✓ LOGIN EXITOSO tras reintento")
-                                    
-                                    # Saltar wizard
-                                    self.fh_maybe_skip_initial_guide(driver)
-                                    
-                                    # Cookies
-                                    selenium_cookies = driver.get_cookies()
-                                    for cookie in selenium_cookies:
-                                        self.session.cookies.set(cookie['name'], cookie['value'])
-                                    
-                                    return True
-                                else:
-                                    print("[ERROR] Reintento falló - sesión aún activa")
-                                    print("[INFO] Cierre manualmente la sesión desde otro navegador o espere timeout")
-                                    return False
-                        except Exception as e:
-                            print(f"[ERROR] Error en reintento: {e}")
-                            return False
-                except Exception as e:
-                    print(f"[ERROR] Error verificando sesión: {e}")
-                    pass
-                    
-                return False
         
-        except Exception as e:
-            print(f"[ERROR] Excepción en login Fiberhome: {e}")
-            if driver:
-                try:
-                    driver.quit()
-                except:
-                    pass
+    def _login_fiberhomeSuper(self, headless: bool = True, timeout: int = 10) -> bool:
+        if self.driver:
+            print("DRIVER ACTIVO")
+            self._router_logout_best_effort(self.driver)
+            self.driver.delete_all_cookies()
+            self.driver.quit()
+            self.driver = None
+        chrome_options = Options()
+        if headless:
+            chrome_options.add_argument('--headless=new')  # Modo headless moderno
+        chrome_options.add_argument('--no-sandbox')
+        chrome_options.add_argument('--disable-dev-shm-usage')
+        chrome_options.add_argument('--disable-gpu')
+        chrome_options.add_argument('--log-level=3')  # Suprimir logs verbosos
+        chrome_options.add_argument(f'--host-resolver-rules=MAP {self.host} 192.168.100.1')
+        
+        # Deshabilitar warnings de certificado
+        chrome_options.add_argument('--ignore-certificate-errors')
+        chrome_options.add_argument('--allow-insecure-localhost')
+        
+        # Inicializar driver con WebDriver Manager
+        print("[SELENIUM] Descargando/verificando ChromeDriver...")
+        service = Service(ChromeDriverManager().install())
+        driver = webdriver.Chrome(service=service, options=chrome_options)
+        self.driver = driver
+        login_url = f"{self.base_url}/html/login_inter.html"
+        # si está busy, espera a que libere (no reintentes creando sesiones)
+        if not self._wait_not_busy_login_page(driver, login_url, max_wait=240):
+            print("[SELENIUM] Login bloqueado por sesión activa (no liberó).")
             return False
+        driver.get(login_url)
+
+        # Espera que cargue login
+        WebDriverWait(driver, 15).until(
+            EC.presence_of_element_located((By.ID, "user_name"))
+        )
+
+        USER = "admin"
+        PASS = "z#Wh46QN@52Rm%j5"
+
+        # Llenar rápido por JS
+        u = driver.find_element(By.ID, "user_name")
+        p = driver.find_element(By.ID, "loginpp")
+        driver.execute_script("arguments[0].value = arguments[1];", u, USER)
+        driver.execute_script("arguments[0].value = arguments[1];", p, PASS)
+
+        # Click Login
+        driver.find_element(By.ID, "login_btn").click()
+
+        # Esperar resultado post-login
+        def post_login_ok(drv):
+            html = (drv.page_source or "").lower()
+            if "already logged" in html:
+                return "BUSY"
+
+            # 1) si desaparece el form, suele ser OK
+            if not drv.find_elements(By.ID, "user_name"):
+                return "OK"
+
+            # 2) si ya hay frames, suele ser OK
+            if len(drv.find_elements(By.CSS_SELECTOR, "frame,iframe")) > 0:
+                return "OK"
+
+            # 3) si ya puedo encontrar el menú en algún frame, OK
+            el = self.find_element_anywhere(drv, By.ID, "first_menu_manage", desc="Management", timeout=1)
+            if el:
+                return "OK"
+
+            return False
+
+        res = WebDriverWait(driver, 20).until(post_login_ok)
+        if res == "BUSY":
+            print("[SELENIUM] Login bloqueado por sesión activa.")
+            return False
+
+        print("[SELENIUM] Login OK (salí de login o ya hay frames).")
+        return True
+
+    def _wait_not_busy_login_page(self, driver, login_url, max_wait=180):
+        start = time.time()
+        while time.time() - start < max_wait:
+            driver.get(login_url)
+            time.sleep(0.8)
+            html = (driver.page_source or "").lower()
+            if "already logged" not in html and "somebody has already logged in" not in html:
+                return True
+            print("[SELENIUM] Router ocupado (sesión activa). Esperando 5s...")
+            time.sleep(5)
+        return False
+
+    def _router_logout_best_effort(self, driver):
+        # 1) intenta URL directa
+        try:
+            driver.get(f"{self.base_url}/logout.html")
+            time.sleep(1)
+            return
+        except:
+            pass
+
+        # 2) si existe botón logout en UI (fallback)
+        try:
+            self.click_anywhere(driver, [
+                # agrega aquí IDs/XPaths si los conoces
+                (By.ID, "logout"),
+                # (By.XPATH, "//a[contains(.,'Logout') or contains(.,'Salir')]"),
+            ], desc="Logout", timeout=3)
+            time.sleep(1)
+        except:
+            pass
+
+    def _enter_main_frameset(self, timeout_total=25) -> bool:
+        driver = self.driver
+
+        # candidatos comunes (no es AJAX; solo cargar la UI que ya existe)
+        candidates = [
+            f"{self.base_url}/",
+            f"{self.base_url}/index.html",
+            f"{self.base_url}/main.html",
+            f"{self.base_url}/html/index.html",
+            f"{self.base_url}/html/main_inter.html",
+        ]
+
+        start = time.time()
+        while time.time() - start < timeout_total:
+            for url in candidates:
+                try:
+                    driver.get(url)
+                    time.sleep(0.8)
+
+                    frames = driver.find_elements(By.CSS_SELECTOR, "frame,iframe")
+                    if frames:
+                        # confirmo que el menú exista en algún frame
+                        el = self.find_element_anywhere(driver, By.ID, "first_menu_manage",
+                                                        desc="Management", timeout=3)
+                        if el:
+                            print("[SELENIUM] Frameset principal listo en:", url)
+                            return True
+
+                except:
+                    continue
+
+        # debug
+        driver.save_screenshot("debug_no_frameset.png")
+        with open("debug_no_frameset.html", "w", encoding="utf-8") as f:
+            f.write(driver.page_source or "")
+        return False
+
+    def _ensure_fiberhome_main_ui(self, driver, timeout=20) -> bool:
+        """
+        1) Si el router abrió otra ventana, cambia a la última
+        2) Fuerza cargar base_url
+        3) Espera a que existan frames/iframes
+        4) Verifica que el menú exista en algún frame
+        """
+        # 1) Si se abrió otra ventana, cambiar a la última
+        try:
+            if len(driver.window_handles) > 1:
+                driver.switch_to.window(driver.window_handles[-1])
+        except:
+            pass
+
+        # 2) Ir a home del router (misma URL base)
+        try:
+            driver.switch_to.default_content()
+            driver.get(f"{self.base_url}/")
+        except:
+            pass
+
+        # 3) Esperar que aparezcan frames (UI típica de FiberHome)
+        try:
+            WebDriverWait(driver, timeout).until(
+                lambda d: len(d.find_elements(By.CSS_SELECTOR, "frame,iframe")) > 0
+            )
+        except:
+            # no hay frames; probablemente no estás en la UI principal
+            driver.save_screenshot("debug_no_frames.png")
+            with open("debug_no_frames.html", "w", encoding="utf-8") as f:
+                f.write(driver.page_source)
+            return False
+
+        # 4) Validar que el menú exista en ALGÚN frame (usando tu helper)
+        el = self.find_element_anywhere(driver, By.ID, "first_menu_manage", desc="Management", timeout=timeout)
+        if not el:
+            # dump rápido para diagnóstico
+            driver.save_screenshot("debug_menu_not_found.png")
+            with open("debug_menu_not_found.html", "w", encoding="utf-8") as f:
+                f.write(driver.page_source)
+            return False
+
+        return True
 
     def fh_maybe_skip_initial_guide(self, driver):
         """Intenta saltar el wizard de configuración inicial de Fiberhome"""
@@ -1932,6 +1815,163 @@ class FiberMixin:
         # Otros modelos: algoritmo desconocido
         return None
 
+    def find_element_anywhere2(self, driver, by, sel, desc="", timeout=10, max_depth=8):
+        """
+        Busca un elemento en default_content y en TODOS los frame/iframe (multi-nivel).
+        Deja el driver en el frame donde se encontró.
+        """
+        end = time.time() + timeout
+        last_err = None
+
+        while time.time() < end:
+            try:
+                driver.switch_to.default_content()
+
+                q = deque([[]])  # paths: [], [0], [1,2], etc.
+                visited = set()
+
+                while q:
+                    path = q.popleft()
+                    tpath = tuple(path)
+                    if tpath in visited:
+                        continue
+                    visited.add(tpath)
+
+                    # switch por índices (re-obteniendo frames en cada nivel)
+                    driver.switch_to.default_content()
+                    ok = True
+                    for idx in path:
+                        frames = driver.find_elements(By.CSS_SELECTOR, "frame,iframe")
+                        if idx >= len(frames):
+                            ok = False
+                            break
+                        driver.switch_to.frame(frames[idx])
+                    if not ok:
+                        continue
+
+                    # buscar en este contexto (SIN is_displayed)
+                    els = driver.find_elements(by, sel)
+                    if els:
+                        print(f"[SELENIUM] {desc} encontrado con {by}='{sel}' en path={path}")
+                        return els[0]
+
+                    # expandir hijos
+                    if len(path) < max_depth:
+                        frames = driver.find_elements(By.CSS_SELECTOR, "frame,iframe")
+                        for i in range(len(frames)):
+                            q.append(path + [i])
+
+            except Exception as e:
+                last_err = e
+
+            time.sleep(0.25)
+
+        print(f"[SELENIUM] No se encontró {desc or sel} en {timeout}s. Último error: {last_err}")
+        return None
+    def click_anywhere2(self, driver, selectors, desc, timeout=10):
+        """
+        Busca (con find_element_anywhere) y hace click robusto (JS click).
+        Reporta el último error real.
+        """
+        start = time.time()
+        last_err = None
+
+        while time.time() - start < timeout:
+            for by, sel in selectors:
+                try:
+                    el = self.find_element_anywhere2(driver, by, sel, desc=desc, timeout=2)
+                    if not el:
+                        continue
+
+                    # scroll por si está fuera de vista
+                    try:
+                        driver.execute_script("arguments[0].scrollIntoView({block:'center'});", el)
+                    except:
+                        pass
+
+                    # CLICK robusto: primero JS, luego normal
+                    try:
+                        driver.execute_script("arguments[0].click();", el)
+                    except Exception as e_js:
+                        last_err = e_js
+                        try:
+                            el.click()
+                        except Exception as e_click:
+                            last_err = e_click
+                            continue
+
+                    print(f"[SELENIUM] Click OK: {desc}")
+                    return True
+
+                except Exception as e:
+                    last_err = e
+
+            time.sleep(0.2)
+
+        print(f"[SELENIUM] No se encontró/clickeó: {desc} en {timeout}s. Último error: {last_err}")
+        return False
+    
+    def _goto_local_upgrade_menu(self, driver, timeout=15) -> bool:
+        """
+        Entra a: Management -> Device Management -> Local Upgrade
+        usando tus clicks masivos (sin importar frame).
+        """
+        # Asegurar que estás en la UI principal (después de login)
+        # (si tu login te deja en otra vista, esto ayuda)
+        try:
+            driver.get(f"{self.base_url}/html/main_inter.html")
+        except:
+            pass
+        # Management
+        self.click_anywhere2(driver, [(By.ID, "first_menu_manage")], "Management", timeout=20)
+
+        # Device Management
+        self.click_anywhere2(driver, [(By.ID, "span_device_admin")], "Device Management", timeout=20)
+
+        # Local Upgrade
+        self.click_anywhere2(driver, [(By.ID, "thr_update")], "Local Upgrade", timeout=20)
+        return True
+    
+    def _upload_firmware_via_form(self, firmware_path: str) -> None:
+        """
+        Ya logueado, navega al menú y sube el archivo con el form:
+        <input type="file" id="upgradefile">
+        <input type="submit" id="upgrade_button">
+        """
+        driver = self.driver
+
+        # Asegura ruta absoluta (send_keys lo necesita)
+        firmware_path = os.path.abspath(firmware_path)
+
+        # Asegurar que ya estamos en el frameset donde existe el menú
+        if not self._enter_main_frameset(timeout_total=25):
+            raise RuntimeError("No pude entrar al frameset principal (no hay menú).")
+
+        # Entrar al menú Local Upgrade
+        self._goto_local_upgrade_menu(driver, timeout=20)
+
+        # Cargar archivo en el input file (aunque esté en iframe)
+        file_input = self.find_element_anywhere2(driver, By.ID, "upgradefile", "Input firmware", timeout=20)
+        file_input.send_keys(firmware_path)
+        time.sleep(0.3)
+
+        # Click en Update File (submit)
+        self.click_anywhere(
+            driver,
+            [(By.ID, "upgrade_button")],
+            desc="Enviar firmware (Update File)",
+            timeout=20
+        )
+
+        # Algunos firmwares sacan confirmación con alert()
+        try:
+            alert = WebDriverWait(driver, 3).until(EC.alert_is_present())
+            alert.accept()
+        except:
+            pass
+
+        # Si quieres, aquí puedes esperar un poco y guardar evidencia
+        time.sleep(1)
     # Función para actualizar software
     def test_sft_update(self):
         ok = self.test_sft_updateCheck()
@@ -1943,67 +1983,33 @@ class FiberMixin:
             else:
                 FIRMWARE_PATH = r"C:\BINS\HG6145F1"
             archivo = self.searchBins(FIRMWARE_PATH)
-            ROUTER_IP = "192.168.100.1"
-            UPGRADE_URL = f"http://{ROUTER_IP}/nginx_upgradecgi"
-
-            params = {
-                "method": "upload",
-                "action": "upgradeimage",
-                # "key": KEY,
-            }
-
-            data = {
-                "upgradefile_telmex": "",
-                "path": "",
-            }
             # Se necesitará hacer otro login con las credenciales de super usuario
-            
-            login_ok = self._login_fiberhomeSuper()
+            max_reintentos = 5
+            for n in range(max_reintentos):
+                print("Intento "+str(n+1)+" de "+str(max_reintentos)+" para iniciar sesión")
+                # ni modo, no sé donde está la sesión activa
+                time.sleep(310)
+                login_ok = self._login_fiberhomeSuper()
+                if (login_ok):
+                    break
+                time.sleep(10)
             if login_ok:
-                print("[INFO] Login Super Admin exitoso")
-                with open(FIRMWARE_PATH, "rb") as f:
-                    files = {
-                        # name="upgradefile" del input <input type="file">
-                        "upgradefile": (archivo, f, "application/octet-stream"),
-                    }
+                print("[*] Enviando firmware al router por formulario (Selenium)...")
+                self._upload_firmware_via_form(archivo)
 
-                    print("[*] Enviando firmware al router (esto puede tardar varios minutos)...")
-                    try:
-                        resp = requests.post(
-                            UPGRADE_URL,
-                            params=params,
-                            data=data,
-                            files=files,
-                            #cookies=cookies,
-                            # timeout=(conexion, lectura): dale margen grande a la lectura
-                            timeout=(10, 200),  # 10 s para conectar, 900 s (~15 min) para que responda
-                        )
-                    except requests.exceptions.Timeout:
-                        print("[!] Tiempo de espera agotado durante la actualización.")
-                        return
-                    except requests.RequestException as e:
-                        print("[!] Error en la petición:", e)
-                        return
-
-                print("[*] Respuesta HTTP:", resp.status_code)
-                print(resp.text[:500])  # primeros caracteres, por si devuelve texto de estado
-
-                if resp.status_code == 200:
-                    print("[*] El router indicó que la carga terminó.")
-                    print("[*] Esperando a que el router se reinicie y vuelva a estar en línea...")
-                    self.wait_for_router()
-                else:
-                    print("[!] Código distinto de 200: revisa si el firmware es válido o si la sesión expiró.")
+                print("[*] Firmware enviado. Esperando reinicio...")
+                self.wait_for_router()  # o tu método equivalente
             else:
                 print("[ERROR] No se pudo hacer el login de Super Admin")
         else:
             print("[INFO] No se actualizará software")
 
-    def wait_for_router(max_wait_down=120, max_wait_up=300):
+    def wait_for_router(self, max_wait_down=120, max_wait_up=300):
         """
         max_wait_down: tiempo máximo esperando a que el router 'caiga'
         max_wait_up:   tiempo máximo esperando a que vuelva a responder
         """
+        ROUTER_IP = "192.168.100.1"
         base_url = f"http://{ROUTER_IP}/"
 
         # 1) Esperar a que deje de responder (si realmente se reinicia)
@@ -2064,7 +2070,7 @@ class FiberMixin:
                 sftVerActual = "".join(ch for ch in sftVer if ch.isdigit())
 
                 # Verificar que la actual no sea igual o mayor a la que se quiere instalar
-                if (sftVerActual < sft_num):
+                if (sftVerActual != sft_num): # Que sea diferente a la nuestra, para unificarlas
                     print("[INFO] Se necesita actualizar software")
                     return True
                 else:

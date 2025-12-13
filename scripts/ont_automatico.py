@@ -60,6 +60,7 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
         self.authenticated = False
         self.session_id = None
         self.driver = None
+        self.selenium_cookies = None
         # Ajustes para el fiber
         self.minWifi24Signal = -80  # Valor mínimo de señal WiFi 2.4GHz
         self.minWifi5Signal = -80  # Valor mínimo de señal WiFi 2.4GHz
@@ -518,6 +519,9 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
                 self.test_results["tests"][result["name"]] = result
             
             if tests_opts.get("software_update", True):
+                if self.driver:
+                    self.driver.quit()
+                    self.driver = None
                 self.test_sft_update() # Se tiene que ejecutar después de lo demás ya que requiere otro login
             # print(json.dumps(self.test_results, indent=2, ensure_ascii=False)) 
         # Ejecutar tests específicos según el tipo
