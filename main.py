@@ -1,17 +1,23 @@
 import customtkinter as ctk
-from src.Frontend.navigation.navigator import Navigator
 
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
-        
-        self.title("OnTester")
-        self.geometry("800x600")
-        
-        # Navegador
-        nav = Navigator(self)
-        nav.pack(pady=20, padx=20, fill="x")
+        self.title("Mi App")
+        self.geometry("1100x700")
 
-if __name__ == "__main__":
-    app = App()
-    app.mainloop()
+        self.content = ctk.CTkFrame(self)
+        self.content.pack(fill="both", expand=True)
+
+        # Vista inicial
+        from propiedades_view import PropiedadesView
+        self.show_view(PropiedadesView)
+
+    def show_view(self, ViewClass):
+        # Borra lo actual
+        for w in self.content.winfo_children():
+            w.destroy()
+
+        # Crea la nueva vista
+        view = ViewClass(self.content, app=self)
+        view.pack(fill="both", expand=True)

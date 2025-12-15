@@ -7,6 +7,7 @@ root_path = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(root_path))
 
 from src.Frontend.ui.panel_pruebas_view import PanelPruebasConexion
+from src.Frontend.ui.menu_superior_view import MenuSuperiorDesplegable
 
 
 class ReporteGlobalView(ctk.CTkFrame):
@@ -18,7 +19,7 @@ class ReporteGlobalView(ctk.CTkFrame):
         super().__init__(parent, fg_color="#E8F4F8", **kwargs)
 
         self.viewmodel = viewmodel
-        
+
         # Para almacenar los datos y referencias de las filas
         self.table_rows = []
         self.row_widgets = []
@@ -32,14 +33,27 @@ class ReporteGlobalView(ctk.CTkFrame):
         # ---------- Título verde ----------
         title_frame = ctk.CTkFrame(self, fg_color="#6B9080", corner_radius=0)
         title_frame.grid(row=0, column=0, sticky="ew", padx=0, pady=0)
-        
+
+        # Menú a la izquierda, título a la derecha
+        title_frame.grid_columnconfigure(0, weight=0)
+        title_frame.grid_columnconfigure(1, weight=1)
+
+        self.menu_superior = MenuSuperiorDesplegable(
+            title_frame,
+            on_open_tester=self.ir_a_ont_tester,
+            on_open_base_diaria=self.ir_a_base_diaria,
+            on_open_base_global=self.ir_a_base_global,
+            on_open_otros=self.ir_a_otros,
+        )
+        self.menu_superior.grid(row=0, column=0, sticky="w", padx=20, pady=6)
+
         titulo = ctk.CTkLabel(
             title_frame,
             text="ONT TESTER - REPORTE GLOBAL",
             font=ctk.CTkFont(size=18, weight="bold"),
             text_color="white",
         )
-        titulo.pack(pady=10, padx=20, anchor="w")
+        titulo.grid(row=0, column=1, sticky="w", padx=20, pady=10)
 
         # ---------- Contenido central ----------
         self._crear_contenido_central()
@@ -48,6 +62,49 @@ class ReporteGlobalView(ctk.CTkFrame):
         self.panel_pruebas = PanelPruebasConexion(self)
         self.panel_pruebas.grid(row=2, column=0, sticky="ew", padx=15, pady=(0, 10))
 
+    # =========================================================
+    #                NAVEGACIÓN (REDIRECCIÓN)
+    # =========================================================
+    def _swap_view(self, view_cls):
+        """
+        Redirige dentro del MISMO contenedor (self.master).
+        """
+        parent = self.master
+        try:
+            self.destroy()
+        except Exception:
+            pass
+
+        nueva = view_cls(parent)
+        nueva.pack(fill="both", expand=True)
+
+    def ir_a_ont_tester(self):
+        print("Navegando a ONT TESTER")
+        from src.Frontend.ui.tester_view import TesterView
+        self._swap_view(TesterView)
+
+    def ir_a_base_diaria(self):
+        print("Navegando a BASE DIARIA")
+        try:
+            from src.Frontend.ui.escaneos_dia__view import EscaneosDiaView
+        except ImportError:
+            from src.Frontend.ui.escaneos_dia_view import EscaneosDiaView
+        self._swap_view(EscaneosDiaView)
+
+    def ir_a_base_global(self):
+        print("Navegando a BASE GLOBAL")
+        # Ya estás aquí. Si quieres "refresh", descomenta:
+        # self._swap_view(ReporteGlobalView)
+        pass
+
+    def ir_a_otros(self):
+        print("Navegando a OTROS")
+        from src.Frontend.ui.propiedades_view import TesterMainView
+        self._swap_view(TesterMainView)
+
+    # =========================================================
+    #                UI CENTRAL
+    # =========================================================
     def _crear_contenido_central(self):
         """Crea el contenido central basado en la primera imagen."""
         central_frame = ctk.CTkFrame(
@@ -55,7 +112,7 @@ class ReporteGlobalView(ctk.CTkFrame):
             fg_color="transparent"
         )
         central_frame.grid(row=1, column=0, sticky="nsew", padx=15, pady=10)
-        
+
         central_frame.grid_columnconfigure(0, weight=1)
         central_frame.grid_rowconfigure(0, weight=0)  # equipos en base
         central_frame.grid_rowconfigure(1, weight=0)  # controles fecha
@@ -70,14 +127,14 @@ class ReporteGlobalView(ctk.CTkFrame):
             border_color="#6B9080"
         )
         equipos_frame.grid(row=0, column=0, sticky="ew", pady=(0, 10))
-        
+
         ctk.CTkLabel(
             equipos_frame,
             text="EQUIPOS EN BASE:",
             font=ctk.CTkFont(size=16, weight="bold"),
             text_color="#2C3E50"
         ).pack(side="left", padx=20, pady=10)
-        
+
         self.equipos_count_label = ctk.CTkLabel(
             equipos_frame,
             text="10",
@@ -89,7 +146,7 @@ class ReporteGlobalView(ctk.CTkFrame):
         # ---------- Controles de fecha y botones ----------
         controls_frame = ctk.CTkFrame(central_frame, fg_color="transparent")
         controls_frame.grid(row=1, column=0, sticky="ew", pady=(0, 10))
-        
+
         controls_frame.grid_columnconfigure(0, weight=0)
         controls_frame.grid_columnconfigure(1, weight=0)
         controls_frame.grid_columnconfigure(2, weight=0)
@@ -100,13 +157,9 @@ class ReporteGlobalView(ctk.CTkFrame):
         # Selectores de fecha
         date_frame = ctk.CTkFrame(controls_frame, fg_color="transparent")
         date_frame.grid(row=0, column=0, sticky="w", padx=(0, 20))
-        
-        ctk.CTkLabel(
-            date_frame,
-            text="día",
-            font=ctk.CTkFont(size=11)
-        ).grid(row=0, column=0, padx=5)
-        
+
+        ctk.CTkLabel(date_frame, text="día", font=ctk.CTkFont(size=11)).grid(row=0, column=0, padx=5)
+
         self.dia_combo = ctk.CTkComboBox(
             date_frame,
             values=[str(i) for i in range(1, 32)],
@@ -117,13 +170,9 @@ class ReporteGlobalView(ctk.CTkFrame):
         )
         self.dia_combo.set("22")
         self.dia_combo.grid(row=1, column=0, padx=5)
-        
-        ctk.CTkLabel(
-            date_frame,
-            text="mes",
-            font=ctk.CTkFont(size=11)
-        ).grid(row=0, column=1, padx=5)
-        
+
+        ctk.CTkLabel(date_frame, text="mes", font=ctk.CTkFont(size=11)).grid(row=0, column=1, padx=5)
+
         self.mes_combo = ctk.CTkComboBox(
             date_frame,
             values=[str(i) for i in range(1, 13)],
@@ -134,13 +183,9 @@ class ReporteGlobalView(ctk.CTkFrame):
         )
         self.mes_combo.set("10")
         self.mes_combo.grid(row=1, column=1, padx=5)
-        
-        ctk.CTkLabel(
-            date_frame,
-            text="año",
-            font=ctk.CTkFont(size=11)
-        ).grid(row=0, column=2, padx=5)
-        
+
+        ctk.CTkLabel(date_frame, text="año", font=ctk.CTkFont(size=11)).grid(row=0, column=2, padx=5)
+
         self.anio_combo = ctk.CTkComboBox(
             date_frame,
             values=["2024", "2025", "2026"],
@@ -168,13 +213,13 @@ class ReporteGlobalView(ctk.CTkFrame):
         # Búsqueda
         search_frame = ctk.CTkFrame(controls_frame, fg_color="transparent")
         search_frame.grid(row=0, column=2, padx=10)
-        
+
         ctk.CTkLabel(
             search_frame,
             text="BUSCAR SERIE",
             font=ctk.CTkFont(size=11, weight="bold")
         ).pack(anchor="w")
-        
+
         self.search_entry = ctk.CTkEntry(
             search_frame,
             placeholder_text="Ingrese serie...",
@@ -224,7 +269,6 @@ class ReporteGlobalView(ctk.CTkFrame):
         table_container.grid_rowconfigure(0, weight=1)
         table_container.grid_columnconfigure(0, weight=1)
 
-        # Scrollable frame para la tabla
         self.table_scrollable = ctk.CTkScrollableFrame(
             table_container,
             fg_color="transparent",
@@ -234,13 +278,12 @@ class ReporteGlobalView(ctk.CTkFrame):
         )
         self.table_scrollable.grid(row=0, column=0, sticky="nsew", padx=3, pady=3)
 
-        # Headers de la tabla
         headers = [
             "ID", "SERIE", "MAC", "VERSION_INICIAL", "VERSION_FINAL", "MODELO",
             "FECHA_DE_PRUEBA", "VERSION_DE_ONT_TES",
             "ETHERNET_1", "ETHERNET_2", "ETHERNET_3", "CONEXIÓN"
         ]
-        
+
         self.table_frame = ctk.CTkFrame(self.table_scrollable, fg_color="transparent")
         self.table_frame.pack(fill="both", expand=True)
 
@@ -257,7 +300,7 @@ class ReporteGlobalView(ctk.CTkFrame):
                 border_color="#8FA3B0"
             )
             header_cell.grid(row=0, column=col, sticky="nsew")
-            
+
             label = ctk.CTkLabel(
                 header_cell,
                 text=title,
@@ -268,12 +311,10 @@ class ReporteGlobalView(ctk.CTkFrame):
             )
             label.pack(padx=4, pady=5)
 
-        # Agregar múltiples filas de ejemplo
         self._agregar_filas_ejemplo()
 
     def _agregar_filas_ejemplo(self):
         """Agrega múltiples filas de ejemplo a la tabla."""
-        # Datos de ejemplo
         ejemplo_datos = [
             ["1", "CXABA4EABAGEO", "D4D0689E0B8D", "RP4375", "RP4375", "FIBERHOME H", "22/10/2025 08:11", "21.5.612", "DESCONECTADO", "DESCONECTADO", "DESCONECTADO", "CONECTADO"],
             ["2", "FHTT2AB5C9876", "A1B2C3D4E5F6", "RP4380", "RP4385", "FIBERHOME AN5506-04", "22/10/2025 09:15", "21.6.001", "CONECTADO", "CONECTADO", "DESCONECTADO", "CONECTADO"],
@@ -286,14 +327,14 @@ class ReporteGlobalView(ctk.CTkFrame):
             ["9", "HWTT8YZAB3456", "00:11:22:33:44:55", "V5.1.8", "V5.2.1", "HUAWEI EG8247H5", "22/10/2025 16:30", "21.6.050", "DESCONECTADO", "DESCONECTADO", "CONECTADO", "DESCONECTADO"],
             ["10", "CXCDE3FGHI789", "FF:EE:DD:CC:BB:AA", "RP4375", "RP4380", "FIBERHOME H", "22/10/2025 17:40", "21.5.750", "CONECTADO", "CONECTADO", "CONECTADO", "CONECTADO"],
         ]
-        
+
         self.table_rows = ejemplo_datos
         body_font = ctk.CTkFont(size=10)
-        
+
         for row_idx, row_data in enumerate(ejemplo_datos, start=1):
             row_frames = []
             row_color = "#F0F4F8" if row_idx % 2 == 1 else "#E1E8ED"
-            
+
             for col, value in enumerate(row_data):
                 cell_frame = ctk.CTkFrame(
                     self.table_frame,
@@ -303,7 +344,7 @@ class ReporteGlobalView(ctk.CTkFrame):
                     border_color="#B8C5D0"
                 )
                 cell_frame.grid(row=row_idx, column=col, sticky="nsew")
-                
+
                 label = ctk.CTkLabel(
                     cell_frame,
                     text=str(value),
@@ -312,9 +353,9 @@ class ReporteGlobalView(ctk.CTkFrame):
                     fg_color="transparent",
                 )
                 label.pack(padx=4, pady=3)
-                
+
                 row_frames.append(cell_frame)
-            
+
             self.row_widgets.append({
                 'frames': row_frames,
                 'data': row_data,
@@ -324,22 +365,17 @@ class ReporteGlobalView(ctk.CTkFrame):
     def buscar_serie(self, event=None):
         """Busca el número de serie y resalta la fila que coincida."""
         search_text = self.search_entry.get().strip().upper()
-        
-        # Restaurar todos los colores originales primero
+
         for row_info in self.row_widgets:
             for frame in row_info['frames']:
                 frame.configure(fg_color=row_info['original_color'])
-        
-        # Si no hay texto de búsqueda, salir
+
         if not search_text:
             return
-        
-        # Buscar coincidencias
+
         for row_info in self.row_widgets:
-            serie = row_info['data'][1].upper()  # Columna SERIE está en índice 1
-            
+            serie = row_info['data'][1].upper()  # SERIE en índice 1
             if search_text in serie:
-                # Resaltar la fila con color amarillo/dorado
                 for frame in row_info['frames']:
                     frame.configure(fg_color="#FFE066")
 
@@ -350,21 +386,18 @@ class ReporteGlobalView(ctk.CTkFrame):
         anio = self.anio_combo.get()
         print(f"Cargando base del día: {dia}/{mes}/{anio}")
         if self.viewmodel:
-            # Llamar al viewmodel
             pass
 
     def cargar_base_global(self):
         """Carga la base de datos global."""
         print("Cargando base global...")
         if self.viewmodel:
-            # Llamar al viewmodel
             pass
 
     def generar_excel(self):
         """Genera archivo Excel con los datos."""
         print("Generando Excel...")
         if self.viewmodel:
-            # Llamar al viewmodel
             pass
 
 

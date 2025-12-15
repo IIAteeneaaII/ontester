@@ -6,15 +6,6 @@ from PIL import Image
 
 from src.Frontend.ui.panel_pruebas_view import PanelPruebasConexion
 
-"""
-Vista principal del tester.
-
-Estructura:
-- Columna izquierda: logo, selector de modo, botones de pruebas, bloque de usuario y botón SALIR.
-- Columna derecha: barra superior (estado de prueba, reloj, modelo, contador),
-  datos del equipo (SN, MAC, etc.) y panel inferior de pruebas de conectividad.
-"""
-
 # Agregar la raíz del proyecto al path para poder usar imports absolutos
 root_path = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(root_path))
@@ -27,16 +18,14 @@ from src.Frontend.navigation.botones import (
     boton_señaleswifi,
 )
 
+from src.Frontend.ui.menu_superior_view import MenuSuperiorDesplegable
+
 
 class TesterView(ctk.CTkFrame):
     def __init__(self, parent, viewmodel=None, **kwargs):
-        # Fondo general azul muy claro
         super().__init__(parent, fg_color="#E9F5FF", **kwargs)
 
-        # ViewModel opcional (para conectar lógica más adelante)
         self.viewmodel = viewmodel
-        self._last_result_ok = False
-        self.pruebas_realizadas = 0
 
         # Paleta de colores para estados de botones (pastel)
         self.color_neutro_fg = "#4EA5D9"
@@ -61,37 +50,31 @@ class TesterView(ctk.CTkFrame):
             self,
             width=280,
             corner_radius=0,
-            fg_color="#E3F7F2",     # verde-agua pastel
+            fg_color="#E3F7F2",
         )
         self.left_scroll.grid(row=0, column=0, sticky="nsw", padx=0, pady=0)
-
-        left_frame = self.left_scroll  # alias
+        left_frame = self.left_scroll
         # ==================================
 
         # ===== Logo circular superior =====
-        self.logo_image = ctk.CTkImage(
-            light_image=Image.open(logo_path),
-            dark_image=Image.open(logo_path),
-            size=(48, 48),
-        )
+        try:
+            self.logo_image = ctk.CTkImage(
+                light_image=Image.open(logo_path),
+                dark_image=Image.open(logo_path),
+                size=(48, 48),
+            )
+        except Exception:
+            self.logo_image = None
 
-        logo_frame = ctk.CTkFrame(
-            left_frame,
-            width=70,
-            height=70,
-            corner_radius=35,
-            fg_color="#FFFFFF",
-        )
+        logo_frame = ctk.CTkFrame(left_frame, width=70, height=70, corner_radius=35, fg_color="#FFFFFF")
         logo_frame.pack(pady=(15, 5))
         logo_frame.pack_propagate(False)
 
-        logo_label = ctk.CTkLabel(logo_frame, text="", image=self.logo_image)
-        logo_label.pack(expand=True)
+        ctk.CTkLabel(logo_frame, text="", image=self.logo_image).pack(expand=True)
         # ==================================
 
         # ===== Menú desplegable "Escoge el modo" =====
         self.modo_var = ctk.StringVar(value="Escoge el modo")
-
         self.modo_menu = ctk.CTkOptionMenu(
             left_frame,
             variable=self.modo_var,
@@ -149,7 +132,7 @@ class TesterView(ctk.CTkFrame):
 
         self.label_usuario_nombre = ctk.CTkLabel(
             self.user_block,
-            text="HOLA: (nombre de usuario)",
+            text="HOLA: ",
             font=user_font_regular,
             text_color="#37474F",
             anchor="w",
@@ -171,7 +154,7 @@ class TesterView(ctk.CTkFrame):
         self.btn_salir.pack(fill="x", pady=(4, 0))
         # =============================================
 
-        # Estado inicial de los botones de pruebas
+        # Estado inicial de los botones
         self._set_all_buttons_state("neutral")
 
         # ===== Frame derecho (contenido principal) =====
@@ -182,17 +165,31 @@ class TesterView(ctk.CTkFrame):
         top_bar = ctk.CTkFrame(self.right_frame, fg_color="transparent")
         top_bar.pack(fill="x", pady=20, padx=40)
 
-        # Izquierda: estado de la última prueba
-        left_bar = ctk.CTkFrame(top_bar, fg_color="transparent")
-        left_bar.pack(side="left")
+        top_bar.grid_columnconfigure(0, weight=0)  # menú
+        top_bar.grid_columnconfigure(1, weight=0)  # estado prueba
+        top_bar.grid_columnconfigure(2, weight=1)  # reloj
+        top_bar.grid_columnconfigure(3, weight=0)  # modelo
 
-        lbl_prueba = ctk.CTkLabel(
+        # Menú hamburguesa
+        self.menu_superior = MenuSuperiorDesplegable(
+            top_bar,
+            on_open_tester=self.ir_a_ont_tester,
+            on_open_base_diaria=self.ir_a_base_diaria,
+            on_open_base_global=self.ir_a_base_global,
+            on_open_otros=self.ir_a_otros,
+        )
+        self.menu_superior.grid(row=0, column=0, sticky="w", padx=(0, 15))
+
+        # Estado de prueba (NO se auto-cambia aquí; backend lo debe actualizar)
+        left_bar = ctk.CTkFrame(top_bar, fg_color="transparent")
+        left_bar.grid(row=0, column=1, sticky="w")
+
+        ctk.CTkLabel(
             left_bar,
             text="Prueba:",
             font=ctk.CTkFont(size=18, weight="bold"),
             text_color="#2C3E50",
-        )
-        lbl_prueba.pack(side="left")
+        ).pack(side="left")
 
         self.estado_prueba_label = ctk.CTkLabel(
             left_bar,
@@ -202,9 +199,9 @@ class TesterView(ctk.CTkFrame):
         )
         self.estado_prueba_label.pack(side="left", padx=(10, 0))
 
-        # Centro: reloj / fecha
+        # Reloj
         center_bar = ctk.CTkFrame(top_bar, fg_color="transparent")
-        center_bar.pack(side="left", expand=True)
+        center_bar.grid(row=0, column=2, sticky="ew")
 
         self.clock_label = ctk.CTkLabel(
             center_bar,
@@ -214,42 +211,22 @@ class TesterView(ctk.CTkFrame):
         )
         self.clock_label.pack()
 
-        # Derecha: modelo + contador de pruebas
+        # Modelo (solo texto; backend puede actualizarlo)
         right_bar = ctk.CTkFrame(top_bar, fg_color="transparent")
-        right_bar.pack(side="right")
+        right_bar.grid(row=0, column=3, sticky="e")
 
-        # Texto de modelo
         self.modelo_label = ctk.CTkLabel(
             right_bar,
             text="Modelo:",
             font=ctk.CTkFont(size=14, weight="bold"),
         )
         self.modelo_label.pack(side="top", anchor="e")
-
-        # Fila: "Pruebas realizadas: X"
-        pruebas_frame = ctk.CTkFrame(right_bar, fg_color="transparent")
-        pruebas_frame.pack(side="top", anchor="e")
-
-        lbl_pruebas_realizadas = ctk.CTkLabel(
-            pruebas_frame,
-            text="Pruebas realizadas:",
-            font=ctk.CTkFont(size=14, weight="bold"),
-        )
-        lbl_pruebas_realizadas.pack(side="left")
-
-        self.pruebas_count_label = ctk.CTkLabel(
-            pruebas_frame,
-            text="0",
-            font=ctk.CTkFont(size=18, weight="bold"),
-        )
-        self.pruebas_count_label.pack(side="left", padx=(5, 0))
         # ===================================
 
         # ======= CONTENIDO PRINCIPAL =======
         self.main_content = ctk.CTkFrame(self.right_frame, fg_color="transparent")
         self.main_content.pack(expand=True, fill="both", padx=60, pady=(30, 0))
 
-        # Frame de información (SN, MAC, etc.)
         info_frame = ctk.CTkFrame(self.main_content, fg_color="transparent")
         info_frame.pack(side="top", fill="x", pady=(0, 30))
 
@@ -259,116 +236,78 @@ class TesterView(ctk.CTkFrame):
         label_font = ctk.CTkFont(size=14, weight="bold")
         label_color = "#37474F"
 
-        # Columna izquierda
-        lbl_sn = ctk.CTkLabel(
-            info_frame,
-            text="SN:",
-            font=label_font,
-            text_color=label_color,
-            anchor="w",
-        )
-        lbl_sn.grid(row=0, column=0, sticky="w", pady=(0, 5))
+        ctk.CTkLabel(info_frame, text="SN:", font=label_font, text_color=label_color, anchor="w").grid(row=0, column=0, sticky="w", pady=(0, 5))
+        ctk.CTkLabel(info_frame, text="MAC:", font=label_font, text_color=label_color, anchor="w").grid(row=1, column=0, sticky="w", pady=(0, 25))
+        ctk.CTkLabel(info_frame, text="SOFTWARE:", font=label_font, text_color=label_color, anchor="w").grid(row=2, column=0, sticky="w", pady=(10, 5))
+        ctk.CTkLabel(info_frame, text="WIFI 2.4 GHz:", font=label_font, text_color=label_color, anchor="w").grid(row=3, column=0, sticky="w", pady=5)
+        ctk.CTkLabel(info_frame, text="WIFI 5 GHz:", font=label_font, text_color=label_color, anchor="w").grid(row=4, column=0, sticky="w", pady=5)
+        ctk.CTkLabel(info_frame, text="Password", font=label_font, text_color=label_color, anchor="w").grid(row=5, column=0, sticky="w", pady=(5, 0))
 
-        lbl_mac = ctk.CTkLabel(
-            info_frame,
-            text="MAC:",
-            font=label_font,
-            text_color=label_color,
-            anchor="w",
-        )
-        lbl_mac.grid(row=1, column=0, sticky="w", pady=(0, 25))
+        ctk.CTkLabel(info_frame, text="Fo TX:", font=label_font, text_color=label_color, anchor="w").grid(row=2, column=1, sticky="w", padx=(40, 0), pady=(10, 5))
+        ctk.CTkLabel(info_frame, text="Fo Rx:", font=label_font, text_color=label_color, anchor="w").grid(row=3, column=1, sticky="w", padx=(40, 0), pady=5)
+        ctk.CTkLabel(info_frame, text="Usb Port", font=label_font, text_color=label_color, anchor="w").grid(row=4, column=1, sticky="w", padx=(40, 0), pady=(5, 0))
 
-        lbl_software = ctk.CTkLabel(
-            info_frame,
-            text="SOFTWARE:",
-            font=label_font,
-            text_color=label_color,
-            anchor="w",
-        )
-        lbl_software.grid(row=2, column=0, sticky="w", pady=(10, 5))
-
-        lbl_wifi24 = ctk.CTkLabel(
-            info_frame,
-            text="WIFI 2.4 GHz:",
-            font=label_font,
-            text_color=label_color,
-            anchor="w",
-        )
-        lbl_wifi24.grid(row=3, column=0, sticky="w", pady=5)
-
-        lbl_wifi5 = ctk.CTkLabel(
-            info_frame,
-            text="WIFI 5 GHz:",
-            font=label_font,
-            text_color=label_color,
-            anchor="w",
-        )
-        lbl_wifi5.grid(row=4, column=0, sticky="w", pady=5)
-
-        lbl_password = ctk.CTkLabel(
-            info_frame,
-            text="Password",
-            font=label_font,
-            text_color=label_color,
-            anchor="w",
-        )
-        lbl_password.grid(row=5, column=0, sticky="w", pady=(5, 0))
-
-        # Columna derecha
-        lbl_fo_tx = ctk.CTkLabel(
-            info_frame,
-            text="Fo TX:",
-            font=label_font,
-            text_color=label_color,
-            anchor="w",
-        )
-        lbl_fo_tx.grid(row=2, column=1, sticky="w", padx=(40, 0), pady=(10, 5))
-
-        lbl_fo_rx = ctk.CTkLabel(
-            info_frame,
-            text="Fo Rx:",
-            font=label_font,
-            text_color=label_color,
-            anchor="w",
-        )
-        lbl_fo_rx.grid(row=3, column=1, sticky="w", padx=(40, 0), pady=5)
-
-        lbl_usb = ctk.CTkLabel(
-            info_frame,
-            text="Usb Port",
-            font=label_font,
-            text_color=label_color,
-            anchor="w",
-        )
-        lbl_usb.grid(row=4, column=1, sticky="w", padx=(40, 0), pady=(5, 0))
-        # ====================================
-
-        # Panel de pruebas de conectividad (parte inferior)
+        # Panel inferior
         self.panel_pruebas = PanelPruebasConexion(self.main_content)
-        self.panel_pruebas.pack(
-            side="bottom",
-            fill="x",
-            expand=False,
-            padx=0,
-            pady=(0, 10),
-        )
+        self.panel_pruebas.pack(side="bottom", fill="x", expand=False, padx=0, pady=(0, 10))
 
         # Iniciar reloj
         self.update_clock()
 
-        # Redimensionado responsivo
+        # Responsivo
         self.bind("<Configure>", self._on_resize)
 
-    # ========= Métodos para usuario =========
+        # ✅ Cargar usuario desde InicioView (root.current_user_id / root.current_user_name)
+        self.after(50, self._cargar_usuario_desde_root)
+
+    # ===================== USUARIO =====================
+    def _cargar_usuario_desde_root(self):
+        root = self.winfo_toplevel()
+        user_id = getattr(root, "current_user_id", None)
+        user_name = getattr(root, "current_user_name", None)
+
+        if user_id and user_name:
+            self.set_usuario(str(user_id), str(user_name))
+
     def set_usuario(self, user_id: str, nombre: str):
-        """Actualiza ID y nombre del usuario en el sidebar."""
         self.label_usuario_id.configure(text=f"ID: {user_id}")
         self.label_usuario_nombre.configure(text=f"HOLA: {nombre}")
-    # ========================================
 
-    # ================= Helpers de estilo =================
+    # ===================== NAVEGACIÓN =====================
+    def _swap_view(self, view_cls, **init_kwargs):
+        parent = self.master
+        try:
+            self.destroy()
+        except Exception:
+            pass
+        nueva = view_cls(parent, **init_kwargs)
+        nueva.pack(fill="both", expand=True)
+
+    def ir_a_ont_tester(self):
+        pass
+
+    def ir_a_base_diaria(self):
+        try:
+            from src.Frontend.ui.escaneos_dia__view import EscaneosDiaView
+        except ImportError:
+            from src.Frontend.ui.escaneos_dia_view import EscaneosDiaView
+        self._swap_view(EscaneosDiaView)
+
+    def ir_a_base_global(self):
+        from src.Frontend.ui.reporte_global_view import ReporteGlobalView
+        self._swap_view(ReporteGlobalView)
+
+    def ir_a_otros(self):
+        from src.Frontend.ui.propiedades_view import TesterMainView
+        self._swap_view(TesterMainView)
+
+    def ir_salir(self):
+        # ✅ Regresar a InicioView (NO cerrar app)
+        from src.Frontend.ui.inicio_view import InicioView
+        self._swap_view(InicioView)
+
+    # ===================== ESTILO / UI =====================
     def _set_button_style(self, button, state: str):
-        """Aplica el color de acuerdo al estado: 'neutral', 'active', 'inactive'."""
         if state == "active":
             fg = self.color_activo_fg
             hover = self.color_activo_hover
@@ -377,40 +316,31 @@ class TesterView(ctk.CTkFrame):
             fg = self.color_inactivo_fg
             hover = self.color_inactivo_hover
             status = "disabled"
-        else:  # neutral
+        else:
             fg = self.color_neutro_fg
             hover = self.color_neutro_hover
             status = "normal"
-
         button.configure(fg_color=fg, hover_color=hover, state=status)
 
     def _set_all_buttons_state(self, state: str):
-        """Pone todos los botones del sidebar en el mismo estado visual."""
         self._set_button_style(self.btn_omitir, state)
         self._set_button_style(self.btn_ethernet, state)
         self._set_button_style(self.btn_conectividad, state)
         self._set_button_style(self.btn_otros_puertos, state)
         self._set_button_style(self.btn_wifi, state)
 
-    # ================= Responsividad =================
     def _on_resize(self, event):
-        """Ajusta ancho del sidebar cuando cambia el tamaño de la ventana."""
         if event.widget is not self:
             return
-
         width = max(event.width, 400)
-
         if width < 950:
             sidebar_width = 280
         else:
             sidebar_width = int(width * 0.22)
             sidebar_width = max(280, min(sidebar_width, 320))
-
         self.left_scroll.configure(width=sidebar_width)
 
-    # ================= LÓGICA DE UI =================
     def update_clock(self):
-        """Actualiza el reloj cada segundo, con meses en español."""
         now = datetime.now()
         time_string = now.strftime("%I:%M %p  %d %B %Y")
 
@@ -427,9 +357,7 @@ class TesterView(ctk.CTkFrame):
         self.after(1000, self.update_clock)
 
     def cambiar_modo(self, modo: str):
-        """Callback del OptionMenu: cambia el estado de los botones por modo."""
         print(f"Modo seleccionado: {modo}")
-
         self._set_all_buttons_state("neutral")
 
         if modo == "Testeo":
@@ -438,70 +366,41 @@ class TesterView(ctk.CTkFrame):
             self._set_button_style(self.btn_otros_puertos, "active")
             self._set_button_style(self.btn_ethernet, "inactive")
             self._set_button_style(self.btn_wifi, "inactive")
-
         elif modo == "Retesteo":
             self._set_all_buttons_state("active")
-
         elif modo == "Etiqueta":
             self._set_all_buttons_state("inactive")
 
-    def actualizar_estado_prueba(self, estado):
-        """Actualiza el texto y color del label 'Prueba:'."""
-        if isinstance(estado, str):
-            estado_normalizado = estado.strip().upper()
-        else:
-            estado_normalizado = "EXITOSA" if estado else "FALLIDA"
+    # ===================== BOTONES (sin toggle local) =====================
+    def _disparar_prueba(self, nombre_prueba: str):
+        """
+        ✅ Ya NO cambia 'FALLIDA/EXITOSA' ni contador.
+        Solo dispara backend si existe.
+        """
+        print(f"Solicitando backend: {nombre_prueba}")
+        if self.viewmodel and hasattr(self.viewmodel, "ejecutar_prueba"):
+            try:
+                self.viewmodel.ejecutar_prueba(nombre_prueba)
+            except TypeError:
+                # por si tu backend no recibe nombre
+                self.viewmodel.ejecutar_prueba()
 
-        if estado_normalizado in ("EXITOSA", "OK", "SUCCESS", "TRUE"):
-            texto = "EXITOSA"
-            color = "#27AE60"
-        elif estado_normalizado in ("FALLIDA", "FAIL", "ERROR", "FALSE"):
-            texto = "FALLIDA"
-            color = "#E0665C"
-        else:
-            texto = str(estado)
-            color = "#f1c40f"
-
-        self.estado_prueba_label.configure(text=texto, text_color=color)
-
-    def incrementar_contador_pruebas(self):
-        """Suma 1 al contador y actualiza la etiqueta de pruebas realizadas."""
-        self.pruebas_realizadas += 1
-        self.pruebas_count_label.configure(text=str(self.pruebas_realizadas))
-
-    def _ejecutar_prueba_desde_boton(self, nombre_prueba: str):
-        """Utilidad común para los botones del sidebar."""
-        print(f"Ejecutando {nombre_prueba}...")
-        if self.viewmodel is not None:
-            self.viewmodel.ejecutar_prueba()
-        else:
-            self._last_result_ok = not self._last_result_ok
-            self.actualizar_estado_prueba(self._last_result_ok)
-            self.incrementar_contador_pruebas()
-
-    # ================= HANDLERS DE LOS BOTONES =================
     def ir_OMITIR(self):
-        print("Navegando a OMITIR RETEST DE FÁBRICA")
+        self._disparar_prueba("OMITIR RETEST DE FÁBRICA")
 
     def ir_ethernet(self):
-        self._ejecutar_prueba_desde_boton("PRUEBA DE ETHERNET")
+        self._disparar_prueba("PRUEBA DE ETHERNET")
 
     def ir_conectividad(self):
-        self._ejecutar_prueba_desde_boton("PRUEBA DE CONECTIVIDAD")
+        self._disparar_prueba("PRUEBA DE CONECTIVIDAD")
 
     def ir_otros_puertos(self):
-        self._ejecutar_prueba_desde_boton("PRUEBA DE OTROS PUERTOS")
+        self._disparar_prueba("PRUEBA DE OTROS PUERTOS")
 
     def ir_senales_wifi(self):
-        self._ejecutar_prueba_desde_boton("PRUEBA DE SEÑALES WIFI")
-
-    def ir_salir(self):
-        """Cierra la ventana principal."""
-        root = self.winfo_toplevel()
-        root.destroy()
+        self._disparar_prueba("PRUEBA DE SEÑALES WIFI")
 
 
-# Ejecución independiente para pruebas rápidas
 if __name__ == "__main__":
     ctk.set_appearance_mode("light")
     ctk.set_default_color_theme("blue")
@@ -511,7 +410,10 @@ if __name__ == "__main__":
     app.geometry("1200x600")
     app.minsize(900, 550)
 
+    # Simular sesión
+    app.current_user_id = "09"
+    app.current_user_name = "Ram"
+
     view = TesterView(app)
     view.pack(fill="both", expand=True)
-
     app.mainloop()

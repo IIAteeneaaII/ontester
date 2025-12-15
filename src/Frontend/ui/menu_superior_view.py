@@ -21,9 +21,9 @@ class MenuSuperiorDesplegable(ctk.CTkFrame):
         on_open_base_diaria=None,
         on_open_base_global=None,
         on_open_propiedades=None,
-        on_open_otros=None,   # lo usas desde propiedades_view
+        on_open_otros=None,   # alias de propiedades
     ):
-        # ⚠️ NO pasar kwargs con callbacks a CTkFrame
+        # NO pasar kwargs con callbacks a CTkFrame
         super().__init__(parent, fg_color="transparent")
 
         # Ventana raíz para poder abrir Toplevels y posicionar el menú
@@ -79,7 +79,7 @@ class MenuSuperiorDesplegable(ctk.CTkFrame):
             hover_color="#5A7A6A",
             text_color="white",
             font=ctk.CTkFont(size=12, weight="bold"),
-            command=self._handle_ont_tester,
+            command=self._go_tester,
         )
         btn_tester.pack(pady=5)
 
@@ -94,7 +94,7 @@ class MenuSuperiorDesplegable(ctk.CTkFrame):
             hover_color="#8FC9CB",
             text_color="#2C3E50",
             font=ctk.CTkFont(size=12, weight="bold"),
-            command=self._handle_base_diaria,
+            command=self._go_base_diaria,
         )
         btn_base_diaria.pack(pady=5)
 
@@ -109,7 +109,7 @@ class MenuSuperiorDesplegable(ctk.CTkFrame):
             hover_color="#E89BA3",
             text_color="#2C3E50",
             font=ctk.CTkFont(size=12, weight="bold"),
-            command=self._handle_base_global,
+            command=self._go_base_global,
         )
         btn_base_global.pack(pady=5)
 
@@ -124,7 +124,7 @@ class MenuSuperiorDesplegable(ctk.CTkFrame):
             hover_color="#3B8CC2",
             text_color="white",
             font=ctk.CTkFont(size=12, weight="bold"),
-            command=self._handle_propiedades,
+            command=self._go_propiedades,
         )
         btn_propiedades.pack(pady=5)
 
@@ -148,7 +148,6 @@ class MenuSuperiorDesplegable(ctk.CTkFrame):
         # Coordenadas del botón en la pantalla
         bx = self.boton_menu.winfo_rootx()
         by = self.boton_menu.winfo_rooty()
-        bw = self.boton_menu.winfo_width()
         bh = self.boton_menu.winfo_height()
 
         # Coordenadas de la ventana raíz
@@ -185,43 +184,49 @@ class MenuSuperiorDesplegable(ctk.CTkFrame):
         top.focus()
 
     # =========================================================
-    #          HANDLERS DE CADA OPCIÓN DEL MENÚ
+    #          MÉTODOS "GO" (lo que pediste en la parte 2)
     # =========================================================
 
-    def _handle_ont_tester(self):
+    def _go_tester(self):
         """ONT TESTER -> tester_view.py"""
-        if self.on_open_tester:
-            # Usar callback si te lo pasan desde fuera
-            self.on_open_tester()
-        else:
-            # Fallback: abrir ventana con TesterView
-            from src.Frontend.ui.tester_view import TesterView
-            self._abrir_en_toplevel(TesterView, "ONT TESTER", "1200x600")
-        self.cerrar_menu()
+        try:
+            if callable(self.on_open_tester):
+                self.on_open_tester()
+            else:
+                from src.Frontend.ui.tester_view import TesterView
+                self._abrir_en_toplevel(TesterView, "ONT TESTER", "1200x600")
+        finally:
+            self.cerrar_menu()
 
-    def _handle_base_diaria(self):
+    def _go_base_diaria(self):
         """BASE DIARIA -> escaneos_dia_view.py"""
-        if self.on_open_base_diaria:
-            self.on_open_base_diaria()
-        else:
-            from src.Frontend.ui.escaneos_dia_view import EscaneosDiaView
-            self._abrir_en_toplevel(EscaneosDiaView, "BASE DIARIA - Escaneos del Día", "1400x800")
-        self.cerrar_menu()
+        try:
+            if callable(self.on_open_base_diaria):
+                self.on_open_base_diaria()
+            else:
+                from src.Frontend.ui.escaneos_dia_view import EscaneosDiaView
+                self._abrir_en_toplevel(EscaneosDiaView, "BASE DIARIA - Escaneos del Día", "1400x800")
+        finally:
+            self.cerrar_menu()
 
-    def _handle_base_global(self):
+    def _go_base_global(self):
         """BASE GLOBAL -> reporte_global_view.py"""
-        if self.on_open_base_global:
-            self.on_open_base_global()
-        else:
-            from src.Frontend.ui.reporte_global_view import ReporteGlobalView
-            self._abrir_en_toplevel(ReporteGlobalView, "BASE GLOBAL - Reporte Global", "1400x900")
-        self.cerrar_menu()
+        try:
+            if callable(self.on_open_base_global):
+                self.on_open_base_global()
+            else:
+                from src.Frontend.ui.reporte_global_view import ReporteGlobalView
+                self._abrir_en_toplevel(ReporteGlobalView, "BASE GLOBAL - Reporte Global", "1400x900")
+        finally:
+            self.cerrar_menu()
 
-    def _handle_propiedades(self):
+    def _go_propiedades(self):
         """OTROS -> propiedades_view.py (TesterMainView)"""
-        if self.on_open_propiedades:
-            self.on_open_propiedades()
-        else:
-            from src.Frontend.ui.propiedades_view import TesterMainView
-            self._abrir_en_toplevel(TesterMainView, "OTROS - Propiedades", "1400x700")
-        self.cerrar_menu()
+        try:
+            if callable(self.on_open_propiedades):
+                self.on_open_propiedades()
+            else:
+                from src.Frontend.ui.propiedades_view import TesterMainView
+                self._abrir_en_toplevel(TesterMainView, "OTROS - Propiedades", "1400x700")
+        finally:
+            self.cerrar_menu()

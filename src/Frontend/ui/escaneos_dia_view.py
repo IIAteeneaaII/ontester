@@ -8,6 +8,7 @@ root_path = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(root_path))
 
 from src.Frontend.ui.panel_pruebas_view import PanelPruebasConexion
+from src.Frontend.ui.menu_superior_view import MenuSuperiorDesplegable
 from src.Frontend.navigation.botones import boton_imprimir_etiqueta, boton_borrar
 
 
@@ -20,7 +21,7 @@ class EscaneosDiaView(ctk.CTkFrame):
         super().__init__(parent, fg_color="#E8F4F8", **kwargs)
 
         self.viewmodel = viewmodel
-        
+
         # Para los tooltips
         self.tooltip_window = None
         self.tooltip_job = None
@@ -38,7 +39,7 @@ class EscaneosDiaView(ctk.CTkFrame):
             "MODELO",
             "FECHA",
         ]
-        
+
         # Mapeo para el panel derecho
         self.detail_label_texts = {
             "ID": "ID:",
@@ -70,14 +71,28 @@ class EscaneosDiaView(ctk.CTkFrame):
         # ---------- Título verde ----------
         title_frame = ctk.CTkFrame(self, fg_color="#6B9080", corner_radius=0)
         title_frame.grid(row=0, column=0, sticky="ew", padx=0, pady=0)
-        
+
+        # Para poner menú a la izquierda y título al lado
+        title_frame.grid_columnconfigure(0, weight=0)  # menú
+        title_frame.grid_columnconfigure(1, weight=1)  # título
+
+        # Menú desplegable (callbacks reales de navegación)
+        self.menu_superior = MenuSuperiorDesplegable(
+            title_frame,
+            on_open_tester=self.ir_a_ont_tester,
+            on_open_base_diaria=self.ir_a_base_diaria,
+            on_open_base_global=self.ir_a_base_global,
+            on_open_otros=self.ir_a_otros,
+        )
+        self.menu_superior.grid(row=0, column=0, sticky="w", padx=20, pady=6)
+
         titulo = ctk.CTkLabel(
             title_frame,
             text="ONT TESTER - VENTANA ESCANEOS DEL DÍA",
             font=ctk.CTkFont(size=18, weight="bold"),
             text_color="white",
         )
-        titulo.pack(pady=10, padx=20, anchor="w")
+        titulo.grid(row=0, column=1, sticky="w", padx=20, pady=10)
 
         # ---------- Contenedor tabla + panel derecho ----------
         self.content_frame = ctk.CTkFrame(self, fg_color="transparent")
@@ -108,14 +123,14 @@ class EscaneosDiaView(ctk.CTkFrame):
             scrollbar_button_hover_color="#5A7A6A",
         )
         self.table_scrollable.grid(row=0, column=0, sticky="nsew", padx=3, pady=3)
-        
+
         # Configuración mejorada del scroll para evitar trabas
         try:
             self.table_scrollable._parent_canvas.configure(
                 yscrollincrement=10,
                 scrollregion=(0, 0, 0, 1000)
             )
-        except:
+        except Exception:
             pass
 
         # Frame para la tabla
@@ -137,7 +152,7 @@ class EscaneosDiaView(ctk.CTkFrame):
                 border_color="#8FA3B0"
             )
             header_cell.grid(row=0, column=col, sticky="nsew")
-            
+
             label = ctk.CTkLabel(
                 header_cell,
                 text=title,
@@ -169,14 +184,13 @@ class EscaneosDiaView(ctk.CTkFrame):
             scrollbar_button_hover_color="#5A7A6A",
         )
         self.detail_scrollable.grid(row=0, column=0, sticky="nsew", padx=3, pady=3)
-        
-        # Configuración mejorada del scroll
+
         try:
             self.detail_scrollable._parent_canvas.configure(
                 yscrollincrement=8,
                 scrollregion=(0, 0, 0, 1000)
             )
-        except:
+        except Exception:
             pass
 
         self.detail_frame = ctk.CTkFrame(self.detail_scrollable, fg_color="transparent")
@@ -185,7 +199,7 @@ class EscaneosDiaView(ctk.CTkFrame):
         detail_font_label = ctk.CTkFont(size=11, weight="bold")
         detail_font_value = ctk.CTkFont(size=11)
 
-        # Campo de búsqueda - ahora más compacto
+        # Campo de búsqueda
         ctk.CTkLabel(
             self.detail_frame,
             text="BUSCAR SERIE",
@@ -216,30 +230,26 @@ class EscaneosDiaView(ctk.CTkFrame):
         )
         status_lbl.pack(pady=(0, 8))
 
-        # Campos de detalle - AHORA EN LÍNEA
-        for idx, key in enumerate(self.headers):
+        # Campos de detalle en línea
+        for key in self.headers:
             label_text = self.detail_label_texts.get(key, key)
-            
-            # Frame contenedor para label + entry en la misma línea
+
             row_frame = ctk.CTkFrame(self.detail_frame, fg_color="transparent")
             row_frame.pack(fill="x", pady=2)
-            
-            # Configurar grid para el row_frame
-            row_frame.grid_columnconfigure(0, weight=0)  # Label fijo
-            row_frame.grid_columnconfigure(1, weight=1)  # Entry expandible
-            
-            # Label a la izquierda
+
+            row_frame.grid_columnconfigure(0, weight=0)
+            row_frame.grid_columnconfigure(1, weight=1)
+
             lbl = ctk.CTkLabel(
                 row_frame,
                 text=label_text,
                 font=detail_font_label,
                 text_color="#2C3E50",
                 anchor="w",
-                width=90  # Ancho fijo para alinear todos los labels
+                width=90
             )
             lbl.grid(row=0, column=0, sticky="w", padx=(0, 5))
 
-            # Entry a la derecha
             var = ctk.StringVar(value="")
             self.detail_vars[key] = var
 
@@ -258,17 +268,19 @@ class EscaneosDiaView(ctk.CTkFrame):
         # ---------- Botones ----------
         buttons_frame = ctk.CTkFrame(self.detail_frame, fg_color="transparent")
         buttons_frame.pack(fill="x", pady=(10, 5))
-        
-        # Botón IMPRIMIR (azul)
-        btn_imprimir_frame = ctk.CTkFrame(buttons_frame, fg_color="#A8DADC", corner_radius=8, border_width=2, border_color="#457B9D")
+
+        # Botón IMPRIMIR
+        btn_imprimir_frame = ctk.CTkFrame(
+            buttons_frame,
+            fg_color="#A8DADC",
+            corner_radius=8,
+            border_width=2,
+            border_color="#457B9D"
+        )
         btn_imprimir_frame.pack(fill="x", pady=(0, 8))
-        
-        ctk.CTkLabel(
-            btn_imprimir_frame,
-            text="🖨️",
-            font=ctk.CTkFont(size=24)
-        ).pack(pady=(8, 3))
-        
+
+        ctk.CTkLabel(btn_imprimir_frame, text="🖨️", font=ctk.CTkFont(size=24)).pack(pady=(8, 3))
+
         self.btn_imprimir = ctk.CTkButton(
             btn_imprimir_frame,
             text="IMPRIMIR ETIQUETA",
@@ -280,16 +292,18 @@ class EscaneosDiaView(ctk.CTkFrame):
         )
         self.btn_imprimir.pack(fill="x", padx=10, pady=(0, 8))
 
-        # Botón BORRAR (rosa/rojo)
-        btn_borrar_frame = ctk.CTkFrame(buttons_frame, fg_color="#F1B4BB", corner_radius=8, border_width=2, border_color="#C1666B")
+        # Botón BORRAR
+        btn_borrar_frame = ctk.CTkFrame(
+            buttons_frame,
+            fg_color="#F1B4BB",
+            corner_radius=8,
+            border_width=2,
+            border_color="#C1666B"
+        )
         btn_borrar_frame.pack(fill="x")
-        
-        ctk.CTkLabel(
-            btn_borrar_frame,
-            text="🗑️",
-            font=ctk.CTkFont(size=24)
-        ).pack(pady=(8, 3))
-        
+
+        ctk.CTkLabel(btn_borrar_frame, text="🗑️", font=ctk.CTkFont(size=24)).pack(pady=(8, 3))
+
         self.btn_borrar = ctk.CTkButton(
             btn_borrar_frame,
             text="BORRAR",
@@ -305,6 +319,43 @@ class EscaneosDiaView(ctk.CTkFrame):
         self.panel_pruebas = PanelPruebasConexion(self)
         self.panel_pruebas.grid(row=2, column=0, sticky="ew", padx=15, pady=(0, 10))
 
+    # =========================================================
+    #                NAVEGACIÓN (REDIRECCIÓN)
+    # =========================================================
+    def _swap_view(self, view_cls):
+        """
+        Redirige dentro del MISMO contenedor (self.master).
+        """
+        parent = self.master
+        try:
+            self.destroy()
+        except Exception:
+            pass
+
+        nueva = view_cls(parent)
+        nueva.pack(fill="both", expand=True)
+
+    def ir_a_ont_tester(self):
+        print("Navegando a ONT TESTER")
+        from src.Frontend.ui.tester_view import TesterView
+        self._swap_view(TesterView)
+
+    def ir_a_base_diaria(self):
+        print("Navegando a BASE DIARIA")
+        # Ya estás aquí. Si quieres "refresh", descomenta:
+        # self._swap_view(EscaneosDiaView)
+        pass
+
+    def ir_a_base_global(self):
+        print("Navegando a BASE GLOBAL")
+        from src.Frontend.ui.reporte_global_view import ReporteGlobalView
+        self._swap_view(ReporteGlobalView)
+
+    def ir_a_otros(self):
+        print("Navegando a OTROS")
+        from src.Frontend.ui.propiedades_view import TesterMainView
+        self._swap_view(TesterMainView)
+
     # --------- Llenado de la tabla ---------
     def set_table_rows(self, rows):
         """Rellena la tabla con filas de datos."""
@@ -318,14 +369,13 @@ class EscaneosDiaView(ctk.CTkFrame):
 
         self.row_label_widgets = []
         body_font = ctk.CTkFont(size=10)
-        
-        # Colores alternados más sutiles
+
         row_colors = ["#F0F4F8", "#E1E8ED"]
 
         for r_idx, row in enumerate(self.table_rows_data, start=1):
             row_widgets = []
             row_color = row_colors[(r_idx - 1) % 2]
-            
+
             for c_idx, value in enumerate(row):
                 cell_frame = ctk.CTkFrame(
                     self.table_frame,
@@ -335,14 +385,11 @@ class EscaneosDiaView(ctk.CTkFrame):
                     border_color="#B8C5D0"
                 )
                 cell_frame.grid(row=r_idx, column=c_idx, sticky="nsew")
-                
-                # Texto truncado si es muy largo
+
                 display_text = str(value)
-                is_truncated = False
                 if len(display_text) > 15:
                     display_text = display_text[:12] + "..."
-                    is_truncated = True
-                
+
                 label = ctk.CTkLabel(
                     cell_frame,
                     text=display_text,
@@ -352,15 +399,13 @@ class EscaneosDiaView(ctk.CTkFrame):
                 )
                 label.pack(padx=4, pady=3)
 
-                # Bindings para click
                 cell_frame.bind("<Button-1>", lambda e, idx=r_idx - 1: self.on_row_click(idx))
                 label.bind("<Button-1>", lambda e, idx=r_idx - 1: self.on_row_click(idx))
-                
-                # Tooltip para TODAS las celdas (truncadas o no) para ver info completa
+
                 full_text = str(value)
                 self._bind_tooltip(label, full_text)
                 self._bind_tooltip(cell_frame, full_text)
-                
+
                 row_widgets.append((cell_frame, label))
 
             self.row_label_widgets.append(row_widgets)
@@ -379,7 +424,7 @@ class EscaneosDiaView(ctk.CTkFrame):
                 self.detail_vars[key].set(str(row[col_index]))
             else:
                 self.detail_vars[key].set("")
-        
+
         self._highlight_row(row_index)
         self.detail_status_var.set("")
 
@@ -413,7 +458,6 @@ class EscaneosDiaView(ctk.CTkFrame):
 
         found_index = None
         for i, row in enumerate(self.all_rows):
-            # Buscar en columna SNN (índice 1)
             if len(row) > 1 and query.lower() in str(row[1]).lower():
                 found_index = i
                 break
@@ -431,9 +475,9 @@ class EscaneosDiaView(ctk.CTkFrame):
         if self.highlighted_row is None:
             self.detail_status_var.set("Selecciona un registro para imprimir.")
             return
-        
+
         row_data = self.table_rows_data[self.highlighted_row]
-        
+
         if self.viewmodel:
             try:
                 print(f"Enviando a backend para imprimir: {row_data}")
@@ -449,66 +493,57 @@ class EscaneosDiaView(ctk.CTkFrame):
         if self.highlighted_row is None:
             self.detail_status_var.set("Selecciona un registro para borrar.")
             return
-        
+
         row_data = self.table_rows_data[self.highlighted_row]
-        
+
         respuesta = messagebox.askyesno(
             "Confirmar borrado",
             f"¿Borrar registro?\n\nID: {row_data[0]}\nSNN: {row_data[1]}\nMAC: {row_data[2]}",
             icon='warning'
         )
-        
+
         if not respuesta:
             return
-        
+
         try:
             if self.viewmodel:
                 print(f"Llamando a backend para borrar registro ID: {row_data[0]}")
-            
+
             index_to_remove = self.highlighted_row
             self.all_rows.pop(index_to_remove)
-            
+
             for key in self.detail_vars:
                 self.detail_vars[key].set("")
-            
+
             self.set_table_rows(self.all_rows)
             self.detail_status_var.set("Registro borrado exitosamente.")
-            
+
         except Exception as e:
             self.detail_status_var.set(f"Error al borrar: {str(e)}")
             messagebox.showerror("Error", f"No se pudo borrar:\n{str(e)}")
 
     # --------- Tooltips para mostrar texto completo ---------
     def _bind_tooltip(self, widget, text):
-        """Vincula eventos de tooltip a un widget."""
         widget.bind("<Enter>", lambda e: self._show_tooltip(e, text))
         widget.bind("<Leave>", lambda e: self._hide_tooltip())
         widget.bind("<Button-1>", lambda e: self._hide_tooltip())
 
     def _show_tooltip(self, event, text):
-        """Muestra un tooltip con el texto completo."""
-        # Cancelar cualquier tooltip programado
         if self.tooltip_job:
             self.after_cancel(self.tooltip_job)
-        
-        # Programar mostrar tooltip después de 300ms (más rápido)
         self.tooltip_job = self.after(300, lambda: self._create_tooltip(event, text))
 
     def _create_tooltip(self, event, text):
-        """Crea la ventana del tooltip."""
         if self.tooltip_window:
             return
-        
-        # Obtener coordenadas del cursor
+
         x = event.widget.winfo_pointerx() + 10
         y = event.widget.winfo_pointery() + 10
-        
-        # Crear ventana toplevel
+
         self.tooltip_window = ctk.CTkToplevel(self)
         self.tooltip_window.wm_overrideredirect(True)
         self.tooltip_window.wm_geometry(f"+{x}+{y}")
-        
-        # Frame con el texto
+
         tooltip_frame = ctk.CTkFrame(
             self.tooltip_window,
             fg_color="#2C3E50",
@@ -517,7 +552,7 @@ class EscaneosDiaView(ctk.CTkFrame):
             border_color="#6B9080"
         )
         tooltip_frame.pack(padx=2, pady=2)
-        
+
         label = ctk.CTkLabel(
             tooltip_frame,
             text=text,
@@ -528,13 +563,10 @@ class EscaneosDiaView(ctk.CTkFrame):
         label.pack(padx=8, pady=6)
 
     def _hide_tooltip(self):
-        """Oculta el tooltip."""
-        # Cancelar job programado
         if self.tooltip_job:
             self.after_cancel(self.tooltip_job)
             self.tooltip_job = None
-        
-        # Destruir ventana si existe
+
         if self.tooltip_window:
             self.tooltip_window.destroy()
             self.tooltip_window = None
@@ -552,7 +584,6 @@ if __name__ == "__main__":
     view = EscaneosDiaView(app)
     view.pack(fill="both", expand=True)
 
-    # Datos de ejemplo con todas las columnas
     ejemplo_filas = [
         [1, "SNN001", "AA:BB:CC:DD:EE:01", "Totalplay-2.4G", "Totalplay-5G", "pass1234", "FUNCIONAL", "C001", "FIBERHOME", "22/10/2025"],
         [2, "SNN002", "AA:BB:CC:DD:EE:02", "Totalplay-2.4G", "Totalplay-5G", "pass5678", "FUNCIONAL", "C010", "FIBERHOME", "22/10/2025"],
