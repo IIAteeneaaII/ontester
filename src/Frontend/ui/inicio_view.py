@@ -297,3 +297,5 @@ if __name__ == "__main__":
     view.pack(fill="both", expand=True)
 
     app.mainloop()
+
+#acompletar con la investigacion sobre la implementacion del modelo ZTE
