@@ -1,0 +1,21 @@
+============================================================
+REPORTE DE PRUEBAS AUTOMATIZADAS - ONT
+============================================================
+Fecha: 15/12/2025 13:48:49
+Modelo: HG6145F (MOD001)
+Host: 192.168.100.1
+MAC Address: 10:07:1D:22:2B:98
+Serie: 464854549E222B98
+
+RESULTADOS:
+------------------------------------------------------------
+[OK] PWD_PASS: PASS
+[OK] PING_CONNECTIVITY: PASS
+[OK] HTTP_CONNECTIVITY: PASS
+[OK] PORT_SCAN: PASS
+[OK] DNS_RESOLUTION: PASS
+[OK] SOFTWARE_PASS: PASS
+
+------------------------------------------------------------
+RESUMEN: 6 PASS | 0 FAIL | 0 SKIP
+============================================================

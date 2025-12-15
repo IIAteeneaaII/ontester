@@ -26,6 +26,15 @@ def generarCertificado(resultado: dict):
     dt = datetime.fromisoformat(fechaTest)
     fechaTest = dt.strftime("%d/%m/%Y")
     fechaHoy = datetime.now().strftime("%d/%m/%Y")
+    sft_v = info.get("sftVer", "")
+    # Software update pass
+    sftUStatus = "SKIP"
+    if (info.get("modelo") == "HG6145F" or info.get("modelo") == "HG6145F1"):
+        if ("!" not in sft_v):
+            # No contiene ! => estaba actualizado o se actualizó
+            sftUStatus = "PASS"
+        else:
+            sftUStatus = "FAIL"
     contexto = {
         # header
         "sn": info.get("sn", ""),
@@ -43,7 +52,7 @@ def generarCertificado(resultado: dict):
         # pruebas
         "fact_reset": tests.get("reset",""),
         "ping": tests.get("ping",""),
-        "sft_u": "SKIP", # Tambien se cambiara por variable
+        "sft_u": sftUStatus, 
         "usb": tests.get("usb", ""),
         "fibra_tx": tests.get("tx",""),
         "fibra_rx": tests.get("rx",""),

@@ -336,11 +336,11 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
         
         if device_type == "GRANDSTREAM":
             return self._login_grandstream()
-        elif device_type == "FIBERHOME" or self.model == "MOD001":
+        elif device_type == "FIBERHOME" or self.model == "MOD001" or self.model == "MOD008":
             return self._login_fiberhome()  # Fiberhome usa Selenium
         elif device_type == "ZTE" or self.model == "MOD002":
             return self._login_zte(False) # False para indicar que aun no se ha reseteado
-        elif device_type == "HUAWEI" or self.model in ["MOD003", "MOD004", "MOD005"]:
+        elif device_type == "HUAWEI" or self.model in ["MOD003", "MOD004", "MOD005", "MOD007"]:
             return self._login_huawei()
         else:
             return self._login_ont_standard()
@@ -384,10 +384,10 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
                             self.model = "MOD005"
                         else:
                             self.model = "MOD004"
-                    elif 'hg8145x6' in html or 'hg6145f1' in html:
-                        self.model = "MOD007"
                     elif 'hg8145x6-10' in html:
                         self.model = "MOD003"
+                    elif 'hg8145x6' in html:
+                        self.model = "MOD007"
                     else:
                         # Default to MOD004 for unknown Huawei
                         self.model = "MOD004"
@@ -638,17 +638,17 @@ def main():
     """
     tester = ONTAutomatedTester(args.host, args.model)
     opc = tester.opcionesTest
-    opc["tests"]["factory_reset"] = False # Deshabilitar factory reset automatico
-    opc["tests"]["software_update"] = True # Deshabilitar factory reset automatico
-    opc["tests"]["tx_power"] = False # Deshabilitar factory reset automatico
-    opc["tests"]["rx_power"] = False # Deshabilitar factory reset automatico
-    opc["tests"]["wifi_24ghz_signal"] = False # Deshabilitar factory reset automatico
-    opc["tests"]["wifi_5ghz_signal"] = False # Deshabilitar factory reset automatico
-    opc["tests"]["usb_port"] = True
+    opc["tests"]["factory_reset"] =     True # Deshabilitar factory reset automatico
+    opc["tests"]["software_update"] =   True 
+    opc["tests"]["tx_power"] =          True 
+    opc["tests"]["rx_power"] =          True 
+    opc["tests"]["wifi_24ghz_signal"] = True 
+    opc["tests"]["wifi_5ghz_signal"] =  True 
+    opc["tests"]["usb_port"] =          True
     tester.run_all_tests() # No hace falta pasar parametros, como pertenece a la misma instancia
     
     # Mostrar reporte en consola
-    if(args.model == "MOD001"):
+    if(tester.model == "MOD001"):
         print("\n" + tester.generate_report())
         tester.save_results(args.output) # Guardar resultados
 

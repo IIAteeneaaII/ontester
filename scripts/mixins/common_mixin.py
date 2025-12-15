@@ -764,6 +764,16 @@ class CommonMixin:
                         print(f"[AUTH] WiFi 2.4GHz: {wifi_info['ssid_24ghz']}")
                     if wifi_info.get('ssid_5ghz'):
                         print(f"[AUTH] WiFi 5GHz: {wifi_info['ssid_5ghz']}")
+                    
+                    print("[INFO] Intentando extracción de passwords WiFi por Selenium...")
+                    selenium_passwords = self._extract_wifi_password_selenium()
+                    if selenium_passwords:
+                        meta = self.test_results.setdefault("metadata", {})
+                        base = meta.setdefault("base_info", {})
+                        wifi_info_dict = base.setdefault("wifi_info", {})
+                        wifi_info_dict.update(selenium_passwords)
+                    #     wifi_info.update(selenium_passwords)
+                    #     print(f"[INFO] Passwords extraídas por Selenium: {list(selenium_passwords.keys())}")
             else:
                 # Fallback: intentar extraer MAC con método alternativo
                 mac_info = self._extract_ont_mac()
@@ -1106,7 +1116,7 @@ class CommonMixin:
         sftVer = self.test_results['metadata']['base_info']['raw_data'].get('SoftwareVersion') #nombre sft
         wifi24 = self.test_results['metadata']['base_info']['wifi_info'].get('ssid_24ghz') #nombre wifi 2.4
         wifi5 = self.test_results['metadata']['base_info']['wifi_info'].get('ssid_5ghz') #nombre wifi 2.4
-        passWifi = self.test_results['tests']['WIFI_24GHZ']['details'].get('password_unencrypted') # contraseña
+        passWifi = self.test_results['additional_info']['wifi_info']['psw'].get('password_24ghz') # contraseña
 
         # Tests
         ping = self.test_results['tests']['PING_CONNECTIVITY'].get('status') # pass
@@ -1134,6 +1144,15 @@ class CommonMixin:
             w5 = True
         else:
             w5 = False
+        #Obtener resultado de actualización de sft
+        actN = self.test_results['tests']['software_update'].get('necesaria') # Bool
+        actC = self.test_results['tests']['software_update'].get('completada') # Bool
+        actNV = self.test_results['tests']['software_update'].get('version_nueva') # str
+        if (actN):
+            #Actualización necesaria
+            sftVer = sftVer+" !"
+            if actC:
+                sftVer = actNV+" ACTUALIZADO"
         # Obtener los resultados como json
         resultado = {}
         resultado = self._resultados_json_corto(fecha, modelo, sn, mac, sftVer, wifi24, wifi5, passWifi, ping, reset, usb, tx, rx, w24, w5)

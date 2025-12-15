@@ -574,6 +574,33 @@ class FiberMixin:
         except Exception as e:
             print(f"[DEBUG] Error verificando wizard: {e}")
 
+    def _ensure_fiberhome_driver(self) -> bool:
+        """
+        Verifica que self.driver siga vivo.
+        - Si no hay driver, hace login Selenium.
+        - Si el driver está muerto, lo cierra y crea uno nuevo.
+        """
+        # No hay driver → login normal
+        if not getattr(self, "driver", None):
+            print("[SELENIUM] No hay driver. Iniciando login Fiberhome...")
+            return self._login_fiberhome()
+
+        # Hay objeto driver, pero puede estar muerto
+        try:
+            # comando muy simple solo para probar conexión
+            _ = self.driver.current_url
+            return True
+        except Exception as e:
+            print(f"[SELENIUM] Driver inválido/desconectado: {e}")
+            # intentar cerrarlo por si quedó zombie
+            try:
+                self.driver.quit()
+            except Exception:
+                pass
+            self.driver = None
+            print("[SELENIUM] Recreando driver con nuevo login...")
+            return self._login_fiberhome()
+
     def _reset_factory_fiberhome(self):
         """
         Realiza reset de fábrica para Fiberhome.
@@ -1061,11 +1088,22 @@ class FiberMixin:
         Returns:
             Dict con passwords_24ghz y password_5ghz
         """
-        if not driver and not self.driver:
-            print("[ERROR] No hay driver de Selenium disponible")
-            return {}
+        # --- asegurar driver válido ---
+        if driver is None:
+            # usamos el driver de la clase, pero garantizando que la sesión exista
+            if not self._ensure_fiberhome_driver():
+                print("[ERROR] No se pudo preparar un driver Selenium para WiFi")
+                return {}
+            driver = self.driver
+        else:
+            # si nos pasan un driver explícito, verificar que esté vivo
+            try:
+                _ = driver.current_url
+            except Exception as e:
+                print(f"[SELENIUM] Driver pasado a _extract_wifi_password_selenium no es válido: {e}")
+                return {}
         
-        driver = driver or self.driver
+        # driver = driver or self.driver
         passwords = {}
         
         try:
@@ -1122,6 +1160,11 @@ class FiberMixin:
                     print(f"[SELENIUM] ✓ Password 2.4GHz extraída: {password}")
                     passwords['password_24ghz'] = password
                     passwords['extraction_method'] = 'selenium_dom_manipulation'
+
+                    # Definirla directamente en los resultados
+                    extra = self.test_results.setdefault('additional_info', {})  # o 'aditional_info'
+                    wifi  = extra.setdefault('wifi_info', {})
+                    wifi['psw'] = passwords
                 else:
                     print("[WARN] Campo PreSharedKey vacío")
             else:
@@ -1407,10 +1450,15 @@ class FiberMixin:
             "details": {"reason": "Test no destructivo - requiere verificacion manual"}
         }
         
-        # Lógica específica para Fiberhome (MOD001)
-        if self.model == "MOD001" or self.test_results['metadata'].get('device_type') == "FIBERHOME":
+        # Lógica específica para Fiberhome (MOD001 y MOD008)
+        if (self.model == "MOD001" or self.model == "MOD008"):
             print("[TEST] Ejecutando secuencia de Factory Reset para Fiberhome...")
             
+              # Asegurar driver válido
+            if not self._ensure_fiberhome_driver():
+                result["status"] = "FAIL"
+                result["details"]["error"] = "No se pudo iniciar driver Selenium para reset"
+                return result
             # Asegurar que tenemos driver de Selenium activo
             if not self.driver:
                 print("[TEST] Driver no activo (login previo fue AJAX?). Iniciando login Fiberhome para obtener driver...")
@@ -1974,7 +2022,13 @@ class FiberMixin:
         time.sleep(1)
     # Función para actualizar software
     def test_sft_update(self):
+        # Version actual:
+        sftVer = self.test_results['metadata']['base_info']['raw_data'].get('SoftwareVersion')
+        need = False
+        completada = False
+        newVer = "None"
         ok = self.test_sft_updateCheck()
+        need = ok
         if ok:
             print("[INFO] Actualizando software")
             # Se definen las variables a utilizar
@@ -1983,6 +2037,8 @@ class FiberMixin:
             else:
                 FIRMWARE_PATH = r"C:\BINS\HG6145F1"
             archivo = self.searchBins(FIRMWARE_PATH)
+            stem = Path(archivo).stem      # "HG6145F_RP4379"
+            newVer = stem.split("_", 1)[1]  # "RP4379"
             # Se necesitará hacer otro login con las credenciales de super usuario
             max_reintentos = 5
             for n in range(max_reintentos):
@@ -1999,10 +2055,19 @@ class FiberMixin:
 
                 print("[*] Firmware enviado. Esperando reinicio...")
                 self.wait_for_router()  # o tu método equivalente
+                completada = True
             else:
                 print("[ERROR] No se pudo hacer el login de Super Admin")
         else:
             print("[INFO] No se actualizará software")
+
+        # Agregar a test_results
+        self.test_results["tests"]["software_update"] = {
+            "necesaria": need,
+            "completada": completada,
+            "version_anterior": sftVer,
+            "version_nueva": newVer
+        }
 
     def wait_for_router(self, max_wait_down=120, max_wait_up=300):
         """

@@ -636,7 +636,7 @@ class Mac():
 
                 clients.append(client)
 
-            # print(f"[WIFI CLIENTS] Se encontraron {len(clients)} clientes WiFi")
+            print(f"[WIFI CLIENTS] Se encontraron {len(clients)} clientes WiFi")
             return clients
 
         except Exception as e:
