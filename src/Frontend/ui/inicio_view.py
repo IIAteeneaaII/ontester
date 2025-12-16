@@ -87,21 +87,16 @@ class InicioView(ctk.CTkFrame):
         )
         card.place(relx=0.5, rely=0.45, anchor="center")
 
-        # Encabezado superior con esquinas redondeadas perfectas
-        # Primero un frame que cubra completamente el área del header con esquinas
-        header_base = ctk.CTkFrame(card, fg_color=self.COL_VERDE, corner_radius=20, width=520, height=90)
-        header_base.place(x=0, y=0, relwidth=1.0)
-        
-        # Frame rectangular que cubre la parte inferior para dejar solo esquinas superiores redondeadas
-        header_bottom = ctk.CTkFrame(card, fg_color=self.COL_VERDE, corner_radius=0, width=520, height=70)
-        header_bottom.place(x=0, y=20, relwidth=1.0)
+        # Encabezado superior simple sin esquinas redondeadas
+        header = ctk.CTkFrame(card, fg_color=self.COL_VERDE, corner_radius=0, width=520, height=70)
+        header.place(x=0, y=0, relwidth=1.0)
 
         ctk.CTkLabel(
-            header_base,
+            header,
             text="ONT TESTER",
             font=ctk.CTkFont(size=20, weight="bold"),
             text_color="white"
-        ).place(relx=0.5, rely=0.55, anchor="center")
+        ).place(relx=0.5, rely=0.5, anchor="center")
 
         # ------------------------------
         # Logo centrado
@@ -297,5 +292,3 @@ if __name__ == "__main__":
     view.pack(fill="both", expand=True)
 
     app.mainloop()
-
-#acompletar con la investigacion sobre la implementacion del modelo ZTE
