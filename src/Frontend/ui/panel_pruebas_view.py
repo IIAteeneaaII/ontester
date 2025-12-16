@@ -1,4 +1,3 @@
-# src/Frontend/ui/panel_pruebas_view.py
 """
 Módulo que define el panel inferior de pruebas de conectividad.
 
@@ -69,11 +68,12 @@ class PanelPruebasConexion(ctk.CTkFrame):
         # -----------------------------------------------------------------
         # Apariencia general del marco contenedor
         # -----------------------------------------------------------------
-        # Se busca un verde pastel muy suave para que combine con la paleta
-        # de la aplicación, sin cansar la vista.
+        # Ahora usamos un verde suave que coincide con la paleta de la app
         self.configure(
             corner_radius=10,
-            fg_color="#CFF9D9",   # Verde muy claro tipo "tarjeta"
+            fg_color="#D4E7D7",   # Verde muy suave, más claro que #90C695
+            border_width=2,
+            border_color="#6B9080"  # Borde verde principal
         )
 
         # -----------------------------------------------------------------
@@ -93,7 +93,7 @@ class PanelPruebasConexion(ctk.CTkFrame):
             self,
             text="NO CONECTADO",
             font=ctk.CTkFont(size=16, weight="bold"),
-            text_color="#E0665C",    # Rojo suave para el estado "no conectado"
+            text_color="#C1666B",    # Rojo suave para el estado "no conectado"
         )
         self.lbl_estado.grid(
             row=0,
@@ -112,7 +112,7 @@ class PanelPruebasConexion(ctk.CTkFrame):
             self,
             text="texto superior",
             font=ctk.CTkFont(size=12, weight="bold"),
-            text_color="#333333",
+            text_color="#2C3E50",
         )
         self.lbl_texto_superior.grid(
             row=1,
@@ -176,7 +176,7 @@ class PanelPruebasConexion(ctk.CTkFrame):
             self,
             text="TEXTO",
             font=ctk.CTkFont(size=12, weight="bold"),
-            text_color="#333333",
+            text_color="#2C3E50",
         )
         self.lbl_texto.grid(
             row=3,
@@ -200,13 +200,13 @@ class PanelPruebasConexion(ctk.CTkFrame):
             # Estado conectado: texto en verde
             self.lbl_estado.configure(
                 text="CONECTADO",
-                text_color="#27AE60"  # Verde
+                text_color="#6B9080"  # Verde principal de la app
             )
         else:
             # Estado no conectado: texto en rojo pastel
             self.lbl_estado.configure(
                 text="NO CONECTADO",
-                text_color="#E0665C"  # Rojo pastel
+                text_color="#C1666B"  # Rojo suave
             )
 
     # -----------------------------------------------------------------
