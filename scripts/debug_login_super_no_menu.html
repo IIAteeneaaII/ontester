@@ -1,0 +1,388 @@
+<html xmlns="http://www.w3.org/1999/xhtml"><head>
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+<link href="../../../Cuscss/english/frame.css?2023010423301546553184798" rel="stylesheet" type="text/css">
+<link href="../../../Cuscss/english/guide.css?2023010423301546553184798" rel="stylesheet" type="text/css">
+<script src="../../../resource/common/jquery.min.js?2023010423301546553184798" type="text/javascript"></script>
+<script src="../../../resource/common/util.js?2023010423301546553184798" type="text/javascript"></script>
+<script language="JavaScript" src="../../../resource/english/ssmpdes.js?2023010423301546553184798"></script>
+<title>HG8145V5</title>
+<script>
+var mngttype = '0';
+var logo_singtel = '0';
+var ProductName = 'HG8145V5';
+var RedirtIndex = 0;
+var UpgradeFlag = 0;
+var TypeWord_com = '';
+var CfgMode ='TOTALPLAY2';
+var isTruergT3 = '0';
+var sonetFlag = '0';
+var guideIndex = '0';
+var L3_Web_cut = '0';
+var UserName = 'telecomadmin';
+var webLogo = '';
+
+guideIndex = guideIndex - 48;
+document.title = ProductName;
+
+function loadframe()
+{
+if ( (0 < guideIndex) && (5 > guideIndex))
+{
+RedirtIndex = guideIndex;
+document.getElementById("img" + guideIndex).src = "../../../images/guidecheck.jpg";
+}
+else
+document.getElementById("btncfgnext").disabled = "disabled";
+
+if (CfgMode.toUpperCase() == 'BRAZCLARO') {
+        $("#mainguidebg").css("background-color", "rgb(218,41,28)");
+        $("#mainguidebg").css("background-image", "url()");
+}
+if (L3_Web_cut == true) {
+setDisplay("guideline3",0);
+setDisplay("guideline4",0);
+}
+}
+
+function onchangeimg(id)
+{
+var selectpng = document.getElementById(id).src.split("/");
+selectpng = selectpng[selectpng.length - 1];
+
+if(selectpng == "guidenocheck.jpg")
+{
+document.getElementById(id).src = "../../../images/guidecheck.jpg";
+RedirtIndex = id.substr(id.length - 1, 1);
+for(var i = 1; i < 5; i++)
+{
+if (RedirtIndex != i)
+{
+document.getElementById("img" + i).src = "../../../images/guidenocheck.jpg";
+}
+}
+document.getElementById("btncfgnext").disabled = "";
+}
+else
+{
+document.getElementById(id).src = "../../../images/guidenocheck.jpg";
+RedirtIndex = 0;
+document.getElementById("btncfgnext").disabled = "disabled";
+}
+}
+
+function onbtncfgnext(val)
+{
+if (0 < RedirtIndex && 5 > RedirtIndex)
+{
+$.ajax({
+type : "POST",
+async : false,
+cache : false,
+url : '/smartguide.cgi?1=1&RequestFile=CustomApp/adminguideframe.asp',
+data:'Parainfo=' + RedirtIndex,
+success : function(data) {
+;
+}
+});
+
+window.location="/CustomApp/adminguideframe.asp";
+}
+}
+
+function onfirstpage(val)
+{
+if (-48 == guideIndex)
+{
+$.ajax({
+type : "POST",
+async : false,
+cache : false,
+url : '/smartguide.cgi?1=1&RequestFile=index.asp',
+data:'Parainfo='+'0',
+success : function(data) {
+;
+}
+});
+}
+
+window.location="/index.asp";
+}
+</script></head>
+
+<body onload="loadframe();">
+<div id="mainguidebg">
+<div id="mainguidetop">
+<script>
+if(true == logo_singtel)
+{
+document.write('<div id="brandlog_singtel" style="display:none;"></div>');
+}
+else if ('TELECENTRO' == CfgMode.toUpperCase())
+{
+document.write('<div id="brandlog_telecentro" style="display:none;"></div>');
+}
+else if ('PLDT2' == CfgMode.toUpperCase() || 'PLDT' == CfgMode.toUpperCase())
+{
+document.write('<div id="brandlog_pldt" style="display:none;"></div>');
+}
+else if ((CfgMode.toUpperCase() == 'ANTEL2') || (CfgMode.toUpperCase() == 'ANTEL')) {
+document.write('<div id="brandlog_antel" style="display:none;"></div>');
+            } else if (('OMANONT' == CfgMode.toUpperCase()) || 
+                       ('OMANONT2' == CfgMode.toUpperCase())) {
+                    document.write('<div id="brandlog_oman" style="display:none;"></div>');
+}
+else if ('MAROCTELECOM' == CfgMode.toUpperCase())
+{
+document.write('<div id="brandlog_maroctelecom" style="display:none;"></div>');
+}
+else if ('ORANGEMT' == CfgMode.toUpperCase())
+{
+document.write('<div style="margin: 0 auto">' + '<div style="height: 8px"></div>'+'<img id="brandlog_orangemt" src="../../../images/hwlogo_orangemt.gif" width="48px"></img>' + '<div  id="ProductNameOrg">' + ProductName + '</div>'+'</div>');
+} else if (CfgMode.toUpperCase() == 'MYTIME') {
+document.write('<div style="margin: 0 auto">' + '<div style="height: 12px"></div>'+'<div style="margin-left:50px"><img id="brandlog_mytime" src="../../../images/hwlogo_mytime.gif" width="92px"></img></div>' + '<div id="ProductNamePar" style="margin-top: -37px">' + ProductName + '</div>'+'</div>');
+} else if (isTruergT3 == 1) {
+document.write('<div style="margin: 0 auto">' + '<div style="height: 8px"></div>'+'<img id="brandlog_truerg" src="../../../images/hwlogo_truergpwdsn.gif" width="48px"></img>' + '<div id="ProductNameTruergPwdsn">' + ProductName + '</div>'+'</div>');
+}
+else if (CfgMode.toUpperCase() == 'PARAGUAYPSN')
+{
+document.write('<div style="margin: 0 auto">' + '<div style="height: 8px"></div>'+'<div style="margin-left:50px"><img id="brandlog_paraguaypsn" src="../../../images/hwlogo_paraguaypsn.gif" width="92px"></img></div>' + '<div id="ProductNamePar">' + ProductName + '</div>'+'</div>');
+} else if (CfgMode.toUpperCase() == 'CLARODR') {
+                document.write('<div id="brandlog_clarodr" style="display:none;"></div>');
+            } else if (CfgMode.toUpperCase() == "BRAZCLARO") {
+    document.write('<div id="brandlog_claro" style="display:none;"></div>');
+} else if ((CfgMode.toUpperCase() != "COMMON") && (ProductName.toUpperCase() == "K662C")) {
+document.write('<div id="brandlog_deskctap" style="display:none;"></div>');
+} else if (CfgMode.toUpperCase() == 'DETHMAXIS') {
+document.write('<div style="margin: 0 auto">' + '<div style="height: 18px"></div>'+'<img id="brandlog_dethmaxis" src="../../../images/hwlogo_dethmaxis.gif" width="65px"></img>' + '<div id="ProductNameDethmaxis">' + ProductName + '</div>'+'</div>');
+} else if (CfgMode.toUpperCase() == 'CYPRUSCYTA') {
+document.write('<div style="margin: 0 auto">' + '<div style="height: 18px"></div>'+'<div style="margin-left:50px"><img id="brandlog_cypruscyta" src="../../../images/hwlogo_cyta.jpg" width="92px"></img></div>' + '<div id="ProductNameCypruscyta" style="margin-top: -40px">' + ProductName + '</div>'+'</div>');
+} else if (CfgMode.toUpperCase() == 'COMMONRMHW') {
+document.write('<div id="brandlog_commonrmhw" style="display:none;"></div>');
+} else {
+document.write('<div id="brandlog" style="display:none;"></div>');
+}
+</script><div id="brandlog" style="display: block;"></div>
+<script>
+if(true == logo_singtel)
+{
+document.write('<div id="ProductName" style="text-align:right; height:41px; line-height:63px; margin-left:630px;">' + ProductName + '</div>');
+}
+else if ((CfgMode.toUpperCase() !== 'ORANGEMT') && (CfgMode.toUpperCase() !== 'PARAGUAYPSN') && (isTruergT3 != 1)
+&& (CfgMode.toUpperCase() !== 'MYTIME') && (CfgMode.toUpperCase() != 'DETHMAXIS') && (CfgMode.toUpperCase() != 'CYPRUSCYTA')) {
+document.write('<div id="ProductName">' + htmlencode(ProductName) + '</div>');
+}
+</script><div id="ProductName">HG8145V5</div>
+
+<div id="guidindexhead" class="guideline">
+<div class="guidecheckbox"></div>
+<div class="guidecontent"><div class="check_title"><span bindtext="s2000">Service Provisioning Method</span></div></div>
+</div>
+<div class="guideheadspace"></div>
+<div id="guideline1" class="guideline">
+<div class="guidecheckbox"><img id="img1" src="../../../images/guidenocheck.jpg" onclick="onchangeimg(this.id);"></div>
+<div class="guidecontent"><div class="check_title"><span id="oltcfg" bindtext="s2001">On the OLT</span></div></div>
+<div class="guidecheckbox"></div>
+<!--
+<div class="guidecontent"><div class="check_content"><span id="oltcfginfo" BindText="s2002"></span></div></div>
+-->
+<script>
+if (ProductName == 'DN82545F')
+{
+document.write('<div class="guidecontent"><div class="check_content"><span id="oltcfginfo" BindText="s2002_xd"></span></div></div>');
+}
+else
+{
+document.write('<div class="guidecontent"><div class="check_content"><span id="oltcfginfo" BindText="s2002"></span></div></div>');
+}
+</script><div class="guidecontent"><div class="check_content"><span id="oltcfginfo" bindtext="s2002">Services for the ONT are configured on the OLT.</span></div></div>
+</div>
+<div class="guidespace"></div>
+<div id="guideline2" class="guideline">
+<div class="guidecheckbox"><img id="img2" src="../../../images/guidenocheck.jpg" onclick="onchangeimg(this.id);"></div>
+<div class="guidecontent"><div class="check_title"><span id="emscfg" bindtext="s2003">On the EMS</span></div></div>
+<div class="guidecheckbox"></div>
+<!--
+<div class="guidecontent"><div class="check_content"><span id="emscfginfo" BindText="s2004"></span></div></div>
+-->
+<script>
+if (ProductName == 'DN8245F')
+{
+document.write('<div class="guidecontent"><div class="check_content"><span id="emscfginfo" BindText="s2004_xd"></span></div></div>');
+}
+else
+{
+document.write('<div class="guidecontent"><div class="check_content"><span id="emscfginfo" BindText="s2004"></span></div></div>');
+}
+</script><div class="guidecontent"><div class="check_content"><span id="emscfginfo" bindtext="s2004">Services for the ONT are configured on the EMS.</span></div></div>
+</div>
+<div class="guidespace"></div>
+<div id="guideline3" class="guideline">
+<div class="guidecheckbox"><img id="img3" src="../../../images/guidenocheck.jpg" onclick="onchangeimg(this.id);"></div>
+<div class="guidecontent"><div class="check_title"><span id="acscfg" bindtext="s2005">On the ACS</span></div></div>
+<div class="guidecheckbox"></div>
+<!--
+<div class="guidecontent"><div class="check_content"><span id="acscfginfo" BindText="s2006"></span></div></div>
+-->
+<script>
+if (ProductName == 'DN8245F')
+{
+document.write('<div class="guidecontent"><div class="check_content"><span id="acscfginfo" BindText="s2006_xd"></span></div></div>');
+}
+else
+{
+document.write('<div class="guidecontent"><div class="check_content"><span id="acscfginfo" BindText="s2006"></span></div></div>');
+}
+</script><div class="guidecontent"><div class="check_content"><span id="acscfginfo" bindtext="s2006">Services for the ONT are configured on the ACS.</span></div></div>
+</div>
+<div class="guidespace"></div>
+<div id="guideline4" class="guideline">
+<div class="guidecheckbox"><img id="img4" src="../../../images/guidenocheck.jpg" onclick="onchangeimg(this.id);"></div>
+<!--
+<div class="guidecontent"><div class="check_title"><span id="webcfg" BindText="s2007"></span></div></div>
+<div class="guidecheckbox"></div>
+<div class="guidecontent"><div class="check_content"><span id="webcfginfo" BindText="s2008"></span></div></div>
+-->
+<script>
+if (ProductName == 'DN8245F')
+{
+document.write('<div class="guidecontent"><div class="check_title"><span id="webcfg" BindText="s2007_xd"></span></div></div><div class="guidecheckbox"></div><div class="guidecontent"><div class="check_content"><span id="webcfginfo" BindText="s2008_xd"></span></div></div>');
+}
+else
+{
+document.write('<div class="guidecontent"><div class="check_title"><span id="webcfg" BindText="s2007"></span></div></div><div class="guidecheckbox"></div><div class="guidecontent"><div class="check_content"><span id="webcfginfo" BindText="s2008"></span></div></div>');
+}
+</script><div class="guidecontent"><div class="check_title"><span id="webcfg" bindtext="s2007">On the ONT web page</span></div></div><div class="guidecheckbox"></div><div class="guidecontent"><div class="check_content"><span id="webcfginfo" bindtext="s2008">Services for the ONT are configured on the ONT web page.</span></div></div>
+</div>
+<div class="guidespace"></div>
+<div id="guideline5" class="guideline">
+<div class="guidecheckbox"></div>
+<div class="guidecontent">
+<input type="button" id="firstpage" class="CancleButtonBlueBgCss buttonwidth_100px" onclick="onfirstpage(this);" value="Exit" bindtext="s2009">
+<input type="button" id="btncfgnext" class="CancleButtonBlueBgCss buttonwidth_100px" onclick="onbtncfgnext(this);" value="Next" bindtext="s2010" disabled="">
+</div>
+</div>
+</div>
+</div>
+<div id="greenline"></div>
+<div id="copyright">
+<div id="copyrightspace"></div>
+<div id="copyrightlog" style="display: block;"></div>
+        <script type="text/javascript">
+            if (sonetFlag == 1) {
+                document.write('<div id="copyrighttext"><span id="footer" BindText="s2011SGP"></span></div>');
+            } else {
+                document.write('<div id="copyrighttext"><span id="footer" BindText="s2011"></span></div>');
+            }
+        </script><div id="copyrighttext"><span id="footer" bindtext="s2011">Copyright © 2023 Huawei Technologies Co., Ltd. All rights reserved.</span></div>
+</div>
+
+<div style="display:none;">
+<iframe frameborder="0" height="100%" marginheight="0" marginwidth="0" scrolling="no" src="/refresh.asp" width="100%"></iframe>
+</div>
+
+<script>
+ParseBindTextByTagName(CfgguideLgeDes, "span",  1, mngttype, logo_singtel);
+ParseBindTextByTagName(CfgguideLgeDes, "input", 2);
+if (parseInt(mngttype, 10) != 1)
+{
+if(parseInt(logo_singtel, 10) == 1)
+{
+if(TypeWord_com == "COMMON")
+{
+$("#brandlog_singtel").css("background-image", "url()");
+}
+    $("#brandlog_singtel").css("display", "block");
+}
+else
+{
+    if ('TELECENTRO' == CfgMode.toUpperCase())
+{
+$("#brandlog_telecentro").css("display", "block");
+}
+else if ('PLDT2' == CfgMode.toUpperCase() || 'PLDT' == CfgMode.toUpperCase())
+{
+$("#brandlog_pldt").css("display", "block");
+}
+else if ((CfgMode.toUpperCase() == 'ANTEL2') || (CfgMode.toUpperCase() == 'ANTEL')) {
+$("#brandlog_antel").css("display", "block");
+$("#brandlog_antel").css("width", "92PX");
+$("#ProductName").css("line-height", "60PX");
+                } else if (('OMANONT' == CfgMode.toUpperCase()) ||
+                           ('OMANONT2' == CfgMode.toUpperCase())) {
+                        $("#brandlog_oman").css("display", "block");
+}
+else if ('MAROCTELECOM' == CfgMode.toUpperCase())
+{
+$("#brandlog_maroctelecom").css("display", "block");
+}
+else if ('ORANGEMT' == CfgMode.toUpperCase())
+{
+$("#brandlog_orangemt").css("display", "block");
+} else if (CfgMode.toUpperCase() == 'MYTIME') {
+$("#brandlog_mytime").css("display", "block");
+} else if (isTruergT3 == 1) {
+$("#brandlog_truerg").css("display", "block");
+} else if ('DETHMAXIS' == CfgMode.toUpperCase()) {
+$("#brandlog_dethmaxis").css("display", "block");
+} else if (CfgMode.toUpperCase() == 'CYPRUSCYTA') {
+$("#brandlog_cypruscyta").css("display", "block");
+} else if (CfgMode.toUpperCase() == 'PARAGUAYPSN')
+{
+$("#brandlog_paraguaypsn").css("display", "block");
+} else if (CfgMode.toUpperCase() == 'CLARODR') {
+                    $("#brandlog_clarodr").css("display", "block");
+                } else if (CfgMode.toUpperCase() == 'BRAZCLARO') {
+    $("#brandlog_claro").css("display", "block");
+} else if ((CfgMode.toUpperCase() != "COMMON") && (ProductName.toUpperCase() == "K662C")) {
+$("#brandlog_deskctap").css("background", "url('/images/logo_pon_login_deskctap.jpg') no-repeat center");
+    $("#brandlog_deskctap").css("display", "block");
+$("#brandlog_deskctap").css("width", "172px");
+$("#brandlog_deskctap").css("height", "60px");
+$("#brandlog_deskctap").css("float", "left");
+$("#copyrightlog").css("background-image", "url('')");
+} else if (CfgMode.toUpperCase() == 'COMMONRMHW') {
+$("#ProductName").css("line-height", "60px");
+$("#brandlog_commonrmhw").css("display", "block");
+$("#copyrightlog").css("background-image", "none");
+} else {
+$("#brandlog").css("display", "block");
+}
+}
+
+if((parseInt(logo_singtel, 10) == 1) && TypeWord_com == "COMMON")
+{
+$("#copyrightlog").css("display", "none");
+}
+else if (isTruergT3 == 1)
+{
+document.getElementById('copyrightlog').style.display = 'none';
+$("#copyrightlog").css("background-image", "url('')");
+$("#footer").css("display", "none");
+$("#footer").html("");
+} else if ('DETHMAXIS' == CfgMode.toUpperCase() || (CfgMode.toUpperCase() == 'COMMONRMHW')) {
+document.getElementById('copyrightlog').style.display = 'none';
+} else
+{
+$("#copyrightlog").css("display", "block");
+}
+            if ((CfgMode.toUpperCase() == 'TS2') || (CfgMode.toUpperCase() == 'TS') || (CfgMode.toUpperCase() == 'TS2WIFI')) {
+                $("#brandlog").css("background", "url(../../../images/logo_ts.jpg) no-repeat center");
+                $("#brandlog").css("background-size", "80%");
+                $("#brandlog").css("width", "155px");
+                $("#brandlog").css("height", "70px");
+                $("#ProductName").css("line-height", "95px");
+if (ProductName == "HG8245X6-8N-30") {
+$("#ProductName").css("width", "335px");
+}
+            }
+
+            if ((webLogo != undefined) && (webLogo != null) && (webLogo != "")) {
+                $("#brandlog").css("background", "url(../../../images/" + webLogo + ") no-repeat center");
+            }
+}
+</script>
+
+
+
+</body></html>

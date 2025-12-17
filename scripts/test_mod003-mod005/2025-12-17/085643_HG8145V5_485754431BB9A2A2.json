@@ -1,0 +1,95 @@
+{
+  "metadata": {
+    "host": "192.168.100.1",
+    "model": "HG8145V5",
+    "timestamp": "2025-12-17T08:47:10.244411",
+    "serial_number": "485754431BB9A2A2"
+  },
+  "tests": {
+    "hw_device": {
+      "name": "hw_device",
+      "data": {
+        "model": "HG8145V5",
+        "serial_number": "485754431BB9A2A2",
+        "serial_raw": "485754431BB9A2A2 (HWTC1BB9A2A2)",
+        "software_version": "V5R021C10S242"
+      }
+    },
+    "hw_lan": {
+      "name": "hw_lan",
+      "data": {
+        "ports": [
+          {
+            "port": "1",
+            "mode": "Full-duplex",
+            "speed": "1000 Mbit/s",
+            "status": "Up"
+          },
+          {
+            "port": "2",
+            "mode": "--",
+            "speed": "--",
+            "status": "Down"
+          },
+          {
+            "port": "3",
+            "mode": "--",
+            "speed": "--",
+            "status": "Down"
+          },
+          {
+            "port": "4",
+            "mode": "--",
+            "speed": "--",
+            "status": "Down"
+          }
+        ]
+      }
+    },
+    "hw_wifi24": {
+      "name": "hw_wifi24",
+      "data": {
+        "band": "2.4GHz",
+        "status": "Enabled",
+        "ssid": "Totalplay-A2A2"
+      }
+    },
+    "hw_wifi5": {
+      "name": "hw_wifi5",
+      "data": {
+        "band": "5GHz",
+        "status": "Enabled",
+        "ssid": "Totalplay-A2A2-5G"
+      }
+    },
+    "hw_mac": {
+      "name": "hw_mac",
+      "data": "8C:E5:EF:FE:0A:75"
+    },
+    "hw_wifi24_pass": {
+      "name": "hw_wifi24_pass",
+      "data": {
+        "band": "2.4GHz",
+        "password": "A2A20A754P2HZyPR"
+      }
+    },
+    "hw_wifi5_pass": {
+      "name": "hw_wifi5_pass",
+      "data": {
+        "band": "5GHz",
+        "password": "A2A20A754P2HZyPR"
+      }
+    },
+    "software_update": {
+      "name": "software_update",
+      "status": true,
+      "details": {
+        "previous_version": "V5R021C10S242",
+        "new_version": "V5R021C10S242",
+        "firmware_file": "C:\\BINS\\HG8145V5\\HG8145V5_V500R022C00SPC292.bin",
+        "update_completed": true,
+        "timestamp": "2025-12-17 08:56:43"
+      }
+    }
+  }
+}
