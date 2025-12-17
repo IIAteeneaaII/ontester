@@ -1049,6 +1049,10 @@ class HuaweiMixin:
         self.save_results2("test_mod003-mod005")
         #print(self.test_results)
 
+    def tail_digits(self, s: str) -> str:
+        m = re.search(r"(\d+)$", s)
+        return m.group(1) if m else ""
+
     def test_sft_updateCheckHw(self):
         print("Se ha seleccionado la actualización de software")
         # Obtener el modelo
@@ -1110,8 +1114,10 @@ class HuaweiMixin:
                 sft_num = "".join(ch for ch in codigo if ch.isdigit()) # "4379"
                 sftVerActual = "".join(ch for ch in sftVer if ch.isdigit())
 
+                sufijo_actual = self.tail_digits(sftVer)
+                sufijo_bin    = self.tail_digits(codigo)
                 # Verificar que la actual no sea igual o mayor a la que se quiere instalar
-                if (sftVerActual != sft_num): # Que sea diferente a la nuestra, para unificarlas
+                if (sufijo_actual != sufijo_bin): # Que sea diferente a la nuestra, para unificarlas
                     print("[INFO] Se necesita actualizar software")
                     return True
                 else:

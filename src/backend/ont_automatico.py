@@ -41,13 +41,13 @@ except ImportError:
     print("[WARNING] Selenium no disponible. Instala con: pip install selenium webdriver-manager")
 
 # IMPORTAR LOS MODULOS MIXIN
-from mixins.zte_mixin import ZTEMixin # importar la clase
-from mixins.huawei_mixin import HuaweiMixin
-from mixins.fiber_mixin import FiberMixin
-from mixins.grandstream_mixin import GrandStreamMixin
-from mixins.common_mixin import CommonMixin
+from src.backend.mixins.zte_mixin import ZTEMixin # importar la clase
+from src.backend.mixins.huawei_mixin import HuaweiMixin
+from src.backend.mixins.fiber_mixin import FiberMixin
+from src.backend.mixins.grandstream_mixin import GrandStreamMixin
+from src.backend.mixins.common_mixin import CommonMixin
 # IMPORTAR EL CERTIFICADO
-from certificado.certificado import generarCertificado
+from src.backend.certificado.certificado import generarCertificado
 
 class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, CommonMixin):
     def __init__(self, host: str, model: str = None):
@@ -69,6 +69,12 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
         # Ajustes para ZTE y Huawei
         self.minWifi24Percent = 60  # Porcentaje mínimo de señal WiFi 2.4GHz
         self.minWifi5Percent = 60   # Porcentaje mínimo de señal WiFi 5GHz
+
+        # Ajustes para la fibra
+        self.minTX = -60
+        self.minRX = -60
+        self.maxTX = 0
+        self.maxRX = 0
         self.test_results = {
             "metadata": {
                 "host": host,
@@ -155,7 +161,25 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
         """Configura los umbrales maximos de señal WiFi para los tests"""
         self.maxWifi24Signal = max24
         self.maxWifi5Signal = max5
+    
+    def _configFibraThresholds(self, min24: int, min5: int):
+        """Configura los umbrales mínimos de señal WiFi para los tests"""
+        self.minTX = min24
+        self.minTX = min5
 
+    def _configFibraThresholdsMax(self, max24: int, max5: int):
+        """Configura los umbrales maximos de señal WiFi para los tests"""
+        self.maxTX = max24
+        self.maxTX = max5
+
+    def _getMinFibraTx(self):
+        return self.minTX
+    def _getMaxFibraTx(self):
+        return self.maxTX
+    def _getMinFibraRx(self):
+        return self.minRX
+    def _getMinFibraRx(self):
+        return self.maxRX
     # Configuración de umbrales máximos de señal WiFi ZTE/Huawei
     def _configWifiSignalThresholdsPercent(self, min24: int, min5: int):
         """Configura los umbrales mínimos de señal WiFi para los tests"""
@@ -882,7 +906,10 @@ def run_retest_mode(host: str, model: str = None, output: str = None):
     print(f"    - JSON: {json_file}")
     print(f"    - TXT: {txt_file}")
 
-def main_loop():
+def main_loop(opciones, out_q = None):
+    def emit(kind, payload):
+        if out_q:
+            out_q.put((kind, payload))
     """
     Ciclo principal recursivo:
     1. Escanea red y encuentra dispositivo
@@ -935,25 +962,33 @@ def main_loop():
             print(f"\n[FASE 2/3] EJECUCIÓN DE PRUEBAS")
             print("-" * 60)
             
+            emit("log", "Iniciando main_loop...")
+            # Obtener modelo + matchear con dict
+            nombre = temp_tester._get_model_display_name(detected_model)
+            emit("logSuper", nombre)
             tester = ONTAutomatedTester(ip, detected_model)
-            opc = tester.opcionesTest
-            opc["tests"]["factory_reset"] = False
-            opc["tests"]["software_update"] = True
-            opc["tests"]["tx_power"] = False
-            opc["tests"]["rx_power"] = False
-            opc["tests"]["wifi_24ghz_signal"] = False
-            opc["tests"]["wifi_5ghz_signal"] = False
-            opc["tests"]["usb_port"] = False
+            tester.opcionesTest = opciones
+            print("Las opciones elegidas son: "+str(opciones))
+            # opc["tests"]["factory_reset"] = False
+            # opc["tests"]["software_update"] = True
+            # opc["tests"]["tx_power"] = False
+            # opc["tests"]["rx_power"] = False
+            # opc["tests"]["wifi_24ghz_signal"] = False
+            # opc["tests"]["wifi_5ghz_signal"] = False
+            # opc["tests"]["usb_port"] = False
             
             tester.run_all_tests()
             
+            # Mandar a llamar los resultados finales
+            resultados = tester._resultados_finales()
+            emit("resultados", resultados)
             # Mostrar reporte
             if detected_model == "MOD001":
                 print("\n" + tester.generate_report())
                 tester.save_results(None)
             
             # Generar certificado si todos los tests están habilitados
-            todo_tests_on = True
+            todo_tests_on = all(tester.opcionesTest["tests"].values())
             if todo_tests_on:
                 tester._generarCertificado()
             

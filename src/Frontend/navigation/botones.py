@@ -68,7 +68,7 @@ def boton_OMITIR(parent, command=None):
     """Botón para omitir retest de fábrica, con icono a la izquierda."""
     btn = ctk.CTkButton(
         parent,
-        text="OMITIR RETEST DE FÁBRICA",
+        text="RESET DE FÁBRICA",
         image=OMITIR_ICON,
         compound="left" if OMITIR_ICON is not None else "center",
         command=command,

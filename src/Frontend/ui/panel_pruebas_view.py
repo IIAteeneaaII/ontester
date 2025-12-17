@@ -65,6 +65,10 @@ class PanelPruebasConexion(ctk.CTkFrame):
         """
         super().__init__(parent, **kwargs)
 
+        # Paleta para estados
+        self.COL_IDLE  = "#4EA5D9"  # color base
+        self.COL_PASS  = "#6B9080"  # verde
+        self.COL_FAIL  = "#C1666B"  # rojo
         # -----------------------------------------------------------------
         # Apariencia general del marco contenedor
         # -----------------------------------------------------------------
@@ -186,6 +190,18 @@ class PanelPruebasConexion(ctk.CTkFrame):
             sticky="s"
         )
 
+        # Mapeo
+        self.test_buttons = {
+            "ping": self.btn_ping,
+            "factory_reset": self.btn_factory,
+            "software_update": self.btn_software,
+            "usb_port": self.btn_usb,
+            "tx_power": self.btn_tx,
+            "rx_power": self.btn_rx,
+            "wifi_24ghz_signal": self.btn_wifi24,
+            "wifi_5ghz_signal": self.btn_wifi50,
+        }
+
     # -----------------------------------------------------------------
     # API pública del panel
     # -----------------------------------------------------------------
@@ -208,7 +224,30 @@ class PanelPruebasConexion(ctk.CTkFrame):
                 text="NO CONECTADO",
                 text_color="#C1666B"  # Rojo suave
             )
+    def set_texto_superior(self, texto):
+        self.lbl_texto_superior.configure(text=texto)
+    
+    # Modificar los botones con base en la prueba ejecutada
+    def _set_button_status(self, test_key: str, status):
+        """
+        status puede ser 'PASS' / 'FAIL' o True / False / None
+        """
+        btn = self.test_buttons.get(test_key)
+        if not btn:
+            return
 
+        # Normalizamos el status
+        if isinstance(status, str):
+            status = status.upper()
+
+        if status is True or status == "PASS":
+            fg = self.COL_PASS
+        elif status is False or status == "FAIL":
+            fg = self.COL_FAIL
+        else:
+            fg = self.COL_IDLE
+
+        btn.configure(fg_color=fg, hover_color=fg)
     # -----------------------------------------------------------------
     # Callbacks internos
     # -----------------------------------------------------------------

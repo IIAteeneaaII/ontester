@@ -3,7 +3,9 @@ import sys
 from pathlib import Path
 from datetime import datetime
 from PIL import Image
-
+# Para correr el back  y actualizar elementos
+import threading
+import queue
 from src.Frontend.ui.panel_pruebas_view import PanelPruebasConexion
 
 # Agregar la raíz del proyecto al path para poder usar imports absolutos
@@ -22,11 +24,16 @@ from src.Frontend.ui.menu_superior_view import MenuSuperiorDesplegable
 
 
 class TesterView(ctk.CTkFrame):
-    def __init__(self, parent, viewmodel=None, **kwargs):
+    def __init__(self, parent, event_q, viewmodel=None, **kwargs):
+        
+        #Vista
         super().__init__(parent, fg_color="#E9F5FF", **kwargs)
 
         self.viewmodel = viewmodel
-
+        # Para la queue
+        self.event_q = event_q
+        self._polling = True
+        self.after(100, self._poll_queue)
         # Paleta de colores para estados de botones (pastel)
         self.color_neutro_fg = "#4EA5D9"
         self.color_neutro_hover = "#3B8CC2"
@@ -236,16 +243,25 @@ class TesterView(ctk.CTkFrame):
         label_font = ctk.CTkFont(size=14, weight="bold")
         label_color = "#37474F"
 
-        ctk.CTkLabel(info_frame, text="SN:", font=label_font, text_color=label_color, anchor="w").grid(row=0, column=0, sticky="w", pady=(0, 5))
-        ctk.CTkLabel(info_frame, text="MAC:", font=label_font, text_color=label_color, anchor="w").grid(row=1, column=0, sticky="w", pady=(0, 25))
-        ctk.CTkLabel(info_frame, text="SOFTWARE:", font=label_font, text_color=label_color, anchor="w").grid(row=2, column=0, sticky="w", pady=(10, 5))
-        ctk.CTkLabel(info_frame, text="WIFI 2.4 GHz:", font=label_font, text_color=label_color, anchor="w").grid(row=3, column=0, sticky="w", pady=5)
-        ctk.CTkLabel(info_frame, text="WIFI 5 GHz:", font=label_font, text_color=label_color, anchor="w").grid(row=4, column=0, sticky="w", pady=5)
-        ctk.CTkLabel(info_frame, text="Password", font=label_font, text_color=label_color, anchor="w").grid(row=5, column=0, sticky="w", pady=(5, 0))
+        self.snInfo = ctk.CTkLabel(info_frame, text="SN:", font=label_font, text_color=label_color, anchor="w")
+        self.snInfo.grid(row=0, column=0, sticky="w", pady=(0, 5))
+        self.macInfo = ctk.CTkLabel(info_frame, text="MAC:", font=label_font, text_color=label_color, anchor="w")
+        self.macInfo.grid(row=1, column=0, sticky="w", pady=(0, 25))
+        self.sftInfo = ctk.CTkLabel(info_frame, text="SOFTWARE:", font=label_font, text_color=label_color, anchor="w")
+        self.sftInfo.grid(row=2, column=0, sticky="w", pady=(10, 5))
+        self.w24Info = ctk.CTkLabel(info_frame, text="WIFI 2.4 GHz:", font=label_font, text_color=label_color, anchor="w")
+        self.w24Info.grid(row=3, column=0, sticky="w", pady=5)
+        self.w5Info = ctk.CTkLabel(info_frame, text="WIFI 5 GHz:", font=label_font, text_color=label_color, anchor="w")
+        self.w5Info.grid(row=4, column=0, sticky="w", pady=5)
+        self.pswInfo = ctk.CTkLabel(info_frame, text="Password:", font=label_font, text_color=label_color, anchor="w")
+        self.pswInfo.grid(row=5, column=0, sticky="w", pady=(5, 0))
 
-        ctk.CTkLabel(info_frame, text="Fo TX:", font=label_font, text_color=label_color, anchor="w").grid(row=2, column=1, sticky="w", padx=(40, 0), pady=(10, 5))
-        ctk.CTkLabel(info_frame, text="Fo Rx:", font=label_font, text_color=label_color, anchor="w").grid(row=3, column=1, sticky="w", padx=(40, 0), pady=5)
-        ctk.CTkLabel(info_frame, text="Usb Port", font=label_font, text_color=label_color, anchor="w").grid(row=4, column=1, sticky="w", padx=(40, 0), pady=(5, 0))
+        self.txInfo = ctk.CTkLabel(info_frame, text="Fo TX:", font=label_font, text_color=label_color, anchor="w")
+        self.txInfo.grid(row=2, column=1, sticky="w", padx=(40, 0), pady=(10, 5))
+        self.rxInfo = ctk.CTkLabel(info_frame, text="Fo Rx:", font=label_font, text_color=label_color, anchor="w")
+        self.rxInfo.grid(row=3, column=1, sticky="w", padx=(40, 0), pady=5)
+        self.usbInfo = ctk.CTkLabel(info_frame, text="Usb Port:", font=label_font, text_color=label_color, anchor="w")
+        self.usbInfo.grid(row=4, column=1, sticky="w", padx=(40, 0), pady=(5, 0))
 
         # Panel inferior
         self.panel_pruebas = PanelPruebasConexion(self.main_content)
@@ -288,7 +304,7 @@ class TesterView(ctk.CTkFrame):
 
     def ir_a_base_diaria(self):
         try:
-            from src.Frontend.ui.escaneos_dia__view import EscaneosDiaView
+            from src.Frontend.ui.escaneos_dia_view import EscaneosDiaView
         except ImportError:
             from src.Frontend.ui.escaneos_dia_view import EscaneosDiaView
         self._swap_view(EscaneosDiaView)
@@ -370,6 +386,27 @@ class TesterView(ctk.CTkFrame):
             self._set_all_buttons_state("active")
         elif modo == "Etiqueta":
             self._set_all_buttons_state("inactive")
+        # Mandar a llamar a función de configuraciones
+        self.setOpcionesView()
+
+    def setOpcionesView(self):
+        # 1) Leer estados (strings) y convertir a bool
+        resetFabrica = (self.btn_omitir.cget("state") == "normal")
+        fibra       = (self.btn_conectividad.cget("state") == "normal")
+        usb         = (self.btn_otros_puertos.cget("state") == "normal")
+        wifi        = (self.btn_wifi.cget("state") == "normal")
+        #print("En wifi es "+str(wifi))
+        # Importar la conexion
+        from src.backend.endpoints.conexion import iniciar_testerConexion
+        #iniciar_testerConexion(resetFabrica, usb, fibra, wifi)
+        # 4) Arranca hilo
+        t = threading.Thread(
+            target=iniciar_testerConexion,
+            args=(resetFabrica, usb, fibra, wifi, self.event_q),
+            daemon=True
+        )
+        t.start()
+
 
     # ===================== BOTONES (sin toggle local) =====================
     def _disparar_prueba(self, nombre_prueba: str):
@@ -400,6 +437,121 @@ class TesterView(ctk.CTkFrame):
     def ir_senales_wifi(self):
         self._disparar_prueba("PRUEBA DE SEÑALES WIFI")
 
+    # Funciones para la queue de los hilos
+    def destroy(self):
+        self._polling = False
+        super().destroy()
+
+    def _poll_queue(self):
+        if not self._polling:
+            return
+
+        try:
+            while True:
+                kind, payload = self.event_q.get_nowait()
+
+                if kind == "log":
+                    # ejemplo: mostrar en label/textbox
+                    self.panel_pruebas.set_texto_superior(payload)
+                    #self.lbl_texto_superior.configure(text = payload)
+                elif kind == "logSuper":
+                    self.modelo_label.configure(text="Modelo: "+str(payload))
+                elif kind == "con":
+                    # Cuando se conecta hace una limpieza y establece que se ha conectado
+                    self._limpiezaElementos()
+                    self.panel_pruebas.actualizar_estado_conexion(True)
+                elif kind == "resultados":
+                    # ejemplo: pintar resultados en tu UI
+                    self._render_resultados(payload)
+
+                #elif kind == "test":
+                    # ejemplo: actualizar un cuadrito por prueba || de momento no
+                    # payload = {"nombre":"wifi_24ghz_signal","estado":"PASS","valor":"-14.6 dBm"}
+                    #self._update_test(payload)
+
+        except queue.Empty:
+            pass
+
+        self.after(100, self._poll_queue)
+
+    def _limpiezaElementos(self):
+        # Label
+        self.snInfo.configure(text="SN: ")
+        self.macInfo.configure(text="MAC: ")
+        self.sftInfo.configure(text="SOFTWARE: ")
+        self.w24Info.configure(text="WIFI 2.4GHz: ")
+        self.w5Info.configure(text="WIFI 5 GHz: ")
+        self.pswInfo.configure(text="Password: ")
+        self.txInfo.configure(text="Fo TX: —")
+        self.rxInfo.configure(text="Fo RX: —")
+        self.usbInfo.configure(text="Usb Port: ")
+        self.estado_prueba_label.configure(text="SIN EJECUTAR")
+        self.modelo_label.configure(text="Modelo: ")
+        self.panel_pruebas.set_texto_superior("-")
+        # botones
+        self.panel_pruebas._set_button_status("ping", "reset")
+        self.panel_pruebas._set_button_status("factory_reset", "reset")
+        self.panel_pruebas._set_button_status("software_update", "reset") # falta mandarla a llamar (literalmente terminamos la prueba hace unas horas)
+        self.panel_pruebas._set_button_status("usb_port", "reset")
+        # validar los valores 
+        self.panel_pruebas._set_button_status("tx_power", "reset")
+        self.panel_pruebas._set_button_status("rx_power", "reset")
+        # ya están validadas
+        self.panel_pruebas._set_button_status("wifi_24ghz_signal", "reset")
+        self.panel_pruebas._set_button_status("wifi_5ghz_signal", "reset")
+
+    def _render_resultados(self, payload):
+        print("La payload recibida es: "+str(payload))
+        info  = payload.get("info", {})
+        tests = payload.get("tests", {})
+        # valido = payload.get("valido", False)
+
+        # INFO
+        # modelo = info.get("modelo", "—") # se actualiza desde ont_automatico
+        sn     = info.get("sn", "—")
+        mac    = info.get("mac", "—")
+        sftver = info.get("sftVer", "—")
+        wifi24 = info.get("wifi24", "—")
+        wifi5  = info.get("wifi5", "—")
+        passWi = info.get("passWifi", "—")
+
+        # TESTS || AQUI ES MOVER LOS BOTONES (utilizar self.panel_pruebas)
+        ping   = tests.get("ping", "SIN PRUEBA")
+        reset  = tests.get("reset", "SIN PRUEBA")
+        usb    = tests.get("usb", "SIN PRUEBA")
+        tx     = tests.get("tx", None)
+        rx     = tests.get("rx", None)
+        w24    = tests.get("w24", "SIN PRUEBA")
+        w5     = tests.get("w5", "SIN PRUEBA")
+
+        self.panel_pruebas._set_button_status("ping", ping)
+        self.panel_pruebas._set_button_status("factory_reset", reset)
+        self.panel_pruebas._set_button_status("software_update", True) # falta mandarla a llamar (literalmente terminamos la prueba hace unas horas)
+        self.panel_pruebas._set_button_status("usb_port", usb)
+        # validar los valores 
+        self.panel_pruebas._set_button_status("tx_power", tx)
+        self.panel_pruebas._set_button_status("rx_power", rx)
+        # ya están validadas
+        self.panel_pruebas._set_button_status("wifi_24ghz_signal", w24)
+        self.panel_pruebas._set_button_status("wifi_5ghz_signal", w5)
+
+        # -------- INFO (lado izquierdo) --------
+        self.snInfo.configure(text="SN: "+str(sn))
+        self.macInfo.configure(text="MAC: "+str(mac))
+        self.sftInfo.configure(text="SOFTWARE: "+str(sftver))
+        self.w24Info.configure(text="WIFI 2.4GHz: "+str(wifi24))
+        self.w5Info.configure(text="WIFI 5 GHz: "+str(wifi5))
+        self.pswInfo.configure(text="Password: "+str(passWi))
+
+        # -------- TESTS (lado derecho) --------
+        # Si tx/rx son números (dBm), los formateamos
+        self.txInfo.configure(text=("Fo TX: —" if tx is None else f"Fo TX: {tx} dBm"))
+        self.rxInfo.configure(text=("Fo RX: —" if rx is None else f"Fo RX: {rx} dBm"))
+
+        # USB puede venir "PASS"/"ERROR"/"SIN PRUEBA"
+        self.usbInfo.configure(text="Usb Port: "+str(usb))
+
+        self.estado_prueba_label.configure(text="EJECUTADO")
 
 if __name__ == "__main__":
     ctk.set_appearance_mode("light")

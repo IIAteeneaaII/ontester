@@ -2,7 +2,8 @@ import customtkinter as ctk
 import sys
 from pathlib import Path
 from PIL import Image
-
+# Importar la queue
+import queue
 #importar helper de conexion
 from src.backend.endpoints.conexion import *
 # Para poder usar imports absolutos
@@ -25,7 +26,6 @@ class InicioView(ctk.CTkFrame):
         * validar_id(id_str) -> (bool, str|None)
     - Si no, usa un diccionario local (USERS_MOCK).
     """
-
     # --- Mock local (cámbialo por tus IDs reales o conecta a tu viewmodel) ---
     USERS_MOCK = load_default_users() # parte de conexion.py
     # USERS_MOCK = {
@@ -37,6 +37,8 @@ class InicioView(ctk.CTkFrame):
     # }
 
     def __init__(self, parent, viewmodel=None, **kwargs):
+        # Crear el parámetro de la queue
+        self.bus_q = queue.Queue()
         super().__init__(parent, fg_color="#E8F4F8", **kwargs)
         self.viewmodel = viewmodel
 
@@ -145,6 +147,7 @@ class InicioView(ctk.CTkFrame):
         )
         self.id_entry.place(relx=0.5, y=390, anchor="center")
         self.id_entry.focus()
+        self._crear_teclado_numerico(bg) # Panel numérico
 
         # Mensaje de validación
         self.status_var = ctk.StringVar(value="")
@@ -175,7 +178,122 @@ class InicioView(ctk.CTkFrame):
         # Bindings para validar
         self.id_entry.bind("<KeyRelease>", lambda e: self._validar_id())
         self.id_entry.bind("<Return>", lambda e: self._enter_accion())
+    # =========================================================
+    #                    PANEL NUMÉRICO
+    # =========================================================
+    def _crear_teclado_numerico(self, parent_bg):
+        """Crea un panel numérico para ingresar el ID con mouse."""
+        self.PAD_MAX_LEN = 12  # ajusta si tu ID tiene otra longitud
 
+        # Sombra
+        self.keypad_shadow = ctk.CTkFrame(
+            parent_bg, fg_color="#BFD3DD", corner_radius=22, width=220, height=320
+        )
+        self.keypad_shadow.place(relx=0.5, rely=0.45, anchor="w", x=280, y=8)
+
+        # Panel
+        self.keypad = ctk.CTkFrame(
+            parent_bg,
+            fg_color="white",
+            corner_radius=22,
+            border_width=2,
+            border_color="#8FA3B0",
+            width=220,
+            height=320
+        )
+        self.keypad.place(relx=0.5, rely=0.45, anchor="w", x=280, y=0)
+
+        ctk.CTkLabel(
+            self.keypad,
+            text="TECLADO",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color=self.COL_TEXTO
+        ).grid(row=0, column=0, columnspan=3, pady=(14, 10))
+
+        # Grid uniforme
+        for r in range(1, 6):
+            self.keypad.grid_rowconfigure(r, weight=1)
+        for c in range(3):
+            self.keypad.grid_columnconfigure(c, weight=1)
+
+        def mkbtn(txt, cmd, r, c, colspan=1, fg="#F7FBFD", hover="#EAF4FA", tc=None):
+            b = ctk.CTkButton(
+                self.keypad,
+                text=txt,
+                command=cmd,
+                width=60,
+                height=44,
+                corner_radius=10,
+                fg_color=fg,
+                hover_color=hover,
+                text_color=(tc if tc else self.COL_TEXTO),
+                font=ctk.CTkFont(size=14, weight="bold"),
+                border_width=1,
+                border_color="#D0DCE3",
+            )
+            b.grid(row=r, column=c, columnspan=colspan, padx=8, pady=6, sticky="nsew")
+            return b
+
+        # Layout:
+        # 7 8 9
+        # 4 5 6
+        # 1 2 3
+        # C 0 ⌫
+        nums = [
+            ("7", 1, 0), ("8", 1, 1), ("9", 1, 2),
+            ("4", 2, 0), ("5", 2, 1), ("6", 2, 2),
+            ("1", 3, 0), ("2", 3, 1), ("3", 3, 2),
+        ]
+        for d, r, c in nums:
+            mkbtn(d, lambda x=d: self._pad_append(x), r, c)
+
+        mkbtn("C", self._pad_clear, 4, 0, fg="#FCEDEE", hover="#F9D7DA", tc=self.COL_ERROR)
+        mkbtn("0", lambda: self._pad_append("0"), 4, 1)
+        mkbtn("⌫", self._pad_backspace, 4, 2, fg="#EAF4FA", hover="#DCECF8", tc=self.COL_TEXTO)
+
+        # OK (inicia como Enter)
+        mkbtn("OK", self._pad_ok, 5, 0, colspan=3, fg=self.COL_AZUL, hover=self.COL_AZUL_HOVER, tc="white")
+
+
+    def _pad_append(self, ch: str):
+        cur = self.id_var.get()
+        if len(cur) >= getattr(self, "PAD_MAX_LEN", 12):
+            return
+        self.id_var.set(cur + ch)
+        self._validar_id()
+        self.id_entry.focus()
+        try:
+            self.id_entry.icursor("end")
+        except Exception:
+            pass
+
+
+    def _pad_backspace(self):
+        cur = self.id_var.get()
+        if not cur:
+            return
+        self.id_var.set(cur[:-1])
+        self._validar_id()
+        self.id_entry.focus()
+        try:
+            self.id_entry.icursor("end")
+        except Exception:
+            pass
+
+
+    def _pad_clear(self):
+        self.id_var.set("")
+        self._validar_id()
+        self.id_entry.focus()
+        try:
+            self.id_entry.icursor("end")
+        except Exception:
+            pass
+
+
+    def _pad_ok(self):
+        # Se comporta como presionar Enter
+        self._enter_accion()
     # =========================================================
     #                    LOGO
     # =========================================================
@@ -263,7 +381,7 @@ class InicioView(ctk.CTkFrame):
             self.destroy()
         except Exception:
             pass
-        nueva = view_cls(parent, **init_kwargs)
+        nueva = view_cls(parent, event_q=self.bus_q, **init_kwargs,)
         nueva.pack(fill="both", expand=True)
 
     def _on_comenzar(self):
