@@ -61,6 +61,8 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
         self.session_id = None
         self.driver = None
         self.selenium_cookies = None
+        # q
+        self.out_q = None
         # Ajustes para el fiber
         self.minWifi24Signal = -80  # Valor mínimo de señal WiFi 2.4GHz
         self.minWifi5Signal = -80  # Valor mínimo de señal WiFi 2.4GHz
@@ -71,8 +73,8 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
         self.minWifi5Percent = 60   # Porcentaje mínimo de señal WiFi 5GHz
 
         # Ajustes para la fibra
-        self.minTX = -60
-        self.minRX = -60
+        self.minTX = -30
+        self.minRX = -30
         self.maxTX = 0
         self.maxRX = 0
         self.test_results = {
@@ -178,7 +180,7 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
         return self.maxTX
     def _getMinFibraRx(self):
         return self.minRX
-    def _getMinFibraRx(self):
+    def _getMaxFibraRx(self):
         return self.maxRX
     # Configuración de umbrales máximos de señal WiFi ZTE/Huawei
     def _configWifiSignalThresholdsPercent(self, min24: int, min5: int):
@@ -499,8 +501,12 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
         # De momento solo para fiber, se puede agregar condiciones con el operador or "||"
         if(self.model == "MOD001" or self.model == "MOD008"):
             # Ejecutar tests comunes
+            def emit(kind, payload):
+                if self.out_q:
+                    self.out_q.put((kind, payload))
             print(f"\n[*] Ejecutando tests comunes ({len(common_tests)} tests)...")
             for test_func in common_tests:
+                emit("pruebas", "Ejecutando "+str(test_func))
                 result = test_func()
                 self.test_results["tests"][result["name"]] = result
             
@@ -508,6 +514,7 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
                 if self.driver:
                     self.driver.quit()
                     self.driver = None
+                emit("pruebas", "Ejecutando software_update")
                 self.test_sft_update() # Se tiene que ejecutar después de lo demás ya que requiere otro login
             # print(json.dumps(self.test_results, indent=2, ensure_ascii=False)) 
         # Ejecutar tests específicos según el tipo
@@ -519,6 +526,10 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
         else:
             print(f"\n[*] Dispositivo ONT detectado - Ejecutando tests fibra óptica ({len(ont_tests)} tests)...")
             for test_func in ont_tests:
+                def emit(kind, payload):
+                    if self.out_q:
+                        self.out_q.put((kind, payload))
+                emit("pruebas", "Ejecutando "+str(test_func))
                 result = test_func()
                 self.test_results["tests"][result["name"]] = result  
         return self.test_results
@@ -907,9 +918,6 @@ def run_retest_mode(host: str, model: str = None, output: str = None):
     print(f"    - TXT: {txt_file}")
 
 def main_loop(opciones, out_q = None):
-    def emit(kind, payload):
-        if out_q:
-            out_q.put((kind, payload))
     """
     Ciclo principal recursivo:
     1. Escanea red y encuentra dispositivo
@@ -936,7 +944,11 @@ def main_loop(opciones, out_q = None):
             print("-" * 60)
             
             temp_tester = ONTAutomatedTester(host="0.0.0.0", model=None)
-            
+            # Definir la q como globar para poder acceder a ella desde todos lados
+            def emit(kind, payload):
+                if out_q:
+                    temp_tester.out_q = out_q
+                    temp_tester.out_q.put((kind, payload))
             # Verificar configuración de red
             network_ok = temp_tester._check_network_configuration()
             
@@ -956,6 +968,8 @@ def main_loop(opciones, out_q = None):
             
             detected_model = temp_tester.model
             print(f"\n[OK] {device_type} detectado: {ip} (Modelo: {detected_model})")
+            # Decir que ya se hizo la conexión
+            emit("con", "CONECTADO")
             last_tested_ip = ip
             
             # FASE 2: PRUEBAS
@@ -967,6 +981,10 @@ def main_loop(opciones, out_q = None):
             nombre = temp_tester._get_model_display_name(detected_model)
             emit("logSuper", nombre)
             tester = ONTAutomatedTester(ip, detected_model)
+            def emit(kind, payload):
+                if out_q:
+                    tester.out_q = out_q
+                    tester.out_q.put((kind, payload))
             tester.opcionesTest = opciones
             print("Las opciones elegidas son: "+str(opciones))
             # opc["tests"]["factory_reset"] = False
@@ -976,14 +994,14 @@ def main_loop(opciones, out_q = None):
             # opc["tests"]["wifi_24ghz_signal"] = False
             # opc["tests"]["wifi_5ghz_signal"] = False
             # opc["tests"]["usb_port"] = False
-            
+            emit("pruebas", "Iniciando sesión ")
             tester.run_all_tests()
             
             # Mandar a llamar los resultados finales
             resultados = tester._resultados_finales()
             emit("resultados", resultados)
             # Mostrar reporte
-            if detected_model == "MOD001":
+            if detected_model == "MOD001" or detected_model == "MOD008":
                 print("\n" + tester.generate_report())
                 tester.save_results(None)
             
@@ -992,6 +1010,7 @@ def main_loop(opciones, out_q = None):
             if todo_tests_on:
                 tester._generarCertificado()
             
+            emit("log", "Fin main_loop")
             print(f"\n[✓] Pruebas completadas para {ip}")
             
             # FASE 3: MONITOREO
@@ -1007,6 +1026,8 @@ def main_loop(opciones, out_q = None):
             else:
                 # Conexión perdida, volver a escanear
                 print("\n[*] Dispositivo desconectado. Iniciando nuevo ciclo de escaneo...")
+                # Decir que ya se perdió la conexión
+                emit("con", "DESCONECTADO")
                 time.sleep(2)  # Pequeña pausa antes de re-escanear
                 
     except KeyboardInterrupt:

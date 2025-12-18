@@ -680,6 +680,10 @@ class CommonMixin:
                 display_name = self._get_model_display_name(detected_model, model_name)
                 self.test_results['metadata']['model_display_name'] = display_name
                 print(f"[AUTH] Modelo detectado automaticamente: {detected_model} ({display_name})")
+                def emit(kind, payload):
+                    if self.out_q:
+                        self.out_q.put((kind, payload))
+                emit("logSuper", display_name)
             else:
                 display_name = self._get_model_display_name(self.model, model_name)
                 self.test_results['metadata']['model_display_name'] = display_name
@@ -1070,7 +1074,7 @@ class CommonMixin:
             return str(item)
         return None
 
-    def _resultados_json_corto(self, fecha, modelo, sn, mac, sftVer, wifi24, wifi5, passWifi, ping, reset, usb, tx, rx, w24, w5):
+    def _resultados_json_corto(self, fecha, modelo, sn, mac, sftVer, wifi24, wifi5, passWifi, ping, reset, usb, tx, rx, w24, w5, sftU):
         # Validar si ha pasado los tests
         valido = (
             ping == "PASS"
@@ -1100,7 +1104,8 @@ class CommonMixin:
                 "tx": tx,
                 "rx": rx,
                 "w24": w24,
-                "w5": w5
+                "w5": w5,
+                "sftU": sftU
             },
             "valido": valido
         }
@@ -1122,7 +1127,10 @@ class CommonMixin:
 
         # Tests
         ping = self.test_results['tests']['PING_CONNECTIVITY'].get('status') # pass
-        reset = self.test_results['tests']['FACTORY_RESET_PASS'].get('status') # pass
+        if tests_opts.get("factory_reset", True):
+            reset = self.test_results['tests']['FACTORY_RESET_PASS'].get('status') # pass
+        else:
+            reset = "SIN PRUEBA"
         if tests_opts.get("usb_port", True):
             usb = self.test_results['tests']['USB_PORT'].get('status') # pass
         else:
@@ -1130,22 +1138,31 @@ class CommonMixin:
         if tests_opts.get("tx_power", True) and tests_opts.get("rx_power", True):
             tx = self.test_results['metadata']['base_info'].get('tx_power_dbm') # valor negativo
             rx = self.test_results['metadata']['base_info'].get('rx_power_dbm') # valor negativo
+            def _to_float_safe(v):
+                try:
+                    return float(v)
+                except (TypeError, ValueError):
+                    return None
             # Revisar si la fibra pasa las pruebas
-            if(tx >= self._getMinFibraTx() and tx <= self._getMaxFibraTx()):
+            print("LOS valores de tx y rx son: "+str(tx)+" "+str(rx))
+            print("Los valores de la super de tx son: "+str(self._getMinFibraTx()) +" "+str(self._getMaxFibraTx()))
+            print("Los valores de la super de rx son: "+str(self._getMinFibraRx()) +" "+str(self._getMaxFibraRx()))
+            if(_to_float_safe(tx) >= self._getMinFibraTx() and _to_float_safe(tx) <= self._getMaxFibraTx()):
                 tx = True
             else:
                 tx = False
             
-            if(rx >= self._getMinFibraRx() and rx <= self._getMaxFibraRx()):
+            if(_to_float_safe(rx) >= self._getMinFibraRx() and _to_float_safe(rx) <= self._getMaxFibraRx()):
                 rx = True
             else:
                 rx = False
         else:
             tx = "SIN PRUEBA"
             rx = "SIN PRUEBA"
-        w24 = self.test_results['tests']['WIFI_24GHZ']['details'].get('enabled') # true
-        w5 = self.test_results['tests']['WIFI_5GHZ']['details'].get('enabled') # true
+        
         if tests_opts.get("wifi_24ghz_signal", True) and tests_opts.get("wifi_5ghz_signal", True):
+            w24 = self.test_results['tests']['WIFI_24GHZ']['details'].get('enabled') # true
+            w5 = self.test_results['tests']['WIFI_5GHZ']['details'].get('enabled') # true
             rssi_2g = int(self.test_results['tests']["WIFI_24GHZ"]["details"]["data"]["wifi_status"][0]["rssi_2g"]) # valor negativo con la potencia del wifi
             rssi_5g = int(self.test_results['tests']["WIFI_24GHZ"]["details"]["data"]["wifi_status"][0]["rssi_5g"]) # valor negativo con la potencia del wifi
 
@@ -1166,7 +1183,7 @@ class CommonMixin:
         else:
             w24 = "SIN PRUEBA"
             w5 = "SIN PRUEBA"
-
+        sftU = "SIN PRUEBA"
         if tests_opts.get("software_update", True):
             #Obtener resultado de actualización de sft
             actN = self.test_results['tests']['software_update'].get('necesaria') # Bool
@@ -1177,9 +1194,13 @@ class CommonMixin:
                 sftVer = sftVer+" !"
                 if actC:
                     sftVer = actNV+" ACTUALIZADO"
+                    sftU = True
+            else:
+                sftU = True
+        
         # Obtener los resultados como json
         resultado = {}
-        resultado = self._resultados_json_corto(fecha, modelo, sn, mac, sftVer, wifi24, wifi5, passWifi, ping, reset, usb, tx, rx, w24, w5)
+        resultado = self._resultados_json_corto(fecha, modelo, sn, mac, sftVer, wifi24, wifi5, passWifi, ping, reset, usb, tx, rx, w24, w5, sftU)
         return resultado
     
     def _resultadosZTE(self):
@@ -1215,15 +1236,21 @@ class CommonMixin:
         else:
             usb = False
         if tests_opts.get("tx_power", True) and tests_opts.get("rx_power", True):
+            def _to_float_safe(v):
+                try:
+                    return float(v)
+                except (TypeError, ValueError):
+                    return None
             tx = self.test_results['tests']['fibra']['details']['PON_OPTICALPARA'].get('RxPower') # valor negativo
             rx = self.test_results['tests']['fibra']['details']['PON_OPTICALPARA'].get('TxPower') # valor negativo
+            print("LOS valores de tx y rx son: "+str(tx)+" "+str("rx"))
             # Revisar si la fibra pasa las pruebas
-            if(tx >= self._getMinFibraTx() and tx <= self._getMaxFibraTx()):
+            if(_to_float_safe(tx) >= self._getMinFibraTx() and _to_float_safe(tx) <= self._getMaxFibraTx()):
                 tx = True
             else:
                 tx = False
             
-            if(rx >= self._getMinFibraRx() and rx <= self._getMaxFibraRx()):
+            if(_to_float_safe(rx) >= self._getMinFibraRx() and _to_float_safe(rx) <= self._getMaxFibraRx()):
                 rx = True
             else:
                 rx = False
@@ -1274,9 +1301,16 @@ class CommonMixin:
         if(usb):
             usb_final="PASS"
 
+        if tests_opts.get("software_update", True):
+            try:
+                sftU = self.test_results['tests']['software_update']['details'].get('update_completed')
+            except:
+                sftU = False
+        else:
+            sftU = "SIN PRUEBA"
         # Obtener los resultados como json
         resultado = {}
-        resultado = self._resultados_json_corto(fecha,modelo, sn, mac, sftVer, wifi24, wifi5, passWifi, ping, reset, usb_final, tx, rx, w24, w5)
+        resultado = self._resultados_json_corto(fecha,modelo, sn, mac, sftVer, wifi24, wifi5, passWifi, ping, reset, usb_final, tx, rx, w24, w5, sftU)
         return resultado
     
     def _resultadosHuawei(self):
@@ -1295,7 +1329,10 @@ class CommonMixin:
 
         # Tests
         ping = "PASS" # sin poder hacer ping no se podría avanzar tanto
-        reset = "PASS" # ya se resetea
+        if tests_opts.get("factory_reset", True):
+            reset = "PASS" # ya se resetea
+        else:
+            reset= "SIN PRUEBA"
         if tests_opts.get("usb_port", True):
             usb = self.test_results['tests']['hw_usb']['data'].get('connected') # true or false
         else:
@@ -1304,8 +1341,8 @@ class CommonMixin:
             tx = self.test_results['tests']['hw_optical']['data'].get('tx_optical_power') # -- dBm si no tiene conexion
             rx = self.test_results['tests']['hw_optical']['data'].get('rx_optical_power') # -- dBm si no tiene conexion
         else:
-            tx = "-- dBm"
-            rx = "-- dBm"
+            tx = "SIN PRUEBA"
+            rx = "SIN PRUEBA"
         if tests_opts.get("wifi_24ghz_signal", True) and tests_opts.get("wifi_5ghz_signal", True):
             w24 = self.test_results['tests']['hw_wifi24']['data'].get('status') # Enabled si true
             w5 = self.test_results['tests']['hw_wifi5']['data'].get('status') # Enabled si true
@@ -1357,18 +1394,23 @@ class CommonMixin:
             rx_final = rx
 
         # Revisar si la fibra pasa las pruebas
-        if(tx_final >= self._getMinFibraTx() and tx_final <= self._getMaxFibraTx()):
-            tx_final = True
+        if tests_opts.get("tx_power", True) and tests_opts.get("rx_power", True):
+            if(tx_final >= self._getMinFibraTx() and tx_final <= self._getMaxFibraTx()):
+                tx_final = True
+            else:
+                tx_final = False
+            
+            if(rx_final >= self._getMinFibraRx() and rx_final <= self._getMaxFibraRx()):
+                rx_final = True
+            else:
+                rx_final = False
+        if tests_opts.get("software_update", True):
+            sftU = self.test_results['tests']['software_update']['details'].get('update_completed')
         else:
-            tx_final = False
-        
-        if(rx_final >= self._getMinFibraRx() and rx_final <= self._getMaxFibraRx()):
-            rx_final = True
-        else:
-            rx_final = False
+            sftU = "SIN PRUEBA"
         # Obtener los resultados como json
         resultado = {}
-        resultado = self._resultados_json_corto(fecha, modelo, sn, mac, sftVer, wifi24, wifi5, passWifi, ping, reset, usb_final, tx_final, rx_final, w24, w5)
+        resultado = self._resultados_json_corto(fecha, modelo, sn, mac, sftVer, wifi24, wifi5, passWifi, ping, reset, usb_final, tx_final, rx_final, w24, w5, sftU)
         return resultado
     # Aqui voy a poner el resultado de las pruebas de todos los modelos
     # PD para Atenea, las funciones devuelven un dict con la siguiente estructura:
@@ -1391,6 +1433,7 @@ class CommonMixin:
             "rx": rx,
             "w24": w24,
             "w5": w5,
+            "sftU": sftU
         },
         "valido": valido, 
     }

@@ -22,6 +22,11 @@ def iniciar_testerConexion(resetFabrica, usb, fibra, wifi, out_q = None):
     def emit(kind, payload):
         if out_q:
             out_q.put((kind, payload))
+    print("[CONEXION] Fibra recibida: "+str(fibra))
+    if any([resetFabrica, usb, fibra, wifi]):
+        sftU = True
+    else:
+        sftU = False
     opcionesTest = {
         "info": {
             "sn": True,
@@ -35,7 +40,7 @@ def iniciar_testerConexion(resetFabrica, usb, fibra, wifi, out_q = None):
         "tests": {
             "ping": True, # Esta prueba no se deshabilita
             "factory_reset": resetFabrica,
-            "software_update": True, # Esta prueba no se deshabilita
+            "software_update": sftU, # Esta prueba no se deshabilita, validar si almenos una prueba está encendida
             "usb_port": usb,
             "tx_power": fibra,
             "rx_power": fibra,
@@ -43,8 +48,7 @@ def iniciar_testerConexion(resetFabrica, usb, fibra, wifi, out_q = None):
             "wifi_5ghz_signal": wifi
         }
     }
-    # Decir que ya se hizo la conexión
-    emit("con", "CONECTADO")
+    
     emit("log", "Iniciando pruebas...")
     # print("CONEXION: wifi: "+str(wifi))
     # Mandar a llamar a la función en ont_automatico

@@ -114,7 +114,7 @@ class PanelPruebasConexion(ctk.CTkFrame):
         # "Respuesta desde 192.168.100.1..." o cualquier otra leyenda.
         self.lbl_texto_superior = ctk.CTkLabel(
             self,
-            text="texto superior",
+            text="status",
             font=ctk.CTkFont(size=12, weight="bold"),
             text_color="#2C3E50",
         )
@@ -178,7 +178,7 @@ class PanelPruebasConexion(ctk.CTkFrame):
         # información adicional breve debajo de los botones.
         self.lbl_texto = ctk.CTkLabel(
             self,
-            text="TEXTO",
+            text="PRUEBAS",
             font=ctk.CTkFont(size=12, weight="bold"),
             text_color="#2C3E50",
         )
@@ -226,6 +226,8 @@ class PanelPruebasConexion(ctk.CTkFrame):
             )
     def set_texto_superior(self, texto):
         self.lbl_texto_superior.configure(text=texto)
+    def set_texto_inferior(self, texto):
+        self.lbl_texto.configure(text=texto)
     
     # Modificar los botones con base en la prueba ejecutada
     def _set_button_status(self, test_key: str, status):

@@ -456,10 +456,15 @@ class TesterView(ctk.CTkFrame):
                     #self.lbl_texto_superior.configure(text = payload)
                 elif kind == "logSuper":
                     self.modelo_label.configure(text="Modelo: "+str(payload))
+                elif kind == "pruebas":
+                    self.panel_pruebas.set_texto_inferior(payload)
                 elif kind == "con":
                     # Cuando se conecta hace una limpieza y establece que se ha conectado
                     self._limpiezaElementos()
-                    self.panel_pruebas.actualizar_estado_conexion(True)
+                    if(payload == "CONECTADO"):
+                        self.panel_pruebas.actualizar_estado_conexion(True)
+                    else:
+                        self.panel_pruebas.actualizar_estado_conexion(False)
                 elif kind == "resultados":
                     # ejemplo: pintar resultados en tu UI
                     self._render_resultados(payload)
@@ -523,10 +528,11 @@ class TesterView(ctk.CTkFrame):
         rx     = tests.get("rx", None)
         w24    = tests.get("w24", "SIN PRUEBA")
         w5     = tests.get("w5", "SIN PRUEBA")
+        sftU   = tests.get("sftU", "SIN PRUEBA")
 
         self.panel_pruebas._set_button_status("ping", ping)
         self.panel_pruebas._set_button_status("factory_reset", reset)
-        self.panel_pruebas._set_button_status("software_update", True) # falta mandarla a llamar (literalmente terminamos la prueba hace unas horas)
+        self.panel_pruebas._set_button_status("software_update", sftU) # falta mandarla a llamar (literalmente terminamos la prueba hace unas horas)
         self.panel_pruebas._set_button_status("usb_port", usb)
         # validar los valores 
         self.panel_pruebas._set_button_status("tx_power", tx)

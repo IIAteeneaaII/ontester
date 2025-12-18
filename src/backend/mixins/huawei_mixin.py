@@ -661,7 +661,7 @@ class HuaweiMixin:
 
     def nav_hw_optical(self, driver):
         """System Information -> Optical (fibra)"""
-
+        driver.switch_to.default_content()
         self.click_anywhere(
             driver,
             [
@@ -1014,14 +1014,22 @@ class HuaweiMixin:
         optTest = self.opcionesTest
         tests_opts = optTest.get("tests", {})
         if tests_opts.get("tx_power", True) and tests_opts.get("rx_power", True):
+            print("Se ejecutará prueba de TX y RX")
             tests.append( ("hw_optical", self.nav_hw_optical,    self.parse_hw_optical) )
         if tests_opts.get("usb_port", True):
             tests.append( ("hw_usb",  self.nav_hw_usb, self.read_hw_usb_status) )
         
         # Recorrer todas las funciones de clicks + extraer el DOM
         # Usar try/except para cada paso para evitar que un fallo detenga todo el proceso
+        def emit(kind, payload):
+            if self.out_q:
+                print("[INFO Q] Se detectó la queue")
+                self.out_q.put((kind, payload))
+            else:
+                print("[INFO Q] NOOO Se detectó la queue")
         for name, nav_func, parse_func in tests:
             try:
+                emit("pruebas", "Ejecutando: "+str(name))
                 nav_func(driver)             # hace los clicks
                 data = parse_func(driver)    # lee sólo lo que nos interesa
                 self.test_results["tests"][name] = { # Pasar al test_results
@@ -1040,10 +1048,12 @@ class HuaweiMixin:
         wifi5 = self.test_results['tests']['hw_wifi5']['data'].get('ssid') # nombre wifi
 
         if tests_opts.get("software_update", True):
-            self.test_sft_update(driver)
+            emit("pruebas", "Ejecutando "+str("software_update"))
+            self.test_sft_updateHw(driver)
 
         # Verificar si se tienen que probar las señales wifi
         if tests_opts.get("wifi_24ghz_signal", True) and tests_opts.get("wifi_5ghz_signal", True):
+            emit("pruebas", "Ejecutanto "+str("wifi_tests"))
             self.test_wifi_rssi_windows(wifi24, wifi5)
     
         self.save_results2("test_mod003-mod005")
@@ -1130,7 +1140,7 @@ class HuaweiMixin:
             print("[ERROR] No existe un archivo de actualización en el directorio correcto")
             return False
         
-    def test_sft_update(self, driver):
+    def test_sft_updateHw(self, driver):
         ok = self.test_sft_updateCheckHw()
         modelo = self.model
         if ok:
@@ -1573,6 +1583,10 @@ class HuaweiMixin:
                     optTest = self.opcionesTest
                     tests_opts = optTest.get("tests", {})
                     if tests_opts.get("factory_reset", True):
+                        def emit(kind, payload):
+                            if self.out_q:
+                                self.out_q.put((kind, payload))
+                        emit("pruebas", "Ejecutando factory_reset")
                         reset = self._reset_factory_huawei(driver)
                         time.sleep(100)
                         if(reset):

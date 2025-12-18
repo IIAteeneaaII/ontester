@@ -545,7 +545,7 @@ class ZTEMixin:
             return False
 
     def test_sft_updateZTE(self, driver):
-        ok = self.test_sft_updateCheck()
+        ok = self.test_sft_updateCheckZTE()
         if ok:
             print("[INFO] Actualizando software...")
             FIRMWARE_PATH = r"C:\BINS\F670L"
@@ -1025,6 +1025,10 @@ class ZTEMixin:
             xml_final = ""
             for name, func, url in pruebas:
                 # 1) Navegación con Selenium para habilitar el endpoint
+                def emit(kind, payload):
+                    if self.out_q:
+                        self.out_q.put((kind, payload))
+                emit("pruebas", "Ejecutando "+str(name))
                 func(driver)
                 # 2) Obtener el XML 
                 driver.get(url)
@@ -1073,8 +1077,12 @@ class ZTEMixin:
             print(f"[DEBUG] Verificando software_update: {tests_opts.get('software_update', True)}")
             print(f"[DEBUG] Todas las opciones de tests: {tests_opts}")
             if tests_opts.get("software_update", True):
+                def emit(kind, payload):
+                            if self.out_q:
+                                self.out_q.put((kind, payload))
+                emit("pruebas", "Ejecutando software_update")
                 print("[INFO] Ejecutando prueba de actualización de software...")
-                self.test_sft_update(driver)
+                self.test_sft_updateZTE(driver)
             else:
                 print("[INFO] Prueba de actualización de software deshabilitada")
 
@@ -1092,6 +1100,10 @@ class ZTEMixin:
             # Aqui sí validar si se verifica la potencia del wifi
             if tests_opts.get("wifi_24ghz_signal", True) and tests_opts.get("wifi_5ghz_signal", True):
                 # Potencia del wifi (solo windows)
+                def emit(kind, payload):
+                            if self.out_q:
+                                self.out_q.put((kind, payload))
+                emit("pruebas", "Ejecutando wifi_tests")
                 print("[DEBUG] Iniciando prueba de potencia WiFi...")
                 ruta_wifi = self.test_results['tests']['wifi']['details']['WLANAP']
                 print(f"[DEBUG] WLANAP encontrado: {len(ruta_wifi)} access points")
@@ -1298,6 +1310,10 @@ class ZTEMixin:
                 if tests_opts.get("factory_reset", True):
                     if (reset is False):
                         # Antes de ejecutar las demás pruebas hay que resetear de fabrica
+                        def emit(kind, payload):
+                            if self.out_q:
+                                self.out_q.put((kind, payload))
+                        emit("pruebas", "Ejecutando factory_reset")
                         resetZTE = self._reset_factory_zte(driver)
                         print("[INFO] Esperando a que el ZTE reinicie tras Factory Reset...")
                         time.sleep(100)  # espera
@@ -1330,6 +1346,10 @@ class ZTEMixin:
                 #     f.write(driver.page_source)
                 # print("[DEBUG] HTML guardado como zte_after_mgmt.html")
                 # 2) Ahora buscar el Status
+                def emit(kind, payload):
+                            if self.out_q:
+                                self.out_q.put((kind, payload))
+                emit("pruebas", "Ejecutando extract_info")
                 status = self.find_status_link(driver, timeout=10)
                 if status is None:
                     raise RuntimeError("[SELENIUM] No se encontró el botón Status en ningún frame ni en el documento principal")
