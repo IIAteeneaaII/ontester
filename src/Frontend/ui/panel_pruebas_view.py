@@ -261,7 +261,32 @@ class PanelPruebasConexion(ctk.CTkFrame):
         En el futuro, aquí se puede enlazar la lógica real de ejecución.
 
         :param nombre_prueba: Identificador de la prueba (PING, TX POWER, etc.).
+        PING
+        FACTORY RESET
+        SOFTWARE
+        USB PORT
+        TX POWER
+        RX POWER
+        WIFI 2.4 GHz
+        WIFI 5.0 GHz
         """
+        reset = soft = usb = fibra = wifi = False
+        if(nombre_prueba == "FACTORY RESET"):
+            reset = True
+        if(nombre_prueba == "SOFTWARE"):
+            soft = True
+        if(nombre_prueba == "USB PORT"):
+            usb = True
+        if(nombre_prueba == "TX POWER"):
+            fibra = True
+        if(nombre_prueba == "RX POWER"):
+            fibra = True
+        if(nombre_prueba == "WIFI 2.4 GHz"):
+            wifi = True
+        if(nombre_prueba == "WIFI 5.0 GHz"):
+            wifi = True
+        from src.backend.endpoints.conexion import iniciar_pruebaUnitariaConexion
+        iniciar_pruebaUnitariaConexion(reset, soft, usb, fibra, wifi, )
         print(f"[PanelPruebasConexion] Click en {nombre_prueba}")
 
 

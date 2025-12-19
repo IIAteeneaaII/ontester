@@ -982,18 +982,18 @@ class HuaweiMixin:
         except TimeoutException:
             print("[ERROR] No se encontró el input file (id=t_file) después de 10s")
             # Guardar debug
-            try:
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                driver.save_screenshot(f"debug_browse_error_{timestamp}.png")
-                with open(f"debug_browse_error_{timestamp}.html", 'w', encoding='utf-8') as f:
-                    f.write(driver.page_source)
-                print(f"[DEBUG] Archivos de debug guardados: debug_browse_error_{timestamp}.*")
-            except:
-                pass
-            raise RuntimeError("No se pudo encontrar el input file")
-        except Exception as e:
-            print(f"[ERROR] Error navegando al input file: {e}")
-            raise
+        #     try:
+        #         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        #         driver.save_screenshot(f"debug_browse_error_{timestamp}.png")
+        #         with open(f"debug_browse_error_{timestamp}.html", 'w', encoding='utf-8') as f:
+        #             f.write(driver.page_source)
+        #         print(f"[DEBUG] Archivos de debug guardados: debug_browse_error_{timestamp}.*")
+        #     except:
+        #         pass
+        #     raise RuntimeError("No se pudo encontrar el input file")
+        # except Exception as e:
+        #     print(f"[ERROR] Error navegando al input file: {e}")
+        #     raise
 
     def huawei_info(self, driver):
 
@@ -1208,19 +1208,19 @@ class HuaweiMixin:
                 time.sleep(100)
                 
                 # Guardar captura de pantalla del estado de actualización
-                try:
-                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    screenshot_path = f"debug_firmware_upload_{timestamp}.png"
-                    driver.save_screenshot(screenshot_path)
-                    print(f"[DEBUG] Captura guardada: {screenshot_path}")
+                # try:
+                #     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                #     screenshot_path = f"debug_firmware_upload_{timestamp}.png"
+                #     driver.save_screenshot(screenshot_path)
+                #     print(f"[DEBUG] Captura guardada: {screenshot_path}")
                     
-                    # Guardar HTML para debug
-                    html_path = f"debug_firmware_upload_{timestamp}.html"
-                    with open(html_path, 'w', encoding='utf-8') as f:
-                        f.write(driver.page_source)
-                    print(f"[DEBUG] HTML guardado: {html_path}")
-                except Exception as e:
-                    print(f"[DEBUG] No se pudo guardar captura: {e}")
+                #     # Guardar HTML para debug
+                #     html_path = f"debug_firmware_upload_{timestamp}.html"
+                #     with open(html_path, 'w', encoding='utf-8') as f:
+                #         f.write(driver.page_source)
+                #     print(f"[DEBUG] HTML guardado: {html_path}")
+                # except Exception as e:
+                #     print(f"[DEBUG] No se pudo guardar captura: {e}")
                 
                 # Monitorear progreso y reinicio (total 200 segundos)
                 print("[SELENIUM] Monitoreando actualización (60 segundos)...")
@@ -1728,32 +1728,32 @@ class HuaweiMixin:
             except:
                 print("[ERROR] Login Super Admin no completó correctamente - menú no disponible")
                 # Guardar debug
-                try:
-                    driver.save_screenshot("debug_login_super_no_menu.png")
-                    with open("debug_login_super_no_menu.html", "w", encoding="utf-8") as f:
-                        f.write(driver.page_source)
-                    print("[DEBUG] Screenshot y HTML guardados")
-                except:
-                    pass
-                return False
+                # try:
+                #     driver.save_screenshot("debug_login_super_no_menu.png")
+                #     with open("debug_login_super_no_menu.html", "w", encoding="utf-8") as f:
+                #         f.write(driver.page_source)
+                #     print("[DEBUG] Screenshot y HTML guardados")
+                # except:
+                #     pass
+                # return False
             
         except TimeoutException:
             print(f"[ERROR] Timeout esperando formulario de login después de logout")
             # Guardar screenshot para debug
-            try:
-                driver.save_screenshot("debug_login_super_timeout.png")
-                with open("debug_login_super_timeout.html", "w", encoding="utf-8") as f:
-                    f.write(driver.page_source)
-                print("[DEBUG] Screenshot y HTML guardados para debug")
-            except:
-                pass
+            # try:
+            #     driver.save_screenshot("debug_login_super_timeout.png")
+            #     with open("debug_login_super_timeout.html", "w", encoding="utf-8") as f:
+            #         f.write(driver.page_source)
+            #     print("[DEBUG] Screenshot y HTML guardados para debug")
+            # except:
+            #     pass
             return False
         except Exception as e:
             print(f"[ERROR] Login Super Admin falló: {e}")
             # Guardar screenshot para debug
-            try:
-                driver.save_screenshot("debug_login_super_failed.png")
-                print("[DEBUG] Screenshot guardado: debug_login_super_failed.png")
-            except:
-                pass
+            # try:
+            #     driver.save_screenshot("debug_login_super_failed.png")
+            #     print("[DEBUG] Screenshot guardado: debug_login_super_failed.png")
+            # except:
+            #     pass
             return False

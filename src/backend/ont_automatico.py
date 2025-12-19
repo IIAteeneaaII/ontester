@@ -1011,6 +1011,7 @@ def main_loop(opciones, out_q = None):
                 tester._generarCertificado()
             
             emit("log", "Fin main_loop")
+            emit("pruebas", "Fin de pruebas")
             print(f"\n[✓] Pruebas completadas para {ip}")
             
             # FASE 3: MONITOREO

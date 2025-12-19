@@ -1229,12 +1229,19 @@ class CommonMixin:
 
         # Tests
         ping = "PASS" # si llega hasta aqui es que se le puede hacer ping
-        reset = "PASS" # ya está implementado y si no se resetea no hace nada
+        if tests_opts.get("factory_reset", True):
+            reset = "PASS" # ya está implementado y si no se resetea no hace nada
+        else:
+            reset = "SIN PRUEBA"
         if tests_opts.get("usb_port", True):
             usb_ruta = self.test_results['tests']['usb']['details'] # ruta donde estará o no el valor buscado
             usb = "USBDEV" in usb_ruta # True or False
+            if(usb):
+                usb_final=True
+            else:
+                usb_final=False
         else:
-            usb = False
+            usb_final="SIN PRUEBA"
         if tests_opts.get("tx_power", True) and tests_opts.get("rx_power", True):
             def _to_float_safe(v):
                 try:
@@ -1296,11 +1303,6 @@ class CommonMixin:
             w24 = "SIN PRUEBA"
             w5 = "SIN PRUEBA"
 
-
-        usb_final="ERROR"
-        if(usb):
-            usb_final="PASS"
-
         if tests_opts.get("software_update", True):
             try:
                 sftU = self.test_results['tests']['software_update']['details'].get('update_completed')
@@ -1335,8 +1337,12 @@ class CommonMixin:
             reset= "SIN PRUEBA"
         if tests_opts.get("usb_port", True):
             usb = self.test_results['tests']['hw_usb']['data'].get('connected') # true or false
+            if(usb):
+                usb_final = True
+            else:
+                usb_final = False
         else:
-            usb = False
+            usb_final = "SIN PRUEBA"
         if tests_opts.get("tx_power", True) and tests_opts.get("rx_power", True):
             tx = self.test_results['tests']['hw_optical']['data'].get('tx_optical_power') # -- dBm si no tiene conexion
             rx = self.test_results['tests']['hw_optical']['data'].get('rx_optical_power') # -- dBm si no tiene conexion
@@ -1382,12 +1388,10 @@ class CommonMixin:
             w24 = "SIN PRUEBA"
             w5 = "SIN PRUEBA"
 
-        usb_final="ERROR"
+        
         # Valores por defecto para no mandar --
         tx_final=-60.0
         rx_final=-60.0
-        if(usb):
-            usb_final="PASS"
         if(tx != "-- dBm"):
             tx_final = tx
         if(rx != "-- dBm"):
