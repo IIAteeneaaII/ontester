@@ -375,7 +375,8 @@ class CommonMixin:
                         domain=cookie.get('domain', self.host),
                         path=cookie.get('path', '/')
                     )
-                    driver.quit()
+                    # driver.quit() # No cerrar el driver para conexiones futuras
+                    print("[SELENIUM] Dirver mantenido")
                     return True
             
             # Si no está en cookies, intentar extraer del HTML
@@ -386,7 +387,8 @@ class CommonMixin:
             if sessionid_match:
                 self.session_id = sessionid_match.group(1)
                 print(f"[SELENIUM] OK - SessionID extraido del HTML: {self.session_id[:8]}...")
-                driver.quit()
+                # driver.quit()
+                print("[SELENIUM] Dirver mantenido")
                 return True
             
             # Ultimo intento: hacer request AJAX para obtener sessionid
@@ -404,11 +406,13 @@ class CommonMixin:
             if sessionid_from_ajax:
                 self.session_id = sessionid_from_ajax
                 print(f"[SELENIUM] OK - SessionID obtenido via AJAX: {self.session_id[:8]}...")
-                driver.quit()
+                # driver.quit()
+                print("[SELENIUM] Dirver mantenido")
                 return True
             
             print("[ERROR] No se pudo extraer sessionid después del login")
-            driver.quit()
+            driver.quit() # Solo cerrar si falla
+            self.driver = None
             return False
             
         except Exception as e:

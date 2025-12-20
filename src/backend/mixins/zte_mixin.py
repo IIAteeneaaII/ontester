@@ -1028,7 +1028,7 @@ class ZTEMixin:
                 def emit(kind, payload):
                     if self.out_q:
                         self.out_q.put((kind, payload))
-                emit("pruebas", "Ejecutando "+str(name))
+                emit("pruebas", f"Ejecutando {name}")
                 func(driver)
                 # 2) Obtener el XML 
                 driver.get(url)
@@ -1080,7 +1080,7 @@ class ZTEMixin:
                 def emit(kind, payload):
                             if self.out_q:
                                 self.out_q.put((kind, payload))
-                emit("pruebas", "Ejecutando software_update")
+                emit("pruebas", "Ejecutando Actualizacion de Software")
                 print("[INFO] Ejecutando prueba de actualización de software...")
                 self.test_sft_updateZTE(driver)
             else:
@@ -1103,7 +1103,7 @@ class ZTEMixin:
                 def emit(kind, payload):
                             if self.out_q:
                                 self.out_q.put((kind, payload))
-                emit("pruebas", "Ejecutando wifi_tests")
+                emit("pruebas", "Ejecutando Prueba de Señal WiFi")
                 print("[DEBUG] Iniciando prueba de potencia WiFi...")
                 ruta_wifi = self.test_results['tests']['wifi']['details']['WLANAP']
                 print(f"[DEBUG] WLANAP encontrado: {len(ruta_wifi)} access points")
@@ -1313,7 +1313,7 @@ class ZTEMixin:
                         def emit(kind, payload):
                             if self.out_q:
                                 self.out_q.put((kind, payload))
-                        emit("pruebas", "Ejecutando factory_reset")
+                        emit("pruebas", "Ejecutando Reinicio de Fabrica")
                         resetZTE = self._reset_factory_zte(driver)
                         print("[INFO] Esperando a que el ZTE reinicie tras Factory Reset...")
                         time.sleep(100)  # espera
@@ -1349,7 +1349,7 @@ class ZTEMixin:
                 def emit(kind, payload):
                             if self.out_q:
                                 self.out_q.put((kind, payload))
-                emit("pruebas", "Ejecutando extract_info")
+                emit("pruebas", "Ejecutando: Extraccion de información")
                 status = self.find_status_link(driver, timeout=10)
                 if status is None:
                     raise RuntimeError("[SELENIUM] No se encontró el botón Status en ningún frame ni en el documento principal")

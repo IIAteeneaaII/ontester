@@ -344,46 +344,65 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
                 allow_redirects=True
             )
             
-            html = response.text.lower()
-            server = response.headers.get('Server', '').lower()
+            raw_html = response.text
+            html_lower = raw_html.lower()
+            server_header = response.headers.get('Server', '').lower()
+
+            # Normalización básica
+            html_normalized = html_lower.replace(' ','').replace('\n', '').replace('\t', '')
             
             # Detectar Grandstream
-            if 'grandstream' in html or 'grandstream' in server or 'ht818' in html:
+            if 'grandstream' in html_lower or 'grandstream' in server_header or 'ht818' in html_lower:
                 return "GRANDSTREAM"
             
             # Detectar Fiberhome (buscar elementos específicos)
-            if any(keyword in html for keyword in ['fiberhome', 'hg6145f', 'user_name', 'loginpp', 'fh-text-security']):
+            if any(k in html_lower for k in ['fiberhome', 'hg6145f', 'user_name', 'loginpp', 'fh-text-security']):
                 print("[AUTH] Dispositivo Fiberhome detectado automáticamente")
-                if 'hg6145f1' in html:
+                if 'hg6145f1' in html_lower:
                     self.model = "MOD008"
                     print(f"[AUTH] Modelo asignado: {self.model}")
-                if not self.model:
+                elif not self.model:
                     self.model = "MOD001"
                     print(f"[AUTH] Modelo asignado: {self.model}")
                 return "FIBERHOME"
             
             # Detectar Huawei (buscar elementos específicos en el HTML)
-            if any(keyword in html for keyword in ['huawei', 'hg8145', 'echolife', 'txt_username', 'txt_password']):
+            if any(k in html_normalized for k in ['huawei', 'hg8145', 'txt_username', 'txt_password']):
                 print("[AUTH] Dispositivo Huawei detectado automáticamente")
+                product_name = ""
+                #Intentar leer el title del navegador
+                title_match = re.search(r"<title>(.*?)</title>", raw_html, re.IGNORECASE)
+                if title_match:
+                    product_name = title_match.group(1).upper().strip()
+                
+                # Si el titulo no contiene el modelo, buscar en JS la ver ProductName
+                # Limpieza del guión "\x2d" para el X6-10
+                if "HG8145" not in product_name:
+                    js_match = re.search(r"var\s+ProductName\s*=\s*['\"]([^'\"]+)['\"]", raw_html, re.IGNORECASE)
+                    if js_match:
+                        raw_js = js_match.group(1).upper()
+                        # Cambio de nombre
+                        product_name = raw_js.replace('\\X2D','-').replace('\\x2d', '-').strip()
                 # Intentar detectar modelo específico
-                if not self.model:
-                    if 'hg8145v5' in html:
-                        if 'small' in html:
-                            self.model = "MOD005"
-                        else:
-                            self.model = "MOD004"
-                    elif 'hg8145x6-10' in html:
-                        self.model = "MOD003"
-                    elif 'hg8145x6' in html:
-                        self.model = "MOD007"
+                if product_name:
+                    if 'HG8145X6-10' in product_name:                        
+                        self.model = "MOD003" # Huawei X6-10 (El del bug del guion)                    
+                    elif 'HG8145X6' in product_name:                        
+                        self.model = "MOD007" # Huawei X6 (Nuevo/Normal)                    
+                    elif 'HG8145V5' in product_name:                        
+                        if 'SMALL' in product_name:                            
+                            self.model = "MOD005" # V5 Small                        
+                        else:                            
+                            self.model = "MOD004" # V5 Normal
                     else:
-                        # Default to MOD004 for unknown Huawei
-                        self.model = "MOD004"
-                    print(f"[AUTH] Modelo asignado: {self.model}")
+                        self.model = "MOD004" # Modelo huawei desconocido
+                else:
+                    self.model = "MOD004" # Huawei detectado, pero sin leer nombre
+                print(f"[AUTH] Modelo Huawei asignado: {self.model} ({product_name if product_name else 'Indeterminado'})")
                 return "HUAWEI"
             
             # Detectar ZTE
-            if any(keyword in html for keyword in ['zte', 'zxhn', 'f670l', 'frm_username', 'frm_password']):
+            if any(k in html_lower for k in ['zte', 'zxhn', 'f670l', 'frm_username', 'frm_password']):
                 print("[AUTH] Dispositivo ZTE detectado automáticamente")
                 if not self.model:
                     self.model = "MOD002"
@@ -393,7 +412,8 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
             # Por defecto, asumir ONT estándar
             return "ONT"
             
-        except:
+        except Exception as e:
+            print(f"[ERROR] Fallo en la detección de dispositivo {e}")
             return "ONT"
                 
     def _detect_model(self, model_name: str) -> str:
@@ -506,7 +526,8 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
                     self.out_q.put((kind, payload))
             print(f"\n[*] Ejecutando tests comunes ({len(common_tests)} tests)...")
             for test_func in common_tests:
-                emit("pruebas", "Ejecutando "+str(test_func))
+                test_name = test_func.__name__.replace('test_','').replace('_',' ').title()
+                emit("pruebas", f"Ejecutando: {test_name}")
                 result = test_func()
                 self.test_results["tests"][result["name"]] = result
             
@@ -514,7 +535,7 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
                 if self.driver:
                     self.driver.quit()
                     self.driver = None
-                emit("pruebas", "Ejecutando software_update")
+                emit("pruebas", "Ejecutando. Actualizacion de Software")
                 self.test_sft_update() # Se tiene que ejecutar después de lo demás ya que requiere otro login
             # print(json.dumps(self.test_results, indent=2, ensure_ascii=False)) 
         # Ejecutar tests específicos según el tipo
@@ -529,7 +550,8 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
                 def emit(kind, payload):
                     if self.out_q:
                         self.out_q.put((kind, payload))
-                emit("pruebas", "Ejecutando "+str(test_func))
+                test_name = test_func.__name__.replace('test_','').replace('_',' ').title()
+                emit("pruebas", f"Ejecutando: {test_name}")
                 result = test_func()
                 self.test_results["tests"][result["name"]] = result  
         return self.test_results
@@ -652,7 +674,7 @@ def main():
         tester._generarCertificado()
     
 
-def monitor_device_connection(ip: str, interval: int = 5, max_failures: int = 3):
+def monitor_device_connection(ip: str, interval: int = 1, max_failures: int = 3):
     """
     Monitorea continuamente la conexión con un dispositivo mediante ping.
     Retorna cuando se pierda la conexión.
@@ -962,8 +984,8 @@ def main_loop(opciones, out_q = None):
             
             if not ip:
                 print("\n[!] No se encontró ningún dispositivo")
-                print("[*] Reintentando en 3 segundos...\n")
-                time.sleep(3)
+                print("[*] Reintentando en 1 segundos...\n")
+                time.sleep(1)
                 continue
             
             detected_model = temp_tester.model
@@ -976,10 +998,13 @@ def main_loop(opciones, out_q = None):
             print(f"\n[FASE 2/3] EJECUCIÓN DE PRUEBAS")
             print("-" * 60)
             
-            emit("log", "Iniciando main_loop...")
+            emit("log", "Iniciando pruebas automatizadas...")
             # Obtener modelo + matchear con dict
             nombre = temp_tester._get_model_display_name(detected_model)
-            emit("logSuper", nombre)
+            if not detected_model:
+                emit("logSuper", "Por confirmar")
+            else:
+                emit("logSuper", nombre)
             tester = ONTAutomatedTester(ip, detected_model)
             def emit(kind, payload):
                 if out_q:
@@ -994,7 +1019,7 @@ def main_loop(opciones, out_q = None):
             # opc["tests"]["wifi_24ghz_signal"] = False
             # opc["tests"]["wifi_5ghz_signal"] = False
             # opc["tests"]["usb_port"] = False
-            emit("pruebas", "Iniciando sesión ")
+            emit("pruebas", "Autenticando dispositivo")
             tester.run_all_tests()
             
             # Mandar a llamar los resultados finales
@@ -1010,7 +1035,7 @@ def main_loop(opciones, out_q = None):
             if todo_tests_on:
                 tester._generarCertificado()
             
-            emit("log", "Fin main_loop")
+            emit("log", "Pruebas completadas")
             emit("pruebas", "Fin de pruebas")
             print(f"\n[✓] Pruebas completadas para {ip}")
             
@@ -1018,7 +1043,7 @@ def main_loop(opciones, out_q = None):
             print(f"\n[FASE 3/3] MONITOREO DE CONEXIÓN")
             print("-" * 60)
             
-            user_interrupted = monitor_device_connection(ip, interval=5, max_failures=3)
+            user_interrupted = monitor_device_connection(ip, interval=1, max_failures=3)
             
             if user_interrupted:
                 # Usuario presionó Ctrl+C durante el monitoreo
@@ -1029,7 +1054,7 @@ def main_loop(opciones, out_q = None):
                 print("\n[*] Dispositivo desconectado. Iniciando nuevo ciclo de escaneo...")
                 # Decir que ya se perdió la conexión
                 emit("con", "DESCONECTADO")
-                time.sleep(2)  # Pequeña pausa antes de re-escanear
+                time.sleep(1)  # Pequeña pausa antes de re-escanear
                 
     except KeyboardInterrupt:
         print("\n\n" + "="*80)

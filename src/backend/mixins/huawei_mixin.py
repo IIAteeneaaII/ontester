@@ -1029,7 +1029,7 @@ class HuaweiMixin:
                 print("[INFO Q] NOOO Se detectó la queue")
         for name, nav_func, parse_func in tests:
             try:
-                emit("pruebas", "Ejecutando: "+str(name))
+                emit("pruebas", f"Ejecutando: {name}")
                 nav_func(driver)             # hace los clicks
                 data = parse_func(driver)    # lee sólo lo que nos interesa
                 self.test_results["tests"][name] = { # Pasar al test_results
@@ -1048,12 +1048,12 @@ class HuaweiMixin:
         wifi5 = self.test_results['tests']['hw_wifi5']['data'].get('ssid') # nombre wifi
 
         if tests_opts.get("software_update", True):
-            emit("pruebas", "Ejecutando "+str("software_update"))
+            emit("pruebas", "Ejecutando Actualizacion de Software")
             self.test_sft_updateHw(driver)
 
         # Verificar si se tienen que probar las señales wifi
         if tests_opts.get("wifi_24ghz_signal", True) and tests_opts.get("wifi_5ghz_signal", True):
-            emit("pruebas", "Ejecutanto "+str("wifi_tests"))
+            emit("pruebas", "Ejecutanto Prueba de Señal WiFi")
             self.test_wifi_rssi_windows(wifi24, wifi5)
     
         self.save_results2("test_mod003-mod005")
@@ -1586,7 +1586,7 @@ class HuaweiMixin:
                         def emit(kind, payload):
                             if self.out_q:
                                 self.out_q.put((kind, payload))
-                        emit("pruebas", "Ejecutando factory_reset")
+                        emit("pruebas", "Ejecutando Reinicio de Fabrica")
                         reset = self._reset_factory_huawei(driver)
                         time.sleep(100)
                         if(reset):
