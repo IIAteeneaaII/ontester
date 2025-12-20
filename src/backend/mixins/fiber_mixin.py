@@ -1298,19 +1298,14 @@ class FiberMixin:
         """Extrae información WiFi completa (SSIDs, passwords, canales) usando endpoints específicos (fallback)"""
         wifi_info = {}
         
-        # PRIORIDAD 1: Intentar extracción por Selenium (método más confiable para passwords)
-        if self.driver:
-            print("[INFO] Intentando extracción de passwords WiFi por Selenium...")
-            selenium_passwords = self._extract_wifi_password_selenium()
-            if selenium_passwords:
-                wifi_info.update(selenium_passwords)
-                print(f"[INFO] Passwords extraídas por Selenium: {list(selenium_passwords.keys())}")
+        # NOTA: La extracción de passwords por Selenium se hace en common_mixin después
+        # de llamar a este método, para evitar llamadas duplicadas
         
         if not self.session_id:
             print("[DEBUG] No hay sessionid, no se puede obtener info WiFi adicional")
             return wifi_info if wifi_info else {}
         
-        # PRIORIDAD 2: Intentar get_wifi_info para WiFi 2.4GHz (SSID y otros datos)
+        # PRIORIDAD 1: Intentar get_wifi_info para WiFi 2.4GHz (SSID y otros datos)
         try:
             wifi_24_response = self._ajax_get('get_wifi_info')
             if wifi_24_response.get('session_valid') == 1:
@@ -1326,7 +1321,7 @@ class FiberMixin:
         except Exception as e:
             print(f"[DEBUG] Error obteniendo WiFi 2.4GHz: {e}")
         
-        # PRIORIDAD 3: Intentar get_5g_wifi_info para WiFi 5GHz
+        # PRIORIDAD 2: Intentar get_5g_wifi_info para WiFi 5GHz
         try:
             wifi_5g_response = self._ajax_get('get_5g_wifi_info')
             if wifi_5g_response.get('session_valid') == 1:

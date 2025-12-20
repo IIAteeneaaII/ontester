@@ -461,7 +461,9 @@ class TesterView(ctk.CTkFrame):
                 elif kind == "con":
                     # Cuando se conecta hace una limpieza y establece que se ha conectado
                     self._limpiezaElementos()
-                    if(payload == "CONECTADO"):
+                    # Detectar estado de conexión de forma flexible
+                    payload_lower = str(payload).lower()
+                    if "conectado" in payload_lower and "desconectado" not in payload_lower:
                         self.panel_pruebas.actualizar_estado_conexion(True)
                     else:
                         self.panel_pruebas.actualizar_estado_conexion(False)
