@@ -319,7 +319,16 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
             )
             
             html = response.text.lower()
+            # Guardamos el texto original para búsquedas sensibles a mayúsculas/regex
+            raw_html = response.text 
             server = response.headers.get('Server', '').lower()
+
+            # Normalizar escapes hexadecimales comunes (ej: \x2d = -)
+            html = html.replace('\\x2d', '-').replace('\\x2D', '-')
+            
+            # Normalizar HTML por si usan texto no Unicode
+            html_normalized = html.replace(' ', '').replace('\n', '').replace('\t', '')
+            html_normalized = html_normalized.replace('–', '').replace('—', '')
             
             # Detectar Grandstream
             if 'grandstream' in html or 'grandstream' in server or 'ht818' in html:
@@ -337,24 +346,68 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
                 return "FIBERHOME"
             
             # Detectar Huawei (buscar elementos específicos en el HTML)
-            if any(keyword in html for keyword in ['huawei', 'hg8145', 'echolife', 'txt_username', 'txt_password']):
+            if any(keyword in html_normalized for keyword in ['huawei', 'hg8145', 'txt_username', 'txt_password']):
                 print("[AUTH] Dispositivo Huawei detectado automáticamente")
-                # Intentar detectar modelo específico
-                if not self.model:
-                    if 'hg8145v5' in html:
-                        if 'small' in html:
+                
+                # ESTRATEGIA 1: Buscar en el <title> (Más fiable según tu captura)
+                title_match = re.search(r"<title>(.*?)</title>", raw_html, re.IGNORECASE)
+                product_name_found = ""
+                
+                if title_match:
+                    title_clean = title_match.group(1).upper().strip()
+                    print(f"[DEBUG] Título HTML encontrado: '{title_clean}'")
+                    if "HG8145" in title_clean:
+                        product_name_found = title_clean
+
+                # ESTRATEGIA 2: Buscar en JavaScript si el título no fue concluyente
+                if not product_name_found:
+                    print(f"[DEBUG] Buscando ProductName en JS...")
+                    product_match = re.search(r"var\s+ProductName\s*=\s*['\"]([^'\"]+)['\"]", raw_html, re.IGNORECASE)
+                    if product_match:
+                        # Limpieza agresiva de caracteres escapados
+                        raw_js_name = product_match.group(1)
+                        # Reemplazar \x2d (literal) y variantes por guion
+                        clean_js_name = raw_js_name.upper().replace('\\X2D', '-').replace('\\x2d', '-').replace('%2D', '-')
+                        print(f"[DEBUG] ProductName JS extraído: '{raw_js_name}' -> Limpio: '{clean_js_name}'")
+                        product_name_found = clean_js_name
+
+                if product_name_found:
+                    # Orden de especificidad: Del más largo al más corto
+                    if 'HG8145X6-10' in product_name_found:
+                        self.model = "MOD003"
+                    elif 'HG8145X6' in product_name_found:
+                         # Si encuentra X6 pero no X6-10, es el modelo nuevo
+                        self.model = "MOD007"
+                    elif 'HG8145V5' in product_name_found:
+                        if 'SMALL' in product_name_found:
                             self.model = "MOD005"
                         else:
                             self.model = "MOD004"
-                    elif 'hg8145x6-10' in html:
-                        self.model = "MOD003"
-                    elif 'hg8145x6' in html:
-                        self.model = "MOD007"
                     else:
-                        # Default to MOD004 for unknown Huawei
+                        print(f"[AUTH] Modelo Huawei no mapeado exactamente: {product_name_found}")
+                        # Fallback inteligente
                         self.model = "MOD004"
-                    print(f"[AUTH] Modelo asignado: {self.model}")
+                
+                if not self.model:
+                    print("[AUTH] No se detectó modelo específico, usando MOD004 por defecto")
+                    self.model = "MOD004"
+                
+                print(f"[AUTH] Modelo final asignado: {self.model}")
                 return "HUAWEI"
+                
+                # LÓGICA ANTIGUA (comentada - mantiene compatibilidad si no se encuentra ProductName)
+                # if 'hg8145v5' in html:
+                #     if 'small' in html:
+                #         self.model = "MOD005"
+                #     else:
+                #         self.model = "MOD004"
+                # elif re.search(r'hg8145x6[\s\-–—\u2010-\u2015]?10', html):  # Acepta espacio, varios guiones, o nada
+                #     self.model = "MOD003"
+                # elif 'hg8145x6' in html:
+                #     self.model = "MOD007"
+                # else:
+                #     # Default to MOD004 for unknown Huawei
+                #     self.model = "MOD004"
             
             # Detectar ZTE
             if any(keyword in html for keyword in ['zte', 'zxhn', 'f670l', 'frm_username', 'frm_password']):

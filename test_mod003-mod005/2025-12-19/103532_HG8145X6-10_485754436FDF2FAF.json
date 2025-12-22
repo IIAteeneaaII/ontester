@@ -1,0 +1,84 @@
+{
+  "metadata": {
+    "host": "192.168.100.1",
+    "model": "HG8145X6-10",
+    "timestamp": "2025-12-19T10:33:24.355661",
+    "serial_number": "485754436FDF2FAF"
+  },
+  "tests": {
+    "hw_device": {
+      "name": "hw_device",
+      "data": {
+        "model": "HG8145X6-10",
+        "serial_number": "485754436FDF2FAF",
+        "serial_raw": "485754436FDF2FAF (HWTC6FDF2FAF)",
+        "software_version": "V5R022C00S229"
+      }
+    },
+    "hw_lan": {
+      "name": "hw_lan",
+      "data": {
+        "ports": [
+          {
+            "port": "1",
+            "mode": "Full-duplex",
+            "speed": "1000 Mbit/s",
+            "status": "Up"
+          },
+          {
+            "port": "2",
+            "mode": "--",
+            "speed": "--",
+            "status": "Down"
+          },
+          {
+            "port": "3",
+            "mode": "--",
+            "speed": "--",
+            "status": "Down"
+          },
+          {
+            "port": "4",
+            "mode": "--",
+            "speed": "--",
+            "status": "Down"
+          }
+        ]
+      }
+    },
+    "hw_wifi24": {
+      "name": "hw_wifi24",
+      "data": {
+        "band": "2.4GHz",
+        "status": "Enabled",
+        "ssid": "Totalplay-2FAF"
+      }
+    },
+    "hw_wifi5": {
+      "name": "hw_wifi5",
+      "data": {
+        "band": "5GHz",
+        "status": "Enabled",
+        "ssid": "Totalplay-2FAF-5G"
+      }
+    },
+    "hw_mac": {
+      "name": "hw_mac",
+      "data": "F4:E4:51:E2:38:24"
+    },
+    "hw_wifi24_pass": {
+      "name": "hw_wifi24_pass",
+      "data": {
+        "band": "2.4GHz",
+        "password": "2FAF3824xt5gNs62"
+      }
+    },
+    "hw_wifi5_pass": {
+      "name": "hw_wifi5_pass",
+      "data": {
+        "band": "5GHz",
+        "password": "2FAF3824xt5gNs62"
+      }
+    }
+  }
+}
