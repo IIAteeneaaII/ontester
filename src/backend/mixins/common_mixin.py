@@ -375,6 +375,8 @@ class CommonMixin:
                         domain=cookie.get('domain', self.host),
                         path=cookie.get('path', '/')
                     )
+                    # driver.quit() # No cerrar el driver para conexiones futuras
+                    print("[SELENIUM] Dirver mantenido")
                     #driver.quit()
                     # NO cerrar driver - se necesita para extracciones posteriores
                     print("[SELENIUM] Driver mantenido activo para extracciones posteriores")
@@ -388,6 +390,8 @@ class CommonMixin:
             if sessionid_match:
                 self.session_id = sessionid_match.group(1)
                 print(f"[SELENIUM] OK - SessionID extraido del HTML: {self.session_id[:8]}...")
+                # driver.quit()
+                print("[SELENIUM] Dirver mantenido")
                 #driver.quit()
                 # NO cerrar driver - se necesita para extracciones posteriores
                 print("[SELENIUM] Driver mantenido activo para extracciones posteriores")
@@ -408,13 +412,12 @@ class CommonMixin:
             if sessionid_from_ajax:
                 self.session_id = sessionid_from_ajax
                 print(f"[SELENIUM] OK - SessionID obtenido via AJAX: {self.session_id[:8]}...")
-                # NO cerrar driver - se necesita para extracciones WiFi posteriores
-                print("[SELENIUM] Driver mantenido activo para extracciones posteriores")
+                # driver.quit()
+                print("[SELENIUM] Dirver mantenido")
                 return True
             
             print("[ERROR] No se pudo extraer sessionid después del login")
-            # Solo cerrar si falla
-            driver.quit()
+            driver.quit() # Solo cerrar si falla
             self.driver = None
             return False
             
@@ -1237,12 +1240,19 @@ class CommonMixin:
 
         # Tests
         ping = "PASS" # si llega hasta aqui es que se le puede hacer ping
-        reset = "PASS" # ya está implementado y si no se resetea no hace nada
+        if tests_opts.get("factory_reset", True):
+            reset = "PASS" # ya está implementado y si no se resetea no hace nada
+        else:
+            reset = "SIN PRUEBA"
         if tests_opts.get("usb_port", True):
             usb_ruta = self.test_results.get('tests', {}).get('usb', {}).get('details', {}) # ruta donde estará o no el valor buscado
             usb = "USBDEV" in usb_ruta # True or False
+            if(usb):
+                usb_final=True
+            else:
+                usb_final=False
         else:
-            usb = False
+            usb_final="SIN PRUEBA"
         if tests_opts.get("tx_power", True) and tests_opts.get("rx_power", True):
             def _to_float_safe(v):
                 try:
@@ -1306,11 +1316,6 @@ class CommonMixin:
             w24 = "SIN PRUEBA"
             w5 = "SIN PRUEBA"
 
-
-        usb_final="ERROR"
-        if(usb):
-            usb_final="PASS"
-
         if tests_opts.get("software_update", True):
             try:
                 sftU = self.test_results['tests']['software_update']['details'].get('update_completed')
@@ -1345,8 +1350,12 @@ class CommonMixin:
             reset= "SIN PRUEBA"
         if tests_opts.get("usb_port", True):
             usb = self.test_results['tests']['hw_usb']['data'].get('connected') # true or false
+            if(usb):
+                usb_final = True
+            else:
+                usb_final = False
         else:
-            usb = False
+            usb_final = "SIN PRUEBA"
         if tests_opts.get("tx_power", True) and tests_opts.get("rx_power", True):
             tx = self.test_results['tests']['hw_optical']['data'].get('tx_optical_power') # -- dBm si no tiene conexion
             rx = self.test_results['tests']['hw_optical']['data'].get('rx_optical_power') # -- dBm si no tiene conexion
@@ -1392,12 +1401,10 @@ class CommonMixin:
             w24 = "SIN PRUEBA"
             w5 = "SIN PRUEBA"
 
-        usb_final="ERROR"
+        
         # Valores por defecto para no mandar --
         tx_final=-60.0
         rx_final=-60.0
-        if(usb):
-            usb_final="PASS"
         if(tx != "-- dBm"):
             tx_final = tx
         if(rx != "-- dBm"):

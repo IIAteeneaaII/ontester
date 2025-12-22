@@ -60,3 +60,34 @@ def iniciar_testerConexion(resetFabrica, usb, fibra, wifi, out_q = None):
     # emit("resultados", resultados)
 
     emit("log", "Pruebas terminadas.")
+
+def iniciar_pruebaUnitariaConexion(resetFabrica, sftU, usb, fibra, wifi, out_q=None):
+    def emit(kind, payload):
+        if out_q:
+            out_q.put((kind, payload))
+    
+    opcionesTest = {
+        "info": {
+            "sn": True,
+            "mac": True,
+            "ssid_24ghz": True,
+            "ssid_5ghz": True,
+            "software_version": True,
+            "wifi_password": True,
+            "model": True
+        },
+        "tests": {
+            "ping": True, # Esta prueba no se deshabilita
+            "factory_reset": resetFabrica,
+            "software_update": sftU, 
+            "usb_port": usb,
+            "tx_power": fibra,
+            "rx_power": fibra,
+            "wifi_24ghz_signal": wifi,
+            "wifi_5ghz_signal": wifi
+        }
+    }
+    # Poner log 
+    emit("log", "Iniciando prueba unitaria...")
+    # Mandar a llamar una prueba unitaria
+    #

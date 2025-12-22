@@ -361,7 +361,8 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
                 print("[AUTH] Dispositivo Fiberhome detectado automáticamente")
                 if 'hg6145f1' in html_lower:
                     self.model = "MOD008"
-                elif not self.model: # Si no se especificó y no es F1, es el estándar
+                    print(f"[AUTH] Modelo asignado: {self.model}")
+                elif not self.model:
                     self.model = "MOD001"
                 print(f"[AUTH] Modelo asignado: {self.model}")
                 return "FIBERHOME"
@@ -418,7 +419,7 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
             return "ONT"
             
         except Exception as e:
-            print(f"[ERROR] Fallo en detección de dispositivo: {e}")
+            print(f"[ERROR] Fallo en la detección de dispositivo {e}")
             return "ONT"
                 
     def _detect_model(self, model_name: str) -> str:
@@ -1060,7 +1061,7 @@ def main_loop(opciones, out_q = None):
                 print("\n[*] Dispositivo desconectado. Iniciando nuevo ciclo de escaneo...")
                 # Decir que ya se perdió la conexión
                 emit("con", "DESCONECTADO")
-                time.sleep(2)  # Pequeña pausa antes de re-escanear
+                time.sleep(1)  # Pequeña pausa antes de re-escanear
                 
     except KeyboardInterrupt:
         print("\n\n" + "="*80)

@@ -235,20 +235,21 @@ class TesterView(ctk.CTkFrame):
         self.main_content.pack(expand=True, fill="both", padx=60, pady=(30, 0))
 
         info_frame = ctk.CTkFrame(self.main_content, fg_color="transparent")
-        info_frame.pack(side="top", fill="x", pady=(0, 30))
+        info_frame.pack(side="top", fill="both", pady=(0, 10), expand=True)
 
         info_frame.grid_columnconfigure(0, weight=1)
         info_frame.grid_columnconfigure(1, weight=1)
 
-        label_font = ctk.CTkFont(size=14, weight="bold")
+        label_font = ctk.CTkFont(size=18, weight="bold")
+        label_fontInfo = ctk.CTkFont(size=30, weight="bold")
         label_color = "#37474F"
 
-        self.snInfo = ctk.CTkLabel(info_frame, text="SN:", font=label_font, text_color=label_color, anchor="w")
-        self.snInfo.grid(row=0, column=0, sticky="w", pady=(0, 5))
-        self.macInfo = ctk.CTkLabel(info_frame, text="MAC:", font=label_font, text_color=label_color, anchor="w")
-        self.macInfo.grid(row=1, column=0, sticky="w", pady=(0, 25))
+        self.snInfo = ctk.CTkLabel(info_frame, text="SN:", font=label_fontInfo, text_color=label_color, anchor="w")
+        self.snInfo.grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 5))
+        self.macInfo = ctk.CTkLabel(info_frame, text="MAC:", font=label_fontInfo, text_color=label_color, anchor="w")
+        self.macInfo.grid(row=1, column=0, columnspan=2, sticky="w", pady=(0, 5))
         self.sftInfo = ctk.CTkLabel(info_frame, text="SOFTWARE:", font=label_font, text_color=label_color, anchor="w")
-        self.sftInfo.grid(row=2, column=0, sticky="w", pady=(10, 5))
+        self.sftInfo.grid(row=2, column=0, sticky="w", pady=(5, 5))
         self.w24Info = ctk.CTkLabel(info_frame, text="WIFI 2.4 GHz:", font=label_font, text_color=label_color, anchor="w")
         self.w24Info.grid(row=3, column=0, sticky="w", pady=5)
         self.w5Info = ctk.CTkLabel(info_frame, text="WIFI 5 GHz:", font=label_font, text_color=label_color, anchor="w")
@@ -257,7 +258,7 @@ class TesterView(ctk.CTkFrame):
         self.pswInfo.grid(row=5, column=0, sticky="w", pady=(5, 0))
 
         self.txInfo = ctk.CTkLabel(info_frame, text="Fo TX:", font=label_font, text_color=label_color, anchor="w")
-        self.txInfo.grid(row=2, column=1, sticky="w", padx=(40, 0), pady=(10, 5))
+        self.txInfo.grid(row=2, column=1, sticky="w", padx=(40, 0), pady=(5, 5))
         self.rxInfo = ctk.CTkLabel(info_frame, text="Fo Rx:", font=label_font, text_color=label_color, anchor="w")
         self.rxInfo.grid(row=3, column=1, sticky="w", padx=(40, 0), pady=5)
         self.usbInfo = ctk.CTkLabel(info_frame, text="Usb Port:", font=label_font, text_color=label_color, anchor="w")
@@ -265,7 +266,7 @@ class TesterView(ctk.CTkFrame):
 
         # Panel inferior
         self.panel_pruebas = PanelPruebasConexion(self.main_content)
-        self.panel_pruebas.pack(side="bottom", fill="x", expand=False, padx=0, pady=(0, 10))
+        self.panel_pruebas.pack(side="bottom", fill="x", padx=0, pady=(0, 10)) #, expand=False
 
         # Iniciar reloj
         self.update_clock()
@@ -275,6 +276,14 @@ class TesterView(ctk.CTkFrame):
 
         # ✅ Cargar usuario desde InicioView (root.current_user_id / root.current_user_name)
         self.after(50, self._cargar_usuario_desde_root)
+
+        # Configurar las rows de info
+        info_frame.grid_rowconfigure(0, weight=3, minsize=60)  # SN:  fila grande
+        info_frame.grid_rowconfigure(1, weight=3, minsize=60)  # MAC: fila grande
+        info_frame.grid_rowconfigure(2, weight=1)
+        info_frame.grid_rowconfigure(3, weight=1)
+        info_frame.grid_rowconfigure(4, weight=1)
+        info_frame.grid_rowconfigure(5, weight=1)
 
     # ===================== USUARIO =====================
     def _cargar_usuario_desde_root(self):
@@ -461,7 +470,6 @@ class TesterView(ctk.CTkFrame):
                 elif kind == "con":
                     # Cuando se conecta hace una limpieza y establece que se ha conectado
                     self._limpiezaElementos()
-                    # Detectar estado de conexión de forma flexible
                     payload_lower = str(payload).lower()
                     if "conectado" in payload_lower and "desconectado" not in payload_lower:
                         self.panel_pruebas.actualizar_estado_conexion(True)
@@ -493,12 +501,14 @@ class TesterView(ctk.CTkFrame):
         self.rxInfo.configure(text="Fo RX: —")
         self.usbInfo.configure(text="Usb Port: ")
         self.estado_prueba_label.configure(text="SIN EJECUTAR")
+        self.estado_prueba_label.configure(text_color="#f1c40f")
         self.modelo_label.configure(text="Modelo: ")
         self.panel_pruebas.set_texto_superior("-")
+        self.panel_pruebas.set_texto_inferior("-")
         # botones
         self.panel_pruebas._set_button_status("ping", "reset")
         self.panel_pruebas._set_button_status("factory_reset", "reset")
-        self.panel_pruebas._set_button_status("software_update", "reset") # falta mandarla a llamar (literalmente terminamos la prueba hace unas horas)
+        self.panel_pruebas._set_button_status("software_update", "reset") 
         self.panel_pruebas._set_button_status("usb_port", "reset")
         # validar los valores 
         self.panel_pruebas._set_button_status("tx_power", "reset")
@@ -560,6 +570,7 @@ class TesterView(ctk.CTkFrame):
         self.usbInfo.configure(text="Usb Port: "+str(usb))
 
         self.estado_prueba_label.configure(text="EJECUTADO")
+        self.estado_prueba_label.configure(text_color="#6B9080")
 
 if __name__ == "__main__":
     ctk.set_appearance_mode("light")
