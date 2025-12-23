@@ -674,7 +674,7 @@ def main():
         tester._generarCertificado()
     
 
-def monitor_device_connection(ip: str, interval: int = 1, max_failures: int = 3):
+def monitor_device_connection(ip: str, interval: int = 1, max_failures: int = 3, stop_event=None):
     """
     Monitorea continuamente la conexión con un dispositivo mediante ping.
     Retorna cuando se pierda la conexión.
@@ -695,6 +695,9 @@ def monitor_device_connection(ip: str, interval: int = 1, max_failures: int = 3)
     
     try:
         while True:
+            if stop_event and stop_event.is_set():
+                print("CANCELADO POR CAMBIO DE MODO")
+                return True
             ping_count += 1
             
             # Ejecutar ping según el sistema operativo
@@ -939,7 +942,7 @@ def run_retest_mode(host: str, model: str = None, output: str = None):
     print(f"    - JSON: {json_file}")
     print(f"    - TXT: {txt_file}")
 
-def main_loop(opciones, out_q = None):
+def main_loop(opciones, out_q = None, stop_event=None):
     """
     Ciclo principal recursivo:
     1. Escanea red y encuentra dispositivo
@@ -956,6 +959,9 @@ def main_loop(opciones, out_q = None):
     
     try:
         while True:
+            if stop_event and stop_event.is_set():
+                print("CANCELADO POR CAMBIO DE MODO")
+                break
             cycle_count += 1
             print(f"\n{'#'*80}")
             print(f"CICLO #{cycle_count}")
@@ -1043,7 +1049,7 @@ def main_loop(opciones, out_q = None):
             print(f"\n[FASE 3/3] MONITOREO DE CONEXIÓN")
             print("-" * 60)
             
-            user_interrupted = monitor_device_connection(ip, interval=1, max_failures=3)
+            user_interrupted = monitor_device_connection(ip, interval=1, max_failures=3, stop_event=stop_event)
             
             if user_interrupted:
                 # Usuario presionó Ctrl+C durante el monitoreo
@@ -1064,6 +1070,8 @@ def main_loop(opciones, out_q = None):
         if last_tested_ip:
             print(f"Último dispositivo testeado: {last_tested_ip}")
         print("\n[*] Programa finalizado")
+
+#def pruebaUnitariaONT():
 
 if __name__ == "__main__":
     # Verificar si se pasan argumentos de línea de comandos

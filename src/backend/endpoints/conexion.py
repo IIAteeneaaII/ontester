@@ -1,5 +1,6 @@
 from pathlib import Path
 import threading
+import time
 
 def load_users_txt(path: str | Path) -> dict[str, str]:
     users = {}
@@ -18,10 +19,15 @@ def load_default_users() -> dict[str, str]:
     txt_path = base_utils / "utils" / "empleados.txt"
     return load_users_txt(txt_path)
 
-def iniciar_testerConexion(resetFabrica, usb, fibra, wifi, out_q = None):
+def iniciar_testerConexion(resetFabrica, usb, fibra, wifi, out_q = None, stop_event = None):
     def emit(kind, payload):
         if out_q:
             out_q.put((kind, payload))
+
+    # Mostrar cambio de modo detectado primero
+    emit("log", "Cambio de modo detectado.")
+    time.sleep(1) # Pequeña pausa para que sea perceptible
+
     print("[CONEXION] Fibra recibida: "+str(fibra))
     if any([resetFabrica, usb, fibra, wifi]):
         sftU = True
@@ -53,15 +59,17 @@ def iniciar_testerConexion(resetFabrica, usb, fibra, wifi, out_q = None):
     # print("CONEXION: wifi: "+str(wifi))
     # Mandar a llamar a la función en ont_automatico
     from src.backend.ont_automatico import main_loop
-    main_loop(opcionesTest, out_q) 
+    main_loop(opcionesTest, out_q, stop_event) 
     # Se hará desde dentro del main_loop
     # from src.backend.mixins.common_mixin import _resultados_finales
     # resultados = _resultados_finales()  # función de resultados finales
     # emit("resultados", resultados)
 
-    emit("log", "Pruebas terminadas.")
+    # Solo emitir "Pruebas terminadas" si no fue cancelado
+    if not(stop_event and stop_event.is_set()):
+        emit("log", "Cambio de modo detectado.")
 
-def iniciar_pruebaUnitariaConexion(resetFabrica, sftU, usb, fibra, wifi, out_q=None):
+def iniciar_pruebaUnitariaConexion(resetFabrica, sftU, usb, fibra, wifi, model, out_q=None):
     def emit(kind, payload):
         if out_q:
             out_q.put((kind, payload))
@@ -89,5 +97,8 @@ def iniciar_pruebaUnitariaConexion(resetFabrica, sftU, usb, fibra, wifi, out_q=N
     }
     # Poner log 
     emit("log", "Iniciando prueba unitaria...")
+    model = model.removeprefix("Modelo: ") # Limpiar el modelo (viene como "Modelo: ___")
     # Mandar a llamar una prueba unitaria
-    #
+    from src.backend.ont_automatico import pruebaUnitariaONT
+    pruebaUnitariaONT(opcionesTest, out_q, model)
+    # Actualizar botón unitario

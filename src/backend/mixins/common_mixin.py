@@ -1152,12 +1152,12 @@ class CommonMixin:
             print("Los valores de la super de tx son: "+str(self._getMinFibraTx()) +" "+str(self._getMaxFibraTx()))
             print("Los valores de la super de rx son: "+str(self._getMinFibraRx()) +" "+str(self._getMaxFibraRx()))
             if(_to_float_safe(tx) >= self._getMinFibraTx() and _to_float_safe(tx) <= self._getMaxFibraTx()):
-                tx = True
+                tx = tx
             else:
                 tx = False
             
             if(_to_float_safe(rx) >= self._getMinFibraRx() and _to_float_safe(rx) <= self._getMaxFibraRx()):
-                rx = True
+                rx = rx
             else:
                 rx = False
         else:
@@ -1257,12 +1257,12 @@ class CommonMixin:
             print("LOS valores de tx y rx son: "+str(tx)+" "+str("rx"))
             # Revisar si la fibra pasa las pruebas
             if(_to_float_safe(tx) >= self._getMinFibraTx() and _to_float_safe(tx) <= self._getMaxFibraTx()):
-                tx = True
+                tx = tx
             else:
                 tx = False
             
             if(_to_float_safe(rx) >= self._getMinFibraRx() and _to_float_safe(rx) <= self._getMaxFibraRx()):
-                rx = True
+                rx = rx
             else:
                 rx = False
         else:
@@ -1404,12 +1404,12 @@ class CommonMixin:
         # Revisar si la fibra pasa las pruebas
         if tests_opts.get("tx_power", True) and tests_opts.get("rx_power", True):
             if(tx_final >= self._getMinFibraTx() and tx_final <= self._getMaxFibraTx()):
-                tx_final = True
+                tx_final = tx_final
             else:
                 tx_final = False
             
             if(rx_final >= self._getMinFibraRx() and rx_final <= self._getMaxFibraRx()):
-                rx_final = True
+                rx_final = rx_final
             else:
                 rx_final = False
         if tests_opts.get("software_update", True):

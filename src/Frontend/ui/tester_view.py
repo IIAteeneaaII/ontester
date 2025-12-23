@@ -33,6 +33,7 @@ class TesterView(ctk.CTkFrame):
         # Para la queue
         self.event_q = event_q
         self._polling = True
+        self.stop_event = threading.Event()
         self.after(100, self._poll_queue)
         # Paleta de colores para estados de botones (pastel)
         self.color_neutro_fg = "#4EA5D9"
@@ -382,6 +383,8 @@ class TesterView(ctk.CTkFrame):
         self.after(1000, self.update_clock)
 
     def cambiar_modo(self, modo: str):
+        self.stop_event.set()
+        self.stop_event = threading.Event()
         print(f"Modo seleccionado: {modo}")
         self._set_all_buttons_state("neutral")
 
@@ -411,7 +414,7 @@ class TesterView(ctk.CTkFrame):
         # 4) Arranca hilo
         t = threading.Thread(
             target=iniciar_testerConexion,
-            args=(resetFabrica, usb, fibra, wifi, self.event_q),
+            args=(resetFabrica, usb, fibra, wifi, self.event_q, self.stop_event),
             daemon=True
         )
         t.start()
@@ -563,11 +566,17 @@ class TesterView(ctk.CTkFrame):
 
         # -------- TESTS (lado derecho) --------
         # Si tx/rx son números (dBm), los formateamos
-        self.txInfo.configure(text=("Fo TX: —" if tx is None else f"Fo TX: {tx} dBm"))
-        self.rxInfo.configure(text=("Fo RX: —" if rx is None else f"Fo RX: {rx} dBm"))
+        self.txInfo.configure(text=("Fo TX: —" if tx in (False, None) else f"Fo TX: {tx} dBm"))
+        self.rxInfo.configure(text=("Fo RX: —" if rx in (False, None) else f"Fo RX: {rx} dBm"))
 
         # USB puede venir "PASS"/"ERROR"/"SIN PRUEBA"
-        self.usbInfo.configure(text="Usb Port: "+str(usb))
+        if(usb == True or usb == "PASS"):
+            usb_label = "USB detectada"
+        elif(usb == False or usb == "ERROR" or usb == "FAIL"):
+            usb_label = "No se detectó USB"
+        else:
+            usb_label = "Prueba omitida"
+        self.usbInfo.configure(text="Usb Port: "+str(usb_label))
 
         self.estado_prueba_label.configure(text="EJECUTADO")
         self.estado_prueba_label.configure(text_color="#6B9080")

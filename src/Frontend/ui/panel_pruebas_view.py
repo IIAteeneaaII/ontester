@@ -64,7 +64,6 @@ class PanelPruebasConexion(ctk.CTkFrame):
         :param kwargs:  Parámetros adicionales que se pasan al CTkFrame base.
         """
         super().__init__(parent, **kwargs)
-
         # Paleta para estados
         self.COL_IDLE  = "#4EA5D9"  # color base
         self.COL_PASS  = "#6B9080"  # verde
@@ -115,7 +114,7 @@ class PanelPruebasConexion(ctk.CTkFrame):
         self.lbl_texto_superior = ctk.CTkLabel(
             self,
             text="status",
-            font=ctk.CTkFont(size=12, weight="bold"),
+            font=ctk.CTkFont(size=14, weight="bold"),
             text_color="#2C3E50",
         )
         self.lbl_texto_superior.grid(
@@ -179,7 +178,7 @@ class PanelPruebasConexion(ctk.CTkFrame):
         self.lbl_texto = ctk.CTkLabel(
             self,
             text="PRUEBAS",
-            font=ctk.CTkFont(size=12, weight="bold"),
+            font=ctk.CTkFont(size=14, weight="bold"),
             text_color="#2C3E50",
         )
         self.lbl_texto.grid(
@@ -285,6 +284,7 @@ class PanelPruebasConexion(ctk.CTkFrame):
             wifi = True
         if(nombre_prueba == "WIFI 5.0 GHz"):
             wifi = True
+        # sacar modelo && sacar q  
         from src.backend.endpoints.conexion import iniciar_pruebaUnitariaConexion
         iniciar_pruebaUnitariaConexion(reset, soft, usb, fibra, wifi, )
         print(f"[PanelPruebasConexion] Click en {nombre_prueba}")
