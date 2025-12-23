@@ -1042,7 +1042,7 @@ class ZTEMixin:
                 def emit(kind, payload):
                     if self.out_q:
                         self.out_q.put((kind, payload))
-                emit("pruebas", f"Ejecutando {name}")
+                emit("pruebas", f"Ejecutando: {name}")
                 func(driver)
                 # 2) Obtener el XML 
                 driver.get(url)
@@ -1094,7 +1094,7 @@ class ZTEMixin:
                 def emit(kind, payload):
                             if self.out_q:
                                 self.out_q.put((kind, payload))
-                emit("pruebas", "Ejecutando Actualizacion de Software")
+                emit("pruebas", "Ejecutando: Actualizacion De Software")
                 print("[INFO] Ejecutando prueba de actualización de software...")
                 self.test_sft_updateZTE(driver)
             else:
@@ -1117,7 +1117,7 @@ class ZTEMixin:
                 def emit(kind, payload):
                             if self.out_q:
                                 self.out_q.put((kind, payload))
-                emit("pruebas", "Ejecutando Prueba de Señal WiFi")
+                emit("pruebas", "Ejecutando: Prueba De Senal WiFi")
                 print("[DEBUG] Iniciando prueba de potencia WiFi...")
                 ruta_wifi = self.test_results['tests']['wifi']['details']['WLANAP']
                 print(f"[DEBUG] WLANAP encontrado: {len(ruta_wifi)} access points")
@@ -1369,7 +1369,7 @@ class ZTEMixin:
                 def emit(kind, payload):
                             if self.out_q:
                                 self.out_q.put((kind, payload))
-                emit("pruebas", "Ejecutando: Extraccion de información")
+                emit("pruebas", "Ejecutando: Extraccion De Informacion")
                 status = self.find_status_link(driver, timeout=10)
                 if status is None:
                     raise RuntimeError("[SELENIUM] No se encontró el botón Status en ningún frame ni en el documento principal")

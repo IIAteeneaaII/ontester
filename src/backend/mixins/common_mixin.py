@@ -377,6 +377,9 @@ class CommonMixin:
                     )
                     # driver.quit() # No cerrar el driver para conexiones futuras
                     print("[SELENIUM] Dirver mantenido")
+                    #driver.quit()
+                    # NO cerrar driver - se necesita para extracciones posteriores
+                    print("[SELENIUM] Driver mantenido activo para extracciones posteriores")
                     return True
             
             # Si no está en cookies, intentar extraer del HTML
@@ -389,6 +392,9 @@ class CommonMixin:
                 print(f"[SELENIUM] OK - SessionID extraido del HTML: {self.session_id[:8]}...")
                 # driver.quit()
                 print("[SELENIUM] Dirver mantenido")
+                #driver.quit()
+                # NO cerrar driver - se necesita para extracciones posteriores
+                print("[SELENIUM] Driver mantenido activo para extracciones posteriores")
                 return True
             
             # Ultimo intento: hacer request AJAX para obtener sessionid
@@ -780,6 +786,7 @@ class CommonMixin:
                         base = meta.setdefault("base_info", {})
                         wifi_info_dict = base.setdefault("wifi_info", {})
                         wifi_info_dict.update(selenium_passwords)
+
                     #     wifi_info.update(selenium_passwords)
                     #     print(f"[INFO] Passwords extraídas por Selenium: {list(selenium_passwords.keys())}")
             else:
@@ -1212,24 +1219,24 @@ class CommonMixin:
         tests_opts = optTest.get("tests", {})
         # Valores informativos
         fecha = self.test_results['metadata'].get('timestamp') # "2025-11-28T13:51:32.497520"
-        modelo = self.test_results['metadata']['model'] # modelo 
-        sn = self.test_results['metadata'].get('serial_number') #sn
-        ruta_mac = self.test_results['tests']['mac']['details']['WAN_COMFIG']
+        modelo = self.test_results['metadata'].get('model', 'DESCONOCIDO') # modelo 
+        sn = self.test_results['metadata'].get('serial_number', 'N/A') #sn
+        ruta_mac = self.test_results.get('tests', {}).get('mac', {}).get('details', {}).get('WAN_COMFIG', [])
         mac = None
         for cfg in ruta_mac:
             if cfg.get("ConnTrigger") == "AlwaysOn":
                 mac = cfg.get("WorkIFMac")  # aquí está la MAC
                 break
-        sftVer = self.test_results['tests']['basic']['details']['DEVINFO'].get('SoftwareVer') #sft version
-        ruta_wifi = self.test_results['tests']['wifi']['details']['WLANAP']
+        sftVer = self.test_results.get('tests', {}).get('basic', {}).get('details', {}).get('DEVINFO', {}).get('SoftwareVer', 'N/A') #sft version
+        ruta_wifi = self.test_results.get('tests', {}).get('wifi', {}).get('details', {}).get('WLANAP', [])
         essids_validos = [
             ap["ESSID"]
             for ap in ruta_wifi
                 if "ESSID" in ap and "SSID" not in ap["ESSID"]
         ]
-        wifi24 = essids_validos[0] if essids_validos else None
-        wifi5 = essids_validos[1] if essids_validos else None
-        passWifi = self.test_results['tests']['Contraseña']['details'].get('password')
+        wifi24 = essids_validos[0] if len(essids_validos) > 0 else None
+        wifi5 = essids_validos[1] if len(essids_validos) > 1 else None
+        passWifi = self.test_results.get('tests', {}).get('Contraseña', {}).get('details', {}).get('password', 'N/A')
 
         # Tests
         ping = "PASS" # si llega hasta aqui es que se le puede hacer ping
@@ -1238,7 +1245,7 @@ class CommonMixin:
         else:
             reset = "SIN PRUEBA"
         if tests_opts.get("usb_port", True):
-            usb_ruta = self.test_results['tests']['usb']['details'] # ruta donde estará o no el valor buscado
+            usb_ruta = self.test_results.get('tests', {}).get('usb', {}).get('details', {}) # ruta donde estará o no el valor buscado
             usb = "USBDEV" in usb_ruta # True or False
             if(usb):
                 usb_final=True
@@ -1252,9 +1259,10 @@ class CommonMixin:
                     return float(v)
                 except (TypeError, ValueError):
                     return None
-            tx = self.test_results['tests']['fibra']['details']['PON_OPTICALPARA'].get('RxPower') # valor negativo
-            rx = self.test_results['tests']['fibra']['details']['PON_OPTICALPARA'].get('TxPower') # valor negativo
-            print("LOS valores de tx y rx son: "+str(tx)+" "+str("rx"))
+            pon_optical = self.test_results.get('tests', {}).get('fibra', {}).get('details', {}).get('PON_OPTICALPARA', {})
+            tx = pon_optical.get('RxPower') # valor negativo
+            rx = pon_optical.get('TxPower') # valor negativo
+            print("LOS valores de tx y rx son: "+str(tx)+" "+str(rx))
             # Revisar si la fibra pasa las pruebas
             if(_to_float_safe(tx) >= self._getMinFibraTx() and _to_float_safe(tx) <= self._getMaxFibraTx()):
                 tx = tx
@@ -1269,14 +1277,15 @@ class CommonMixin:
             tx = "SIN PRUEBA"
             rx = "SIN PRUEBA"
         if tests_opts.get("wifi_24ghz_signal", True) and tests_opts.get("wifi_5ghz_signal", True):
-            w24 = self.test_results['tests']['wifi']['details']['WLANSETTING'][0]["RadioStatus"] # valor 1 si activo
-            w5 = self.test_results['tests']['wifi']['details']['WLANSETTING'][1]["RadioStatus"] # valor 1 si activo
+            wlan_settings = self.test_results.get('tests', {}).get('wifi', {}).get('details', {}).get('WLANSETTING', [])
+            w24 = wlan_settings[0]["RadioStatus"] if len(wlan_settings) > 0 else "N/A" # valor 1 si activo
+            w5 = wlan_settings[1]["RadioStatus"] if len(wlan_settings) > 1 else "N/A" # valor 1 si activo
             # validar la potencia del wifi
             # verificar que el reporte no tenga errores
-            pot = self.test_results["tests"]["potencia_wifi"]
-            details = pot["details"]
-            raw_24 = details["raw_24"]
-            raw_5 = details["raw_5"]
+            pot = self.test_results.get("tests", {}).get("potencia_wifi", {})
+            details = pot.get("details", {})
+            raw_24 = details.get("raw_24", [])
+            raw_5 = details.get("raw_5", [])
             
             # Obtener configuraciones de minimos en porcentajes
             min_valor_wifi = self._getMinWifi24SignalPercent()

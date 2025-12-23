@@ -1298,7 +1298,8 @@ class FiberMixin:
         """Extrae información WiFi completa (SSIDs, passwords, canales) usando endpoints específicos (fallback)"""
         wifi_info = {}
         
-        # La extracción de passwords por selenium se hace en common_mixin
+        # NOTA: La extracción de passwords por Selenium se hace en common_mixin después
+        # de llamar a este método, para evitar llamadas duplicadas
         
         if not self.session_id:
             print("[DEBUG] No hay sessionid, no se puede obtener info WiFi adicional")
