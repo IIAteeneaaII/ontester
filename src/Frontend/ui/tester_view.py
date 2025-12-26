@@ -33,6 +33,7 @@ class TesterView(ctk.CTkFrame):
         # Para la queue
         self.event_q = event_q
         self._polling = True
+        self.stop_event = threading.Event()  # Para cancelar hilos al cambiar de modo
         self.after(100, self._poll_queue)
         # Paleta de colores para estados de botones (pastel)
         self.color_neutro_fg = "#4EA5D9"
@@ -274,7 +275,7 @@ class TesterView(ctk.CTkFrame):
         # Responsivo
         self.bind("<Configure>", self._on_resize)
 
-        # ✅ Cargar usuario desde InicioView (root.current_user_id / root.current_user_name)
+        # Cargar usuario desde InicioView (root.current_user_id / root.current_user_name)
         self.after(50, self._cargar_usuario_desde_root)
 
         # Configurar las rows de info
@@ -327,7 +328,7 @@ class TesterView(ctk.CTkFrame):
         self._swap_view(TesterMainView)
 
     def ir_salir(self):
-        # ✅ Regresar a InicioView (NO cerrar app)
+        # Regresar a InicioView (NO cerrar app)
         from src.Frontend.ui.inicio_view import InicioView
         self._swap_view(InicioView)
 
@@ -382,6 +383,9 @@ class TesterView(ctk.CTkFrame):
         self.after(1000, self.update_clock)
 
     def cambiar_modo(self, modo: str):
+        self.stop_event.set() # Señal de parar al hilo anterior
+        self.stop_event = threading.Event()  # Nuevo evento para el nuevo hilo
+
         print(f"Modo seleccionado: {modo}")
         self._set_all_buttons_state("neutral")
 
@@ -408,10 +412,10 @@ class TesterView(ctk.CTkFrame):
         # Importar la conexion
         from src.backend.endpoints.conexion import iniciar_testerConexion
         #iniciar_testerConexion(resetFabrica, usb, fibra, wifi)
-        # 4) Arranca hilo
+        # 4) Arranca hilo con stop_event para poder cancelarlo
         t = threading.Thread(
             target=iniciar_testerConexion,
-            args=(resetFabrica, usb, fibra, wifi, self.event_q),
+            args=(resetFabrica, usb, fibra, wifi, self.event_q, self.stop_event),
             daemon=True
         )
         t.start()
@@ -420,7 +424,7 @@ class TesterView(ctk.CTkFrame):
     # ===================== BOTONES (sin toggle local) =====================
     def _disparar_prueba(self, nombre_prueba: str):
         """
-        ✅ Ya NO cambia 'FALLIDA/EXITOSA' ni contador.
+        Ya NO cambia 'FALLIDA/EXITOSA' ni contador.
         Solo dispara backend si existe.
         """
         print(f"Solicitando backend: {nombre_prueba}")
@@ -546,8 +550,9 @@ class TesterView(ctk.CTkFrame):
         self.panel_pruebas._set_button_status("factory_reset", reset)
         self.panel_pruebas._set_button_status("software_update", sftU) # falta mandarla a llamar (literalmente terminamos la prueba hace unas horas)
         self.panel_pruebas._set_button_status("usb_port", usb)
-        # validar los valores 
+        # validar los valores TX
         self.panel_pruebas._set_button_status("tx_power", tx)
+        # validar los valores RX
         self.panel_pruebas._set_button_status("rx_power", rx)
         # ya están validadas
         self.panel_pruebas._set_button_status("wifi_24ghz_signal", w24)
@@ -563,11 +568,17 @@ class TesterView(ctk.CTkFrame):
 
         # -------- TESTS (lado derecho) --------
         # Si tx/rx son números (dBm), los formateamos
-        self.txInfo.configure(text=("Fo TX: —" if tx is None else f"Fo TX: {tx} dBm"))
-        self.rxInfo.configure(text=("Fo RX: —" if rx is None else f"Fo RX: {rx} dBm"))
+        self.txInfo.configure(text=("Fo TX: —" if tx in (False, None) else f"Fo TX: {tx} dBm"))
+        self.rxInfo.configure(text=("Fo RX: —" if rx in (False, None) else f"Fo RX: {rx} dBm"))
 
         # USB puede venir "PASS"/"ERROR"/"SIN PRUEBA"
-        self.usbInfo.configure(text="Usb Port: "+str(usb))
+        if usb == "SIN PRUEBA":
+            usb_label = "Prueba omitida"
+        elif usb == True and usb == "PASS":
+            usb_label = "USB detectada"
+        else:
+            usb_label = "Error en prueba USB"
+        self.usbInfo.configure(text="Usb Port: "+str(usb_label))
 
         self.estado_prueba_label.configure(text="EJECUTADO")
         self.estado_prueba_label.configure(text_color="#6B9080")

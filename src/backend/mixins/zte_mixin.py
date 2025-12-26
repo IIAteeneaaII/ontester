@@ -192,6 +192,42 @@ class ZTEMixin:
                         print(f"[SELENIUM] Error al buscar {desc} en frame #{idx} ({by}='{sel}'): {e}")
             time.sleep(0.5)
 
+            try:
+                driver.switch_to.default_content()
+            except Exception:
+                pass
+
+            for by, sel in selectors:
+                try:
+                    el = self.find_element_anywhere(
+                        driver, by, sel,
+                        desc=f"{desc} ({by}='{sel}')",
+                        timeout=1
+                    )
+                    if el:
+                        try:
+                            driver.execute_script(
+                                "arguments[0].scrollIntoView({block:'center', inline:'center'});",
+                                el
+                            )
+                        except Exception:
+                            pass
+
+                        try:
+                            el.click()
+                        except Exception:
+                            driver.execute_script("arguments[0].click();", el)
+
+                        print(f"[SELENIUM] OK - Click: {desc} con {by}='{sel}'")
+                        return True
+
+                except StaleElementReferenceException as e:
+                    last_err = e
+                except Exception as e:
+                    last_err = e
+
+            time.sleep(0.25)
+
         print(f"[SELENIUM] No se encontró {desc} en {timeout}s")
         return False
 

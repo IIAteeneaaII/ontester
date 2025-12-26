@@ -15,6 +15,7 @@ actualizar el estado de conexión usando el método `actualizar_estado_conexion`
 
 import sys
 from pathlib import Path
+from src.backend.endpoints.conexion import iniciar_pruebaUnitariaConexion
 
 import customtkinter as ctk
 
@@ -115,7 +116,7 @@ class PanelPruebasConexion(ctk.CTkFrame):
         self.lbl_texto_superior = ctk.CTkLabel(
             self,
             text="status",
-            font=ctk.CTkFont(size=12, weight="bold"),
+            font=ctk.CTkFont(size=14, weight="bold"),
             text_color="#2C3E50",
         )
         self.lbl_texto_superior.grid(
@@ -179,7 +180,7 @@ class PanelPruebasConexion(ctk.CTkFrame):
         self.lbl_texto = ctk.CTkLabel(
             self,
             text="PRUEBAS",
-            font=ctk.CTkFont(size=12, weight="bold"),
+            font=ctk.CTkFont(size=14, weight="bold"),
             text_color="#2C3E50",
         )
         self.lbl_texto.grid(
@@ -285,7 +286,8 @@ class PanelPruebasConexion(ctk.CTkFrame):
             wifi = True
         if(nombre_prueba == "WIFI 5.0 GHz"):
             wifi = True
-        from src.backend.endpoints.conexion import iniciar_pruebaUnitariaConexion
+        
+        # Llamar a la función de pruebas unitarias
         iniciar_pruebaUnitariaConexion(reset, soft, usb, fibra, wifi, )
         print(f"[PanelPruebasConexion] Click en {nombre_prueba}")
 
