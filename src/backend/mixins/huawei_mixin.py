@@ -620,7 +620,8 @@ class HuaweiMixin:
             }
 
         except Exception as e:
-            print(f"[SELENIUM] Error leyendo estado USB: {e}")
+            error_msg = str(e).split('\n')[0] if str(e) else type(e).__name__
+            print(f"[SELENIUM] Error leyendo estado USB: {error_msg}")
             return {
                 "connected": None,
                 "status": "error",
@@ -661,11 +662,11 @@ class HuaweiMixin:
 
     def nav_hw_optical(self, driver):
         """System Information -> Optical (fibra)"""
-        driver.switch_to.default_content()
+        #driver.switch_to.default_content()
         self.click_anywhere(
             driver,
             [
-                (By.ID, "name_Systeminfo"),
+                (By.ID, "Systeminfo"),
                 (By.NAME, "m1div_deviceinfo"),
                 (By.XPATH, "//div[contains(@class,'menuContTitle') and normalize-space(.)='System Information']"),
             ],
@@ -910,7 +911,8 @@ class HuaweiMixin:
             return True
 
         except Exception as e:
-            print(f"[SELENIUM] Error navegando a USB Application: {e}")
+            error_msg = str(e).split('\n')[0] if str(e) else type(e).__name__
+            print(f"[SELENIUM] Error navegando a USB Application: {error_msg}")
             try:
                 driver.switch_to.default_content()
             except Exception:
@@ -1087,11 +1089,11 @@ class HuaweiMixin:
 
         # Configurar ruta y patrón según el modelo
         if modelo == "MOD003":
-            FIRMWARE_PATH = r"C:\BINS\X6-10"
+            FIRMWARE_PATH = r"C:\BINS\HG8145X6-10"
             # Patrón: HG8145X6-10_V500R022C00SPC297
             patron = re.compile(r'^HG8145X6-10_V[\d\w]+$')
         elif modelo == "MOD007":
-            FIRMWARE_PATH = r"C:\BINS\X6"
+            FIRMWARE_PATH = r"C:\BINS\HG8145X6"
             # Patrón: HG8145X6_V500R022C00SPC232
             patron = re.compile(r'^HG8145X6_V[\d\w]+$')
         elif modelo in ["MOD004", "MOD005"]:
@@ -1132,12 +1134,50 @@ class HuaweiMixin:
                     return True
                 else:
                     print("[INFO] El software está actualizado")
+                    
+                    # Obtener versión anterior desde hw_device
+                    previous_version = self.test_results.get('tests', {}).get('hw_device', {}).get('data', {}).get('software_version', 'N/A')
+                    
+                    self.test_results["tests"]["software_update"] = {
+                        "name": "software_update",
+                        "status": True,
+                        "details": {
+                            "previous_version": previous_version,
+                            "new_version": "Ya está actualizado",
+                            "firmware_file": archivo,
+                            "update_completed": True,
+                            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        }
+                    }
+
                     return False
             else:
                 print("[ERROR] El archivo .bin no tiene la nomenclatura correcta")
+                self.test_results["tests"]["software_update"] = {
+                    "name": "software_update",
+                    "status": True,
+                    "details": {
+                        "previous_version": previous_version,
+                        "new_version": "El archhivo bin no tiene buen nombre",
+                        "firmware_file": "archivo",
+                        "update_completed": False,
+                        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    }
+                }
                 return False
         else:
             print("[ERROR] No existe un archivo de actualización en el directorio correcto")
+            self.test_results["tests"]["software_update"] = {
+                "name": "software_update",
+                "status": True,
+                "details": {
+                    "previous_version": previous_version,
+                    "new_version": "No hay directorio correcto",
+                    "firmware_file": "archivo",
+                    "update_completed": False,
+                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                }
+            }
             return False
         
     def test_sft_updateHw(self, driver):

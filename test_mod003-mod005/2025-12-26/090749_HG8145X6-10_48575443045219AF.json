@@ -1,0 +1,111 @@
+{
+  "metadata": {
+    "host": "192.168.100.1",
+    "model": "HG8145X6-10",
+    "timestamp": "2025-12-26T09:02:59.191371",
+    "serial_number": "48575443045219AF"
+  },
+  "tests": {
+    "hw_device": {
+      "name": "hw_device",
+      "data": {
+        "model": "HG8145X6-10",
+        "serial_number": "48575443045219AF",
+        "serial_raw": "48575443045219AF (HWTC045219AF)",
+        "software_version": "V5R022C00S297"
+      }
+    },
+    "hw_lan": {
+      "name": "hw_lan",
+      "data": {
+        "ports": [
+          {
+            "port": "1",
+            "mode": "Full-duplex",
+            "speed": "1000 Mbit/s",
+            "status": "Up"
+          },
+          {
+            "port": "2",
+            "mode": "--",
+            "speed": "--",
+            "status": "Down"
+          },
+          {
+            "port": "3",
+            "mode": "--",
+            "speed": "--",
+            "status": "Down"
+          },
+          {
+            "port": "4",
+            "mode": "--",
+            "speed": "--",
+            "status": "Down"
+          }
+        ]
+      }
+    },
+    "hw_wifi24": {
+      "name": "hw_wifi24",
+      "data": {
+        "band": "2.4GHz",
+        "status": "Enabled",
+        "ssid": "Totalplay-19AF"
+      }
+    },
+    "hw_wifi5": {
+      "name": "hw_wifi5",
+      "data": {
+        "band": "5GHz",
+        "status": "Enabled",
+        "ssid": "Totalplay-19AF-5G"
+      }
+    },
+    "hw_mac": {
+      "name": "hw_mac",
+      "data": "A8:50:81:06:C2:92"
+    },
+    "hw_wifi24_pass": {
+      "name": "hw_wifi24_pass",
+      "data": {
+        "band": "2.4GHz",
+        "password": "19AFC292X4uGaz8z"
+      }
+    },
+    "hw_wifi5_pass": {
+      "name": "hw_wifi5_pass",
+      "data": {
+        "band": "5GHz",
+        "password": "19AFC292X4uGaz8z"
+      }
+    },
+    "hw_optical": {
+      "name": "hw_optical",
+      "data": {
+        "tx_optical_power": "-- dBm",
+        "rx_optical_power": "-- dBm"
+      }
+    },
+    "hw_usb": {
+      "name": "hw_usb",
+      "data": {
+        "connected": false,
+        "status": "usb desconectado",
+        "value": "",
+        "label": "No USB Device"
+      }
+    },
+    "software_update": {
+      "name": "software_update",
+      "status": true,
+      "details": {
+        "previous_version": "V5R022C00S297",
+        "new_version": "Ya está actualizado",
+        "firmware_file": "C:\\BINS\\HG8145X6-10\\HG8145X6-10_V500R022C00SPC297.bin",
+        "update_completed": true,
+        "timestamp": "2025-12-26 09:07:49"
+      }
+    }
+  }
+}

@@ -17,7 +17,7 @@ import sys
 from pathlib import Path
 
 import customtkinter as ctk
-
+import traceback
 # ---------------------------------------------------------------------
 # Configuración del path para poder importar los botones reutilizables
 # ---------------------------------------------------------------------
@@ -284,9 +284,10 @@ class PanelPruebasConexion(ctk.CTkFrame):
             wifi = True
         if(nombre_prueba == "WIFI 5.0 GHz"):
             wifi = True
-        # sacar modelo && sacar q  
+        # sacar modelo && sacar q 
+        traceback.print_stack()
         from src.backend.endpoints.conexion import iniciar_pruebaUnitariaConexion
-        iniciar_pruebaUnitariaConexion(reset, soft, usb, fibra, wifi, )
+        #iniciar_pruebaUnitariaConexion(reset, soft, usb, fibra, wifi, model, q)
         print(f"[PanelPruebasConexion] Click en {nombre_prueba}")
 
 

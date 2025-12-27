@@ -565,7 +565,7 @@ class TesterView(ctk.CTkFrame):
         self.pswInfo.configure(text="Password: "+str(passWi))
 
         # -------- TESTS (lado derecho) --------
-        # Si tx/rx son números (dBm), los formateamos
+        # Si tx/rx son números (dBm), los formateamos 
         self.txInfo.configure(text=("Fo TX: —" if tx in (False, None) else f"Fo TX: {tx} dBm"))
         self.rxInfo.configure(text=("Fo RX: —" if rx in (False, None) else f"Fo RX: {rx} dBm"))
 

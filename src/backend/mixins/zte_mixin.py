@@ -192,6 +192,42 @@ class ZTEMixin:
                         print(f"[SELENIUM] Error al buscar {desc} en frame #{idx} ({by}='{sel}'): {e}")
             time.sleep(0.5)
 
+            try:
+                driver.switch_to.default_content()
+            except Exception:
+                pass
+
+            for by, sel in selectors:
+                try:
+                    el = self.find_element_anywhere(
+                        driver, by, sel,
+                        desc=f"{desc} ({by}='{sel}')",
+                        timeout=1
+                    )
+                    if el:
+                        try:
+                            driver.execute_script(
+                                "arguments[0].scrollIntoView({block:'center', inline:'center'});",
+                                el
+                            )
+                        except Exception:
+                            pass
+
+                        try:
+                            el.click()
+                        except Exception:
+                            driver.execute_script("arguments[0].click();", el)
+
+                        print(f"[SELENIUM] OK - Click: {desc} con {by}='{sel}'")
+                        return True
+
+                except StaleElementReferenceException as e:
+                    last_err = e
+                except Exception as e:
+                    last_err = e
+
+            time.sleep(0.25)
+
         print(f"[SELENIUM] No se encontró {desc} en {timeout}s")
         return False
 
@@ -553,9 +589,31 @@ class ZTEMixin:
                     return False
             else:
                 print("[ERROR] El archivo .bin no tiene la nomenclatura correcta")
+                self.test_results["tests"]["software_update"] = {
+                    "name": "software_update",
+                    "status": True,
+                    "details": {
+                        "previous_version": self.test_results.get('metadata', {}).get('base_info', {}).get('raw_data', {}).get('SoftwareVer', 'N/A'),
+                        "new_version": "El archhivo bin no tiene buen nombre",
+                        "firmware_file": "archivo",
+                        "update_completed": False,
+                        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    }
+                }
                 return False
         else:
             print("[ERROR] No existe un archivo de actualización en el directorio correcto")
+            self.test_results["tests"]["software_update"] = {
+                "name": "software_update",
+                "status": True,
+                "details": {
+                    "previous_version": self.test_results.get('metadata', {}).get('base_info', {}).get('raw_data', {}).get('SoftwareVer', 'N/A'),
+                    "new_version": "No hay directorio correcto",
+                    "firmware_file": "archivo",
+                    "update_completed": False,
+                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                }
+            }
             return False
 
     def test_sft_updateZTE(self, driver):
