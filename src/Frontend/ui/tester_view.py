@@ -1,3 +1,4 @@
+from src.backend.endpoints.conexion import iniciar_testerConexion
 import customtkinter as ctk
 import sys
 from pathlib import Path
@@ -6,6 +7,7 @@ from PIL import Image
 # Para correr el back  y actualizar elementos
 import threading
 import queue
+import time
 from src.Frontend.ui.panel_pruebas_view import PanelPruebasConexion
 
 # Agregar la raíz del proyecto al path para poder usar imports absolutos
@@ -22,7 +24,6 @@ from src.Frontend.navigation.botones import (
 
 from src.Frontend.ui.menu_superior_view import MenuSuperiorDesplegable
 
-
 class TesterView(ctk.CTkFrame):
     def __init__(self, parent, mdebug, event_q, viewmodel=None, **kwargs):
         
@@ -33,7 +34,14 @@ class TesterView(ctk.CTkFrame):
         # Para la queue
         self.event_q = event_q
         self._polling = True
-        self.stop_event = threading.Event()
+        self.stop_event = threading.Event()  # Para cancelar hilos al cambiar de modo
+        self.tester_thread = None # Hilo actual del tester
+        self.modelo_detectado = None  # Se actualiza cuando el backend detecta el modelo
+        self._mode_tread = None  # Hilo del modo actual (testeo/monitor)
+        self._unit_tread = None  # Hilo de la prueba unitaria
+        self._unit_stop_event = None  # Evento de parada para la unitaria
+        self._unit_running = False
+        self._suppress_cleanup_until = 0.0
         self.after(100, self._poll_queue)
         # Paleta de colores para estados de botones (pastel)
         self.color_neutro_fg = "#4EA5D9"
@@ -266,7 +274,12 @@ class TesterView(ctk.CTkFrame):
         self.usbInfo.grid(row=4, column=1, sticky="w", padx=(40, 0), pady=(5, 0))
 
         # Panel inferior
-        self.panel_pruebas = PanelPruebasConexion(self.main_content, modelo=None, q=self.event_q)
+        self.panel_pruebas = PanelPruebasConexion(
+            self.main_content,
+            modelo=None,
+            q=self.event_q,
+            on_run_unit=self._run_unit_from_panel  # Callback
+        )
         self.panel_pruebas.pack(side="bottom", fill="x", padx=0, pady=(0, 10)) #, expand=False
 
         # Iniciar reloj
@@ -275,7 +288,7 @@ class TesterView(ctk.CTkFrame):
         # Responsivo
         self.bind("<Configure>", self._on_resize)
 
-        # ✅ Cargar usuario desde InicioView (root.current_user_id / root.current_user_name)
+        # Cargar usuario desde InicioView (root.current_user_id / root.current_user_name)
         self.after(50, self._cargar_usuario_desde_root)
 
         # Configurar las rows de info
@@ -328,7 +341,7 @@ class TesterView(ctk.CTkFrame):
         self._swap_view(TesterMainView)
 
     def ir_salir(self):
-        # ✅ Regresar a InicioView (NO cerrar app)
+        # Regresar a InicioView (NO cerrar app)
         from src.Frontend.ui.inicio_view import InicioView
         self._swap_view(InicioView)
 
@@ -383,9 +396,17 @@ class TesterView(ctk.CTkFrame):
         self.after(1000, self.update_clock)
 
     def cambiar_modo(self, modo: str):
-        self.stop_event.set()
-        self.stop_event = threading.Event()
-        print(f"Modo seleccionado: {modo}")
+        self.stop_event.set()  # Señal de parar al hilo anterior (modo)
+
+        # Cancelar también la unitaria si hay una corriendo
+        if getattr(self, "_unit_stop_event", None) is not None:
+            self._unit_stop_event.set()
+            self._unit_stop_event = None
+
+        # NO crear nuevo stop_event aquí - _start_loop lo hará después de verificar
+        # que el hilo anterior murió
+
+        print(f"     Modo seleccionado: {modo}")
         self._set_all_buttons_state("neutral")
 
         if modo == "Testeo":
@@ -398,11 +419,19 @@ class TesterView(ctk.CTkFrame):
             self._set_all_buttons_state("active")
         elif modo == "Etiqueta":
             self._set_all_buttons_state("inactive")
-        # Mandar a llamar a función de configuraciones
-        self.setOpcionesView()
+        # Arrancar loop según modo:
+        # - Testeo / Retesteo: sí corre pruebas completas al detectar
+        # - Etiqueta: normalmente NO corre pruebas (monitor)
+        if modo in ("Testeo", "Retesteo"):
+            self.setOpcionesView(auto_test_on_detect=True)
+        else:
+            self.setOpcionesView(auto_test_on_detect=False)
 
-    def setOpcionesView(self):
-        # 1) Leer estados (strings) y convertir a bool
+    def setOpcionesView(self, auto_test_on_detect: bool = True):
+        # Arranca/reanuda el loop según el modo (auto-test o monitor)
+        self._start_loop(auto_test_on_detect=auto_test_on_detect)
+
+        '''# 1) Leer estados (strings) y convertir a bool
         resetFabrica = (self.btn_omitir.cget("state") == "normal")
         fibra       = (self.btn_conectividad.cget("state") == "normal")
         usb         = (self.btn_otros_puertos.cget("state") == "normal")
@@ -411,19 +440,149 @@ class TesterView(ctk.CTkFrame):
         # Importar la conexion
         from src.backend.endpoints.conexion import iniciar_testerConexion
         #iniciar_testerConexion(resetFabrica, usb, fibra, wifi)
-        # 4) Arranca hilo
-        t = threading.Thread(
+        # 4) Arranca hilo con stop_event para poder cancelarlo
+        self.tester_thread = threading.Thread(
             target=iniciar_testerConexion,
             args=(resetFabrica, usb, fibra, wifi, self.event_q, self.stop_event),
             daemon=True
         )
-        t.start()
+        self.tester_thread.start()'''
 
+    # Helper opciones actuales
+    def _get_loop_flags(self):
+        resetFabrica = (self.btn_omitir.cget("state") == "normal")
+        fibra        = (self.btn_conectividad.cget("state") == "normal")
+        usb          = (self.btn_otros_puertos.cget("state") == "normal")
+        wifi         = (self.btn_wifi.cget("state") == "normal")
+        return resetFabrica, usb, fibra, wifi
+    
+    # Helper para arrancar/reanudar el loop (auto-test o monitor) creando un stop_event nuevo y evitando duplicar hilos
+    def _start_loop(self, auto_test_on_detect: bool):
+        # stop_event nuevo:
+        # - El anterior pudo quedar "set" (por cambiar de modo / detener el loop / correr una unitaria)
+        # - Si lo reusamos, main_loop saldría inmediatamente
+        # - Por eso se crea un Event nuevo cada vez que arrancamos un loop
+
+        # Esperar a que el hilo anterior muera antes de crear uno nuevo
+        if self.tester_thread and self.tester_thread.is_alive():
+            self.tester_thread.join(timeout=5)  # Esperar hasta 5s
+            # Si sigue vivo, NO crear duplicado
+            if self.tester_thread.is_alive():
+                print("[WARN] El hilo anterior no terminó. No se crea duplicado.")
+                return
+
+        # stop_event nuevo (el anterior pudo quedar set)
+        self.stop_event = threading.Event()
+
+        resetFabrica, usb, fibra, wifi = self._get_loop_flags()
+
+        from src.backend.endpoints.conexion import iniciar_testerConexion
+        self.tester_thread = threading.Thread(
+            target=iniciar_testerConexion,
+            args=(resetFabrica, usb, fibra, wifi, self.event_q, self.stop_event),
+            kwargs={"auto_test_on_detect": auto_test_on_detect},  # Clave
+            daemon=True
+        )
+        self.tester_thread.start()
+
+    # Función "mata modos"
+    def _stop_mode_loop(self):
+        """Detiene el hilo del modo actual (Etiqueta/Test/Retest)."""
+        try:
+            self.stop_event.set()  # avisa al main_loop que se detenga
+            t = self._mode_thread
+            if t and t.is_alive():
+                t.join(timeout=15)  # le das chance real de morir
+        except Exception:
+            pass
+        finally:
+            self._mode_thread = None
+
+    # Handler para correr la unitaria desde el panel inferior
+    def _run_unit_from_panel(self, reset, soft, usb, fibra, wifi, modelo):
+        """
+        Callback que viene del panel inferior.
+        1) Para el loop del modo seleccionado
+        2) Corre la unitaria en hilo
+        3) Al terminar, reanuda en MONITOR (para que NO re-ejecute el modo anterior)
+        """
+        # 1) detener loop actual
+        self.stop_event.set()
+        prev_thread = self.tester_thread
+
+        # 2) preparar control de unitaria (para poder cancelarla desde cambiar_modo)
+        unit_stop = threading.Event()
+        self._unit_stop_event = unit_stop
+        self._unit_running = True
+
+        # evita que una desconexión por reboot durante unitaria borre PASS/FAIL
+        self._suppress_cleanup_until = time.time() + 60  # 60s de gracia (ajusta si quieres)
+
+        def worker():
+            try:
+                # 3) esperar a que muera el loop anterior
+                if prev_thread and prev_thread.is_alive():
+                    self.event_q.put(("log", "Deteniendo ciclo actual para ejecutar unitaria..."))
+                    prev_thread.join(timeout=20)
+
+                # si no murió, no corras unitaria encima
+                if prev_thread and prev_thread.is_alive():
+                    self.event_q.put(("log", "No se pudo detener el ciclo anterior. Ignorando unitaria."))
+                    return
+
+                # 4) correr la unitaria
+                from src.backend.endpoints.conexion import iniciar_pruebaUnitariaConexion
+                iniciar_pruebaUnitariaConexion(
+                    reset, soft, usb, fibra, wifi,
+                    model=modelo,
+                    out_q=self.event_q,
+                    stop_event=unit_stop
+                )
+
+            finally:
+                # 5) limpiar flags
+                self._unit_running = False
+                if self._unit_stop_event is unit_stop:
+                    self._unit_stop_event = None
+
+                # 6) reanudar MONITOR SI NO fue cancelada
+                if not unit_stop.is_set():
+                    self.event_q.put(("resume_monitor", None))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+        '''
+        # 1) pedir stop al loop actual
+        self.stop_event.set()
+
+        prev_thread = self.tester_thread
+        unit_stop = threading.Event()
+
+        def worker():
+            # 2) join del hilo anterior SIN bloquear UI
+            if prev_thread and prev_thread.is_alive():
+                self.event_q.put(("log", "Deteniendo ciclo actual para ejecutar unitaria..."))
+                prev_thread.join()  # join real, pero en worker thread
+
+            # 3) correr la unitaria
+            from src.backend.endpoints.conexion import iniciar_pruebaUnitariaConexion
+            iniciar_pruebaUnitariaConexion(
+                reset, soft, usb, fibra, wifi,
+                model=model_display,
+                out_q=self.event_q,
+                stop_event=unit_stop
+            )
+
+            # asegura reanudación del loop
+            self.event_q.put(("resume_loop", None))
+
+        threading.Thread(target=worker, daemon=True).start()
+        '''
 
     # ===================== BOTONES (sin toggle local) =====================
     def _disparar_prueba(self, nombre_prueba: str):
         """
-        ✅ Ya NO cambia 'FALLIDA/EXITOSA' ni contador.
+        Ya NO cambia 'FALLIDA/EXITOSA' ni contador.
         Solo dispara backend si existe.
         """
         print(f"Solicitando backend: {nombre_prueba}")
@@ -468,24 +627,59 @@ class TesterView(ctk.CTkFrame):
                     #self.lbl_texto_superior.configure(text = payload)
                 elif kind == "logSuper":
                     self.modelo_label.configure(text="Modelo: "+str(payload))
+                    self.modelo_detectado = payload
+                    self.panel_pruebas.modelo = payload  # Actualizar modelo en el panel
                 elif kind == "pruebas":
                     self.panel_pruebas.set_texto_inferior(payload)
                 elif kind == "con":
                     # Cuando se conecta hace una limpieza y establece que se ha conectado
-                    self._limpiezaElementos()
                     payload_lower = str(payload).lower()
-                    if "conectado" in payload_lower and "desconectado" not in payload_lower:
+
+                    '''if "conectado" in payload_lower and "desconectado" not in payload_lower:
                         self.panel_pruebas.actualizar_estado_conexion(True)
                     else:
+                        self.panel_pruebas.actualizar_estado_conexion(False)'''
+                    
+                    if "desconectado" in payload_lower:
                         self.panel_pruebas.actualizar_estado_conexion(False)
+
+                        # Si estamos en unitaria (o acaba de ocurrir), NO borres PASS/FAIL
+                        if (not self._unit_running) and (time.time() >= self._suppress_cleanup_until):
+                            self._limpiezaElementos()
+                    else:
+                        self.panel_pruebas.actualizar_estado_conexion(True)
+
                 elif kind == "resultados":
                     # ejemplo: pintar resultados en tu UI
                     self._render_resultados(payload)
+                elif kind == "test_individual":
+                    # Actualiza el botón de una prueba individual al terminar
+                    # payload = {"name": "TX_POWER", "status": "PASS"} o "FAIL"
+                    test_name = payload.get("name", "").lower()
+                    status = payload.get("status", "FAIL")
+                    # Mapeo de nombres de test a keys de botones
+                    name_to_key = {
+                        "ping": "ping",
+                        "ping_connectivity": "ping",
+                        "factory_reset": "factory_reset",
+                        "software_update": "software_update",
+                        "usb_port": "usb_port",
+                        "tx_power": "tx_power",
+                        "rx_power": "rx_power",
+                        "wifi_24ghz": "wifi_24ghz_signal",
+                        "wifi_5ghz": "wifi_5ghz_signal",
+                    }
+                    btn_key = name_to_key.get(test_name, test_name)
+                    self.panel_pruebas._set_button_status(btn_key, status)
 
                 #elif kind == "test":
                     # ejemplo: actualizar un cuadrito por prueba || de momento no
                     # payload = {"nombre":"wifi_24ghz_signal","estado":"PASS","valor":"-14.6 dBm"}
                     #self._update_test(payload)
+
+                elif kind == "resume_monitor":
+                    # Reanudar en MONITOR: vuelve a escaneo/pings pero NO dispara pruebas completas al detectar
+                    self._start_loop(auto_test_on_detect=False)
 
         except queue.Empty:
             pass
@@ -548,16 +742,54 @@ class TesterView(ctk.CTkFrame):
         w5     = tests.get("w5", "SIN PRUEBA")
         sftU   = tests.get("sftU", "SIN PRUEBA")
 
-        self.panel_pruebas._set_button_status("ping", ping)
+        '''self.panel_pruebas._set_button_status("ping", ping)
         self.panel_pruebas._set_button_status("factory_reset", reset)
         self.panel_pruebas._set_button_status("software_update", sftU) # falta mandarla a llamar (literalmente terminamos la prueba hace unas horas)
         self.panel_pruebas._set_button_status("usb_port", usb)
-        # validar los valores 
+        # validar los valores TX
         self.panel_pruebas._set_button_status("tx_power", tx)
+        # validar los valores RX
         self.panel_pruebas._set_button_status("rx_power", rx)
         # ya están validadas
         self.panel_pruebas._set_button_status("wifi_24ghz_signal", w24)
-        self.panel_pruebas._set_button_status("wifi_5ghz_signal", w5)
+        self.panel_pruebas._set_button_status("wifi_5ghz_signal", w5)'''
+
+        def set_if_present(test_key, btn_key):
+            if test_key not in tests:
+                return
+            val = tests.get(test_key)
+            if val is None or val == "SIN PRUEBA":
+                return
+            self.panel_pruebas._set_button_status(btn_key, val)
+
+        set_if_present("ping", "ping")
+        set_if_present("reset", "factory_reset")
+        set_if_present("sftU", "software_update")
+        set_if_present("usb", "usb_port")
+        set_if_present("w24", "wifi_24ghz_signal")
+        set_if_present("w5", "wifi_5ghz_signal")
+
+        # TX/RX solo si vienen (para no borrar el valor anterior)
+        if "tx" in tests:
+            tx = tests.get("tx")
+            self.panel_pruebas._set_button_status("tx_power", tx)
+            self.txInfo.configure(text=("Fo TX: —" if tx in (False, None) else f"Fo TX: {tx} dBm"))
+
+        if "rx" in tests:
+            rx = tests.get("rx")
+            self.panel_pruebas._set_button_status("rx_power", rx)
+            self.rxInfo.configure(text=("Fo RX: —" if rx in (False, None) else f"Fo RX: {rx} dBm"))
+
+        # USB label solo si viene
+        if "usb" in tests:
+            usb = tests.get("usb")
+            if usb == "SIN PRUEBA":
+                usb_label = "Prueba omitida"
+            elif usb == "PASS":
+                usb_label = "USB detectada"
+            else:
+                usb_label = "USB no detectada"
+            self.usbInfo.configure(text="Usb Port: " + str(usb_label))
 
         # -------- INFO (lado izquierdo) --------
         self.snInfo.configure(text="SN: "+str(sn))
@@ -568,17 +800,17 @@ class TesterView(ctk.CTkFrame):
         self.pswInfo.configure(text="Password: "+str(passWi))
 
         # -------- TESTS (lado derecho) --------
-        # Si tx/rx son números (dBm), los formateamos 
+        # Si tx/rx son números (dBm), los formateamos
         self.txInfo.configure(text=("Fo TX: —" if tx in (False, None) else f"Fo TX: {tx} dBm"))
         self.rxInfo.configure(text=("Fo RX: —" if rx in (False, None) else f"Fo RX: {rx} dBm"))
 
         # USB puede venir "PASS"/"ERROR"/"SIN PRUEBA"
-        if(usb == True or usb == "PASS"):
-            usb_label = "USB detectada"
-        elif(usb == False or usb == "ERROR" or usb == "FAIL"):
-            usb_label = "No se detectó USB"
-        else:
+        if usb == "SIN PRUEBA":
             usb_label = "Prueba omitida"
+        elif usb == True and usb == "PASS":
+            usb_label = "USB detectada"
+        else:
+            usb_label = "USB no detectada"
         self.usbInfo.configure(text="Usb Port: "+str(usb_label))
 
         self.estado_prueba_label.configure(text="EJECUTADO")

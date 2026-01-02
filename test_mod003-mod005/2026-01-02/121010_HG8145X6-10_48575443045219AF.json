@@ -1,0 +1,113 @@
+{
+  "metadata": {
+    "host": "192.168.100.1",
+    "model": "HG8145X6-10",
+    "timestamp": "2026-01-02T12:07:47.089670",
+    "serial_number": "48575443045219AF",
+    "model_ui": "HG8145X6-10"
+  },
+  "tests": {
+    "hw_device": {
+      "name": "hw_device",
+      "data": {
+        "model": "HG8145X6-10",
+        "serial_number": "48575443045219AF",
+        "serial_raw": "48575443045219AF (HWTC045219AF)",
+        "software_version": "V5R022C00S297"
+      }
+    },
+    "hw_lan": {
+      "name": "hw_lan",
+      "data": {
+        "ports": [
+          {
+            "port": "1",
+            "mode": "--",
+            "speed": "--",
+            "status": "Down"
+          },
+          {
+            "port": "2",
+            "mode": "--",
+            "speed": "--",
+            "status": "Down"
+          },
+          {
+            "port": "3",
+            "mode": "--",
+            "speed": "--",
+            "status": "Down"
+          },
+          {
+            "port": "4",
+            "mode": "Full-duplex",
+            "speed": "1000 Mbit/s",
+            "status": "Up"
+          }
+        ]
+      }
+    },
+    "hw_wifi24": {
+      "name": "hw_wifi24",
+      "data": {
+        "band": "2.4GHz",
+        "status": "Enabled",
+        "ssid": "Totalplay-19AF"
+      }
+    },
+    "hw_wifi5": {
+      "name": "hw_wifi5",
+      "data": {
+        "band": "5GHz",
+        "status": "Enabled",
+        "ssid": "Totalplay-19AF-5G"
+      }
+    },
+    "hw_mac": {
+      "name": "hw_mac",
+      "data": "A8:50:81:06:C2:92"
+    },
+    "hw_wifi24_pass": {
+      "name": "hw_wifi24_pass",
+      "data": {
+        "band": "2.4GHz",
+        "password": "19AFC292X4uGaz8z"
+      }
+    },
+    "hw_wifi5_pass": {
+      "name": "hw_wifi5_pass",
+      "data": {
+        "band": "5GHz",
+        "password": "19AFC292X4uGaz8z"
+      }
+    },
+    "potencia_wifi": {
+      "name": "potencia_wifi",
+      "status": "FAIL",
+      "details": {
+        "ssid_24": "Totalplay-19AF",
+        "ssid_5": "Totalplay-19AF-5G",
+        "best_24_percent": null,
+        "best_5_percent": null,
+        "min_24_percent": null,
+        "min_5_percent": null,
+        "pass_24": false,
+        "pass_5": false,
+        "thresholds": {
+          "2.4G": {
+            "min_percent": 60
+          },
+          "5G": {
+            "min_percent": 60
+          }
+        },
+        "raw_24": [],
+        "raw_5": [],
+        "errors": [
+          "No se encontró red 2.4G: Totalplay-19AF",
+          "No se encontró red 5G: Totalplay-19AF-5G"
+        ]
+      }
+    }
+  }
+}

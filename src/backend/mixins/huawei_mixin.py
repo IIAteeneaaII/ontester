@@ -1158,13 +1158,14 @@ class HuaweiMixin:
                     "status": True,
                     "details": {
                         "previous_version": previous_version,
-                        "new_version": "El archhivo bin no tiene buen nombre",
+                        "new_version": "El archivo bin no tiene buen nombre",
                         "firmware_file": "archivo",
                         "update_completed": False,
                         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     }
                 }
                 return False
+            
         else:
             print("[ERROR] No existe un archivo de actualización en el directorio correcto")
             self.test_results["tests"]["software_update"] = {

@@ -1109,17 +1109,26 @@ class CommonMixin:
                 "passWifi": passWifi
             },
             "tests": {
-                "ping": ping,
-                "reset": reset,
-                "usb": usb,
-                "tx": tx,
-                "rx": rx,
-                "w24": w24,
-                "w5": w5,
-                "sftU": sftU
+                "ping": ping
             },
             "valido": valido
         }
+
+        # Solo incluir tests que realmente se ejecutaron (no "SIN PRUEBA")
+        if reset != "SIN PRUEBA":
+            resultado["tests"]["reset"] = reset
+        if usb != "SIN PRUEBA":
+            resultado["tests"]["usb"] = usb
+        if tx != "SIN PRUEBA":
+            resultado["tests"]["tx"] = tx
+        if rx != "SIN PRUEBA":
+            resultado["tests"]["rx"] = rx
+        if w24 != "SIN PRUEBA":
+            resultado["tests"]["w24"] = w24
+        if w5 != "SIN PRUEBA":
+            resultado["tests"]["w5"] = w5
+        if sftU != "SIN PRUEBA":
+            resultado["tests"]["sftU"] = sftU
 
         return resultado
     
@@ -1336,11 +1345,18 @@ class CommonMixin:
         fecha = self.test_results['metadata'].get('timestamp') # "2025-11-28T13:51:32.497520"
         modelo = self.test_results['metadata']['model'] # modelo 
         sn = self.test_results['metadata'].get('serial_number') #sn
-        mac = self.test_results['tests']['hw_mac'].get('data') # mac
-        sftVer = self.test_results['tests']['hw_device']['data'].get('software_version') # sft version
-        wifi24 = self.test_results['tests']['hw_wifi24']['data'].get('ssid') # nombre wifi
-        wifi5 = self.test_results['tests']['hw_wifi5']['data'].get('ssid') # nombre wifi
-        passWifi = self.test_results['tests']['hw_wifi24_pass']['data'].get('password') # pass wifi
+        mac = self.test_results.get('tests', {}).get('hw_mac', {}).get('data', 'N/A') # mac
+        
+        # Acceso defensivo para evitar crashes si algún test falló
+        hw_device_data = self.test_results.get('tests', {}).get('hw_device', {}).get('data') or {}
+        hw_wifi24_data = self.test_results.get('tests', {}).get('hw_wifi24', {}).get('data') or {}
+        hw_wifi5_data = self.test_results.get('tests', {}).get('hw_wifi5', {}).get('data') or {}
+        hw_wifi24_pass_data = self.test_results.get('tests', {}).get('hw_wifi24_pass', {}).get('data') or {}
+        
+        sftVer = hw_device_data.get('software_version', 'N/A') # sft version
+        wifi24 = hw_wifi24_data.get('ssid', 'N/A') # nombre wifi
+        wifi5 = hw_wifi5_data.get('ssid', 'N/A') # nombre wifi
+        passWifi = hw_wifi24_pass_data.get('password', 'N/A') # pass wifi
 
         # Tests
         ping = "PASS" # sin poder hacer ping no se podría avanzar tanto
@@ -1349,7 +1365,8 @@ class CommonMixin:
         else:
             reset= "SIN PRUEBA"
         if tests_opts.get("usb_port", True):
-            usb = self.test_results['tests']['hw_usb']['data'].get('connected') # true or false
+            hw_usb_data = self.test_results.get('tests', {}).get('hw_usb', {}).get('data') or {}
+            usb = hw_usb_data.get('connected') # true or false
             if(usb):
                 usb_final = True
             else:
@@ -1357,20 +1374,27 @@ class CommonMixin:
         else:
             usb_final = "SIN PRUEBA"
         if tests_opts.get("tx_power", True) and tests_opts.get("rx_power", True):
-            tx = self.test_results['tests']['hw_optical']['data'].get('tx_optical_power') # -- dBm si no tiene conexion
-            rx = self.test_results['tests']['hw_optical']['data'].get('rx_optical_power') # -- dBm si no tiene conexion
+            # Verificar si el test de fibra detectó si hay fibra óptica conectada o no
+            hw_optical_data = self.test_results['tests'].get('hw_optical', {}).get('data')
+
+            if hw_optical_data: # Si se detectó fibra óptica
+                tx = self.test_results['tests']['hw_optical']['data'].get('tx_optical_power')
+                rx = self.test_results['tests']['hw_optical']['data'].get('rx_optical_power')
+            else: # Si no hay fibra, asignar valores por defecto para evitar errores
+                tx = "-- dBm"
+                rx = "-- dBm"
         else:
             tx = "SIN PRUEBA"
             rx = "SIN PRUEBA"
         if tests_opts.get("wifi_24ghz_signal", True) and tests_opts.get("wifi_5ghz_signal", True):
-            w24 = self.test_results['tests']['hw_wifi24']['data'].get('status') # Enabled si true
-            w5 = self.test_results['tests']['hw_wifi5']['data'].get('status') # Enabled si true
+            w24 = hw_wifi24_data.get('status') # Enabled si true
+            w5 = hw_wifi5_data.get('status') # Enabled si true
             # validar la potencia del wifi
             # verificar que el reporte no tenga errores
-            pot = self.test_results["tests"]["potencia_wifi"]
-            details = pot["details"]
-            raw_24 = details["raw_24"]
-            raw_5 = details["raw_5"]
+            pot = self.test_results.get("tests", {}).get("potencia_wifi") or {}
+            details = pot.get("details") or {}
+            raw_24 = details.get("raw_24") or []
+            raw_5 = details.get("raw_5") or []
             
             # Obtener configuraciones de minimos en porcentajes
             min_valor_wifi = self._getMinWifi24SignalPercent()
@@ -1422,7 +1446,7 @@ class CommonMixin:
             else:
                 rx_final = False
         if tests_opts.get("software_update", True):
-            sftU = self.test_results['tests']['software_update']['details'].get('update_completed')
+            sftU = self.test_results.get('tests', {}).get('software_update', {}).get('details', {}).get('update_completed')
         else:
             sftU = "SIN PRUEBA"
         # Obtener los resultados como json
