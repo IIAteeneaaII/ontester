@@ -381,7 +381,7 @@ class InicioView(ctk.CTkFrame):
             self.destroy()
         except Exception:
             pass
-        nueva = view_cls(parent, event_q=self.bus_q, **init_kwargs,)
+        nueva = view_cls(parent, mdebug=None, event_q=self.bus_q, **init_kwargs,)
         nueva.pack(fill="both", expand=True)
 
     def _on_comenzar(self):

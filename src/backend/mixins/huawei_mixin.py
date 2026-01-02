@@ -662,7 +662,7 @@ class HuaweiMixin:
 
     def nav_hw_optical(self, driver):
         """System Information -> Optical (fibra)"""
-        driver.switch_to.default_content()
+        #driver.switch_to.default_content()
         self.click_anywhere(
             driver,
             [
@@ -1089,11 +1089,11 @@ class HuaweiMixin:
 
         # Configurar ruta y patrón según el modelo
         if modelo == "MOD003":
-            FIRMWARE_PATH = r"C:\BINS\X6-10"
+            FIRMWARE_PATH = r"C:\BINS\HG8145X6-10"
             # Patrón: HG8145X6-10_V500R022C00SPC297
             patron = re.compile(r'^HG8145X6-10_V[\d\w]+$')
         elif modelo == "MOD007":
-            FIRMWARE_PATH = r"C:\BINS\X6"
+            FIRMWARE_PATH = r"C:\BINS\HG8145X6"
             # Patrón: HG8145X6_V500R022C00SPC232
             patron = re.compile(r'^HG8145X6_V[\d\w]+$')
         elif modelo in ["MOD004", "MOD005"]:

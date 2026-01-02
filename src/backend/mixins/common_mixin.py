@@ -1437,12 +1437,12 @@ class CommonMixin:
         # Revisar si la fibra pasa las pruebas
         if tests_opts.get("tx_power", True) and tests_opts.get("rx_power", True):
             if(tx_final >= self._getMinFibraTx() and tx_final <= self._getMaxFibraTx()):
-                tx_final = tx
+                tx_final = tx_final
             else:
                 tx_final = False
             
             if(rx_final >= self._getMinFibraRx() and rx_final <= self._getMaxFibraRx()):
-                rx_final = rx
+                rx_final = rx_final
             else:
                 rx_final = False
         if tests_opts.get("software_update", True):
