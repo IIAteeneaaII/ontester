@@ -55,7 +55,7 @@ class PanelPruebasConexion(ctk.CTkFrame):
     imprime un mensaje en consola).
     """
 
-    def __init__(self, parent, **kwargs):
+    def __init__(self, parent, modelo, q, **kwargs):
         """
         Constructor del panel.
 
@@ -68,6 +68,10 @@ class PanelPruebasConexion(ctk.CTkFrame):
         self.COL_IDLE  = "#4EA5D9"  # color base
         self.COL_PASS  = "#6B9080"  # verde
         self.COL_FAIL  = "#C1666B"  # rojo
+
+        #Config
+        self.modelo = modelo
+        self.q = q
         # -----------------------------------------------------------------
         # Apariencia general del marco contenedor
         # -----------------------------------------------------------------
@@ -285,9 +289,10 @@ class PanelPruebasConexion(ctk.CTkFrame):
         if(nombre_prueba == "WIFI 5.0 GHz"):
             wifi = True
         # sacar modelo && sacar q 
-        traceback.print_stack()
+        print("[PANELPRUEBAS] El modelo recibido es: ",self.modelo)
+        #traceback.print_stack()
         from src.backend.endpoints.conexion import iniciar_pruebaUnitariaConexion
-        #iniciar_pruebaUnitariaConexion(reset, soft, usb, fibra, wifi, model, q)
+        iniciar_pruebaUnitariaConexion(reset, soft, usb, fibra, wifi, self.modelo, self.q)
         print(f"[PanelPruebasConexion] Click en {nombre_prueba}")
 
 

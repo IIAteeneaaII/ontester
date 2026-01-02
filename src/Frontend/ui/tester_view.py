@@ -266,7 +266,7 @@ class TesterView(ctk.CTkFrame):
         self.usbInfo.grid(row=4, column=1, sticky="w", padx=(40, 0), pady=(5, 0))
 
         # Panel inferior
-        self.panel_pruebas = PanelPruebasConexion(self.main_content)
+        self.panel_pruebas = PanelPruebasConexion(self.main_content, modelo=None, q=self.event_q)
         self.panel_pruebas.pack(side="bottom", fill="x", padx=0, pady=(0, 10)) #, expand=False
 
         # Iniciar reloj
@@ -524,6 +524,9 @@ class TesterView(ctk.CTkFrame):
         print("La payload recibida es: "+str(payload))
         info  = payload.get("info", {})
         tests = payload.get("tests", {})
+
+        # Actualizar obj panel_pruebas
+        self.panel_pruebas.modelo = info.get("modelo", "—")
         # valido = payload.get("valido", False)
 
         # INFO

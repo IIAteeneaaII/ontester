@@ -97,7 +97,7 @@ def iniciar_pruebaUnitariaConexion(resetFabrica, sftU, usb, fibra, wifi, model, 
     }
     # Poner log 
     emit("log", "Iniciando prueba unitaria...")
-    model = model.removeprefix("Modelo: ") # Limpiar el modelo (viene como "Modelo: ___")
+
     # Mandar a llamar una prueba unitaria
     from src.backend.ont_automatico import pruebaUnitariaONT
     pruebaUnitariaONT(opcionesTest, out_q, model)

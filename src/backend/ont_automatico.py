@@ -948,6 +948,24 @@ def run_retest_mode(host: str, model: str = None, output: str = None):
     print(f"    - JSON: {json_file}")
     print(f"    - TXT: {txt_file}")
 
+def pruebaUnitariaONT(opcionesTest, out_q, model):
+    # Esta ejecución es de una sola vez a priori
+    # Obtener la ip con base en el modelo
+    if (model == "F670L"):
+        ip = "192.168.1.1"
+    else:
+        ip = "192.168.100.1"
+    
+    # Instancia del ONTTester
+    temp_tester = ONTAutomatedTester(host=ip, model=model)
+    temp_tester.opcionesTest = opcionesTest
+    def emit(kind, payload):
+        if out_q:
+            temp_tester.out_q = out_q
+            temp_tester.out_q.put((kind, payload))
+    # Ejecución
+    temp_tester.run_all_tests()
+
 def main_loop(opciones, out_q = None, stop_event=None):
     """
     Ciclo principal recursivo:
