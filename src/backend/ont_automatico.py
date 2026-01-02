@@ -167,14 +167,14 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
         self.maxWifi5Signal = max5
     
     def _configFibraThresholds(self, min24: int, min5: int):
-        """Configura los umbrales mínimos de señal WiFi para los tests"""
+        """Configura los umbrales mínimos de señal de fibra para los tests"""
         self.minTX = min24
-        self.minTX = min5
+        self.minRX = min5
 
     def _configFibraThresholdsMax(self, max24: int, max5: int):
-        """Configura los umbrales maximos de señal WiFi para los tests"""
+        """Configura los umbrales maximos de señal de fibra para los tests"""
         self.maxTX = max24
-        self.maxTX = max5
+        self.maxRX = max5
 
     def _getMinFibraTx(self):
         return self.minTX
@@ -464,7 +464,46 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
         
         return display_names.get(model_code, reported_name or model_code)
          
+    def setConfig(self):
+        from src.backend.endpoints.conexion import cargarConfig
+        config = cargarConfig()
+
+        # --- WIFI ---
+        wifi_cfg = config.get("wifi", {})
+
+        if wifi_cfg:
+            # Umbrales de señal (porcentaje/RSSI) – adapta los defaults a lo que tú quieras
+            min24 = float(wifi_cfg.get("rssi24_min", -80))
+            min5  = float(wifi_cfg.get("rssi5_min", -80))
+            max24 = float(wifi_cfg.get("rssi24_max", -5))
+            max5  = float(wifi_cfg.get("rssi5_max", -5))
+
+            # Usar tus setters ya definidos
+            self._configWifiSignalThresholds(min24=min24, min5=min5)
+            self._configWifiSignalThresholdsMax(max24=max24, max5=max5)
+
+            # porcentaje:
+            minWifiPercent24 = int(wifi_cfg.get("min24percent", 60))
+            minWifiPercent5  = int(wifi_cfg.get("min5percent", 60))
+
+            self._configWifiSignalThresholdsPercent(minWifiPercent24, minWifiPercent5)
+
+        # --- FIBRA ---
+        fibra_cfg = config.get("fibra", {})
+
+        if fibra_cfg:
+            mintx = float(fibra_cfg.get("mintx", 0.0))
+            maxtx = float(fibra_cfg.get("maxtx", 1.0))
+            minrx = float(fibra_cfg.get("minrx", 0.0))
+            maxrx = float(fibra_cfg.get("maxrx", 1.0))
+
+            # Ojo con tu implementación: aquí asumo que el primero es TX y el segundo RX
+            self._configFibraThresholds(min24=mintx, min5=minrx)
+            self._configFibraThresholdsMax(max24=maxtx, max5=maxrx)
+
     def run_all_tests(self) -> Dict[str, Any]:
+        # Mandar a llamar a las configuraciones
+        self.setConfig()
         """Ejecuta todos los tests automatizados"""
         print("\n" + "="*60)
         print("ONT/ATA AUTOMATED TEST SUITE")
