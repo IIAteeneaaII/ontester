@@ -3,6 +3,9 @@ import threading
 import time
 from src.backend.ont_automatico import main_loop
 
+_UNIT_RUNNING = threading.Event()
+_UNIT_LOCK = threading.Lock()
+
 def load_users_txt(path: str | Path) -> dict[str, str]:
     users = {}
     path = Path(path)
@@ -20,7 +23,7 @@ def load_default_users() -> dict[str, str]:
     txt_path = base_utils / "utils" / "empleados.txt"
     return load_users_txt(txt_path)
 
-def iniciar_testerConexion(resetFabrica, usb, fibra, wifi, out_q = None, stop_event = None):
+def iniciar_testerConexion(resetFabrica, usb, fibra, wifi, out_q = None, stop_event = None, auto_test_on_detect = True):
     def emit(kind, payload):
         if out_q:
             out_q.put((kind, payload))
@@ -59,7 +62,7 @@ def iniciar_testerConexion(resetFabrica, usb, fibra, wifi, out_q = None, stop_ev
     emit("log", "Iniciando pruebas...")
     # print("CONEXION: wifi: "+str(wifi))
     # Mandar a llamar al main loop de ont_automatico
-    main_loop(opcionesTest, out_q, stop_event) 
+    main_loop(opcionesTest, out_q, stop_event, auto_test_on_detect=auto_test_on_detect)
     # Se hará desde dentro del main_loop
     # from src.backend.mixins.common_mixin import _resultados_finales
     # resultados = _resultados_finales()  # función de resultados finales
@@ -69,32 +72,77 @@ def iniciar_testerConexion(resetFabrica, usb, fibra, wifi, out_q = None, stop_ev
     if not (stop_event and stop_event.is_set()):
         emit("log", "Pruebas terminadas.")
 
-def iniciar_pruebaUnitariaConexion(resetFabrica, model, sftU, usb, fibra, wifi, out_q=None):
+def iniciar_pruebaUnitariaConexion(resetFabrica, sftU, usb, fibra, wifi, model, out_q=None, stop_event=None):
+    # 1) Definir emisor ANTES de usarlo
     def emit(kind, payload):
         if out_q:
             out_q.put((kind, payload))
+
+    # 2) Check + set del flag SOLO dentro del lock (y salir del lock rápido)        
+    with _UNIT_LOCK:
+        if _UNIT_RUNNING.is_set():
+            emit("log", "Ya hay una prueba unitaria en ejecución. Ignorando este click.")
+            return
+        _UNIT_RUNNING.set()
     
-    opcionesTest = {
-        "info": {
-            "sn": True,
-            "mac": True,
-            "ssid_24ghz": True,
-            "ssid_5ghz": True,
-            "software_version": True,
-            "wifi_password": True,
-            "model": True
-        },
-        "tests": {
-            "ping": True, # Esta prueba no se deshabilita
-            "factory_reset": resetFabrica,
-            "software_update": sftU, 
-            "usb_port": usb,
-            "tx_power": fibra,
-            "rx_power": fibra,
-            "wifi_24ghz_signal": wifi,
-            "wifi_5ghz_signal": wifi
+    # Determinar qué prueba unitaria se está ejecutando para mostrar mensaje claro
+    prueba_nombre = "Prueba unitaria"
+    if resetFabrica:
+        prueba_nombre = "Factory Reset"
+    elif sftU:
+        prueba_nombre = "Software Update"
+    elif usb:
+        prueba_nombre = "USB Port"
+    elif fibra:
+        prueba_nombre = "TX/RX Power (Fibra)"
+    elif wifi:
+        prueba_nombre = "WiFi 2.4/5 GHz"
+    
+    try:
+        opcionesTest = {
+            "info": {
+                "sn": True,
+                "mac": True,
+                "ssid_24ghz": True,
+                "ssid_5ghz": True,
+                "software_version": True,
+                "wifi_password": True,
+                "model": True
+            },
+            "tests": {
+                "ping": True, # Esta prueba no se deshabilita
+                "factory_reset": resetFabrica,
+                "software_update": sftU, 
+                "usb_port": usb,
+                "tx_power": fibra,
+                "rx_power": fibra,
+                "wifi_24ghz_signal": wifi,
+                "wifi_5ghz_signal": wifi
+            }
         }
-    }
-    # Poner log 
-    emit("log", "Iniciando prueba unitaria...")
+        
+        # Emitir al panel inferior inmediatamente al iniciar
+        emit("pruebas", f"Iniciando: {prueba_nombre}...")
+        emit("log", f"Iniciando prueba unitaria: {prueba_nombre}")
+
+        # Mandar a llamar una prueba unitaria
+        from src.backend.ont_automatico import pruebaUnitariaONT
+        pruebaUnitariaONT(opcionesTest=opcionesTest, out_q=out_q, modelo=model, stop_event=stop_event)
+        
+        # Emitir finalización (solo si no fue cancelado)
+        if not (stop_event and stop_event.is_set()):
+            emit("pruebas", f"Completado: {prueba_nombre}")
+            emit("log", f"Prueba unitaria completada: {prueba_nombre}")
+        else:
+            emit("pruebas", f"Cancelado: {prueba_nombre}")
+            emit("log", f"Prueba unitaria cancelada: {prueba_nombre}")
+
+    finally:
+        # 3) SIEMPRE liberar la bandera aunque falle/cancele
+        with _UNIT_LOCK:
+            _UNIT_RUNNING.clear()
+    
+    # Solo emitir "Prueba unitaria terminada" si no fue cancelado
+    if not (stop_event and stop_event.is_set()):
+        emit("log", "Prueba unitaria terminada.")
     

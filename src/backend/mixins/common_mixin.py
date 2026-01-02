@@ -1109,17 +1109,26 @@ class CommonMixin:
                 "passWifi": passWifi
             },
             "tests": {
-                "ping": ping,
-                "reset": reset,
-                "usb": usb,
-                "tx": tx,
-                "rx": rx,
-                "w24": w24,
-                "w5": w5,
-                "sftU": sftU
+                "ping": ping
             },
             "valido": valido
         }
+
+        # Solo incluir tests que realmente se ejecutaron (no "SIN PRUEBA")
+        if reset != "SIN PRUEBA":
+            resultado["tests"]["reset"] = reset
+        if usb != "SIN PRUEBA":
+            resultado["tests"]["usb"] = usb
+        if tx != "SIN PRUEBA":
+            resultado["tests"]["tx"] = tx
+        if rx != "SIN PRUEBA":
+            resultado["tests"]["rx"] = rx
+        if w24 != "SIN PRUEBA":
+            resultado["tests"]["w24"] = w24
+        if w5 != "SIN PRUEBA":
+            resultado["tests"]["w5"] = w5
+        if sftU != "SIN PRUEBA":
+            resultado["tests"]["sftU"] = sftU
 
         return resultado
     

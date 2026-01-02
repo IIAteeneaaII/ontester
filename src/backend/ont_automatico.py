@@ -13,6 +13,7 @@ import socket
 import subprocess
 import platform
 import re
+import threading
 import time
 import requests
 from datetime import datetime
@@ -49,6 +50,43 @@ from src.backend.mixins.common_mixin import CommonMixin
 # IMPORTAR EL CERTIFICADO
 from src.backend.certificado.certificado import generarCertificado
 
+# ==========================
+# COORDINACIÓN UNITARIA vs MAIN LOOP
+# ==========================
+UNIT_TEST_ACTIVE = threading.Event() # Indica “hay una unitaria corriendo”
+UNIT_TEST_JUST_FINISHED = threading.Event()  # Indica "unitaria recién terminó, skip fase2"
+
+_SUPPRESS_LOCK = threading.Lock()
+_SUPPRESS_UNTIL = {}     # ip -> deadline (time.monotonic)
+_SUPPRESS_REASON = {}    # ip -> str
+
+def suppress_mode(ip: str, seconds: int, reason: str = "") -> None:
+    """Evita que main_loop vuelva a ejecutar el modo (etiqueta/test/retest) por X segundos."""
+    deadline = time.monotonic() + max(0, int(seconds))
+    with _SUPPRESS_LOCK:
+        prev = _SUPPRESS_UNTIL.get(ip, 0.0)
+        _SUPPRESS_UNTIL[ip] = max(prev, deadline)
+        if reason:
+            _SUPPRESS_REASON[ip] = reason
+
+def suppressed_remaining(ip: str) -> int:
+    """Segundos restantes de supresión para ese IP."""
+    with _SUPPRESS_LOCK:
+        dl = _SUPPRESS_UNTIL.get(ip, 0.0)
+        rem = dl - time.monotonic()
+        if rem <= 0:
+            _SUPPRESS_UNTIL.pop(ip, None)
+            _SUPPRESS_REASON.pop(ip, None)
+            return 0
+        return int(rem)
+
+def is_suppressed(ip: str) -> bool:
+    return suppressed_remaining(ip) > 0
+
+def suppress_reason(ip: str) -> str:
+    with _SUPPRESS_LOCK:
+        return _SUPPRESS_REASON.get(ip, "")
+
 class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, CommonMixin):
     def __init__(self, host: str, model: str = None):
         self.host = host
@@ -63,6 +101,8 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
         self.selenium_cookies = None
         # q
         self.out_q = None
+        # Hacer run_all_tests cancelable
+        self._stop_event = None
         # Ajustes para el fiber
         self.minWifi24Signal = -80  # Valor mínimo de señal WiFi 2.4GHz
         self.minWifi5Signal = -80  # Valor mínimo de señal WiFi 2.4GHz
@@ -463,6 +503,9 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
         return display_names.get(model_code, reported_name or model_code)
          
     def run_all_tests(self) -> Dict[str, Any]:
+        def _cancelled():
+            return bool(getattr(self, "stop_event", None)) and self.stop_event.is_set()
+
         """Ejecuta todos los tests automatizados"""
         print("\n" + "="*60)
         print("ONT/ATA AUTOMATED TEST SUITE")
@@ -532,10 +575,17 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
                     self.out_q.put((kind, payload))
             print(f"\n[*] Ejecutando tests comunes ({len(common_tests)} tests)...")
             for test_func in common_tests:
+                if _cancelled():
+                    if self.out_q:
+                        self.out_q.put(("log", "CANCELADO POR CAMBIO DE MODO"))
+                    return self.test_results
+
                 test_name = test_func.__name__.replace('test_', '').replace('_', ' ').title()
                 emit("pruebas", f"Ejecutando: {test_name}")
                 result = test_func()
                 self.test_results["tests"][result["name"]] = result
+
+                emit("test_individual", {"name": result.get("name",""), "status": result.get("status","FAIL")})
             
             if tests_opts.get("software_update", True):
                 if self.driver:
@@ -548,18 +598,30 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
         if device_type == "ATA":
             print(f"\n[*] Dispositivo ATA detectado - Ejecutando tests VoIP ({len(ata_tests)} tests)...")
             for test_func in ata_tests:
+                if _cancelled():
+                    if self.out_q:
+                        self.out_q.put(("log", "CANCELADO POR CAMBIO DE MODO"))
+                    return self.test_results
+
                 result = test_func()
                 self.test_results["tests"][result["name"]] = result
         else:
-            print(f"\n[*] Dispositivo ONT detectado - Ejecutando tests fibra óptica ({len(ont_tests)} tests)...")
+            print(f"\n[*] Dispositivo ONT detectado - Ejecutando tests específicos ({len(ont_tests)} tests)...")
             for test_func in ont_tests:
+                if _cancelled():
+                    if self.out_q:
+                        self.out_q.put(("log", "CANCELADO POR CAMBIO DE MODO"))
+                    return self.test_results
+
                 def emit(kind, payload):
                     if self.out_q:
                         self.out_q.put((kind, payload))
                 test_name = test_func.__name__.replace('test_', '').replace('_', ' ').title()
                 emit("pruebas", f"Ejecutando: {test_name}")
                 result = test_func()
-                self.test_results["tests"][result["name"]] = result  
+                self.test_results["tests"][result["name"]] = result
+
+                emit("test_individual", {"name": result.get("name",""), "status": result.get("status","FAIL")})
         return self.test_results
 
     def _generarCertificado(self):
@@ -725,7 +787,8 @@ def monitor_device_connection(ip: str, interval: int = 1, max_failures: int = 3,
                     # Ping exitoso
                     consecutive_failures = 0
                     timestamp = datetime.now().strftime("%H:%M:%S")
-                    print(f"[{timestamp}] ✓ Ping #{ping_count} - Conexión activa con {ip}", end='\r')
+                    # Limpiar línea completa antes de escribir
+                    print(f"\r[{timestamp}] ✓ Ping #{ping_count} - Conexión activa con {ip}                    ", end='', flush=True)
                 else:
                     # Ping fallido
                     consecutive_failures += 1
@@ -951,7 +1014,149 @@ def run_retest_mode(host: str, model: str = None, output: str = None):
     print(f"    - JSON: {json_file}")
     print(f"    - TXT: {txt_file}")
 
-def main_loop(opciones, out_q = None, stop_event = None):
+def pruebaUnitariaONT(opcionesTest, out_q=None, modelo=None, stop_event=None):
+    """Ejecuta una "prueba unitaria" de ONT usando las opciones recibidas.
+
+    Nota: esta función está pensada para ser llamada desde el endpoint
+    "conexion.iniciar_pruebaUnitariaConexion" y NO forma parte de una
+    instancia de ONTAutomatedTester, por eso no recibe "self".
+    
+    Args:
+        opcionesTest: Dict con opciones de pruebas
+        out_q: Queue para emitir eventos a la UI
+        modelo: Modelo del dispositivo
+        stop_event: threading.Event para cancelar la ejecución
+    """
+    
+    # Verificar si ya se solicitó cancelación antes de empezar
+    if stop_event and stop_event.is_set():
+        return
+
+    '''# Obtener la IP del dispositivo según modelo
+    if modelo == "F670L":
+        ip = "192.168.1.1"
+    else:
+        ip = "192.168.100.1"'''
+    
+    # Modelo desde UI
+    modelo_ui = (modelo or "").strip()
+
+    # Mapeo UI -> código interno (para que _resultados_finales funcione)
+    MODEL_UI_TO_CODE = {
+        "HG6145F": "MOD001",
+        "HG6145F1": "MOD008",
+        "F670L": "MOD002",
+        "HG8145X6-10": "MOD003",
+        "HG8145X6": "MOD007",
+        "HG8145V5": "MOD004",
+        "HG8145V5 SMALL": "MOD005",
+    }
+    model_code = MODEL_UI_TO_CODE.get(modelo_ui, None)
+
+    # IP por modelo
+    ip = "192.168.1.1" if modelo_ui == "F670L" else "192.168.100.1"
+
+    # Instancia de ONTAutomatedTester para esta ejecución puntual
+    temp_tester = ONTAutomatedTester(host=ip, model=model_code)
+
+    # Conectar queue y opciones
+    temp_tester.out_q = out_q
+    temp_tester.opcionesTest = opcionesTest
+    temp_tester.stop_event = stop_event
+
+    # Configurar emits hacia la cola de la UI, si existe
+    def emit(kind, payload):
+        if out_q:
+            temp_tester.out_q = out_q
+            temp_tester.out_q.put((kind, payload))
+
+    # (Opcional) dejar trazabilidad del modelo que venía de UI
+    try:
+        temp_tester.test_results["metadata"]["model_ui"] = modelo
+        temp_tester.test_results["metadata"]["host"] = ip
+    except Exception:
+        pass
+
+    '''# Pre-detección para estandarizar "logSuper" también en unitarias (opcional)
+    try:
+        device_type = temp_tester._detect_device_type()  # Se asigna self.model = MOD00X
+        display = temp_tester._get_model_display_name(temp_tester.model, reported_name=modelo) # Se obtiene el nombre real del modelo
+        emit("logSuper", display)  # Para que UI muestre el modelo correcto
+        emit("log", f"Prueba unitaria en {ip} | Tipo: {device_type} | ModelCode: {temp_tester.model}")
+    except Exception as e:
+        emit("log", f"[WARN] No se pudo pre-detectar modelo: {e}")'''
+
+    '''En cuanto inicie la unitaria, el modo queda “bloqueado” y aunque el ONT se reinicie, el loop del modo no vuelve a ejecutar etiqueta/test/retest.'''
+    tests = (opcionesTest or {}).get("tests", {})
+    disruptiva = bool(tests.get("factory_reset") or tests.get("software_update"))
+
+    # Si la unitaria reinicia, NO queremos que el main_loop retome el modo al detectar el reboot.
+    # Factory reset / software update suelen tardar varios minutos.
+    if disruptiva:
+        suppress_mode(ip, seconds=15 * 60, reason="unit_test(factory/software)")
+
+    UNIT_TEST_ACTIVE.set()
+    try:
+        temp_tester.run_all_tests()
+    finally:
+        UNIT_TEST_ACTIVE.clear()
+
+    # Ejecutar la prueba unitaria (usa las opciones ya cargadas)
+    #temp_tester.run_all_tests()
+
+    # Cancelación post-run
+    if stop_event and stop_event.is_set():
+        return
+    
+    # Emit por test usando lo que ya se almacenó en test_results
+    try:
+        for _, result in temp_tester.test_results.get("tests", {}).items():
+            # result típicamente: {"name": "...", "status": "PASS/FAIL", ...}
+            emit("test_individual", {"name": result.get("name", ""), "status": result.get("status", "FAIL")})
+    except Exception as e:
+        emit("log", f"[WARN] No se pudo emitir test_individual: {e}")
+
+    # Emit final "resultados" igual que el main_loop
+    try:
+        final = temp_tester._resultados_finales()
+        emit("resultados", final)
+    except Exception as e:
+        emit("log", f"[WARN] No se pudo emitir resultados finales: {e}")
+
+    UNIT_TEST_JUST_FINISHED.set()  # Marcar que unitaria terminó
+    emit("resume_monitor", None)
+
+# Función helper para ping único
+def _ping_once(ip: str, timeout_ms: int = 1) -> bool:
+    """Ping 1 vez"""
+    cmd = ["ping", "-n", "1", "-w", str(int(timeout_ms)), ip]
+    try:
+        r = subprocess.run(
+            cmd,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=max(2, int(timeout_ms / 1000) + 1)
+        )
+        return r.returncode == 0
+    except Exception:
+        return False
+
+# Helper para esperar reconexión sin reiniciar ciclo
+def wait_for_reconnect(ip: str, grace_s: int = 240, interval_s: float = 2.0, stop_event=None) -> bool:
+    """
+    Espera a que el ONT vuelva a responder ping (típico reboot).
+    True = volvió dentro de la ventana; False = no volvió.
+    """
+    deadline = time.time() + int(grace_s)
+    while time.time() < deadline:
+        if stop_event and stop_event.is_set():
+            return False
+        if _ping_once(ip, timeout_ms=1000):
+            return True
+        time.sleep(interval_s)
+    return False
+
+def main_loop(opciones, out_q = None, stop_event = None, auto_test_on_detect = True):
     """
     Ciclo principal recursivo:
     1. Escanea red y encuentra dispositivo
@@ -970,6 +1175,18 @@ def main_loop(opciones, out_q = None, stop_event = None):
     
     cycle_count = 0
     last_tested_ip = None
+    auto_test_default = auto_test_on_detect  # para restaurar al desconectar
+    fase2_executed = False  # Indica si ya se ejecutó fase2 en esta sesión (se resetea al desconectar)
+
+    def is_etiqueta_mode(opc: dict) -> bool:
+        tests = (opc or {}).get("tests", {})
+        # Etiqueta = todo OFF excepto ping (ping puede estar True)
+        keys = (
+            "factory_reset", "software_update", "usb_port",
+            "tx_power", "rx_power",
+            "wifi_24ghz_signal", "wifi_5ghz_signal",
+        )
+        return all(not tests.get(k, False) for k in keys)
     
     try:
         while True:
@@ -983,16 +1200,18 @@ def main_loop(opciones, out_q = None, stop_event = None):
             print(f"CICLO #{cycle_count}")
             print(f"{'#'*80}\n")
             
-            # FASE 1: ESCANEO
+            # --- FASE 1: ESCANEO ---
             print("[FASE 1/3] ESCANEO DE RED")
             print("-" * 60)
             
             temp_tester = ONTAutomatedTester(host="0.0.0.0", model=None)
+
             # Definir la q como globar para poder acceder a ella desde todos lados
             def emit(kind, payload):
                 if out_q:
                     temp_tester.out_q = out_q
                     temp_tester.out_q.put((kind, payload))
+            
             # Verificar configuración de red
             network_ok = temp_tester._check_network_configuration()
             
@@ -1016,68 +1235,100 @@ def main_loop(opciones, out_q = None, stop_event = None):
             # Decir que ya se hizo la conexión
             emit("con", "Dispositivo Conectado")
             last_tested_ip = ip
-            
-            # FASE 2: PRUEBAS
-            print(f"\n[FASE 2/3] EJECUCIÓN DE PRUEBAS")
-            print("-" * 60)
-            
-            emit("log", "Iniciando pruebas automatizadas")
-            # Obtener modelo + matchear con dict
+
+            # Mostrar modelo en UI
             nombre = temp_tester._get_model_display_name(detected_model)
-            if not detected_model:
-                emit("logSuper", "Por confirmar...")
+            emit("logSuper", nombre if detected_model else "Por confirmar...")
+            
+            # --- FASE 2: PRUEBAS / ETIQUETA / MONITOREO ---
+            # BLOQUEO: si una prueba unitaria está corriendo o ya se ejecutó fase2 en esta sesión
+            if UNIT_TEST_ACTIVE.is_set():
+                emit("log", "[SKIP FASE2] Prueba unitaria en ejecución. Paso directo a MONITOREO.")
+            elif UNIT_TEST_JUST_FINISHED.is_set():
+                UNIT_TEST_JUST_FINISHED.clear()  # Consumir el flag
+                emit("log", "Dispositivo detectado. En monitoreo tras unitaria...")
+            elif fase2_executed:
+                emit("log", "Dispositivo detectado. En monitoreo: esperando acción del usuario...")
+            elif auto_test_on_detect:
+                # Modo Testeo/Retesteo: ejecutar pruebas completas
+                print(f"\n[FASE 2/3] EJECUCIÓN DE PRUEBAS")
+                print("-" * 60)
+
+                emit("log", "Iniciando pruebas automatizadas")
+
+                tester = ONTAutomatedTester(ip, detected_model)
+                tester.out_q = out_q
+                tester.opcionesTest = opciones
+                tester._stop_event = stop_event
+
+                print("Las opciones elegidas son: " + str(opciones))
+                emit("pruebas", "Autenticando dispositivo")
+                tester.run_all_tests()
+
+                resultados = tester._resultados_finales()
+                emit("resultados", resultados)
+
+                if detected_model == "MOD001" or detected_model == "MOD008":
+                    print("\n" + tester.generate_report())
+                    tester.save_results(None)
+
+                todo_tests_on = all(tester.opcionesTest["tests"].values())
+                if todo_tests_on:
+                    tester._generarCertificado()
+
+                emit("log", "Pruebas completadas")
+                emit("pruebas", "Fin de pruebas")
+                print(f"\n[✓] Pruebas completadas para {ip}")
+
+                # Marcar que ya se ejecutó fase2 en esta sesión
+                fase2_executed = True
+                emit("log", "Entrando a MONITOREO: no se volverán a ejecutar pruebas hasta cambio de modo o prueba unitaria.")
+
+            elif is_etiqueta_mode(opciones):
+                # Modo Etiqueta: extraer info sin pruebas completas
+                print(f"\n[FASE 2/3] EXTRACCIÓN DE ETIQUETA")
+                print("-" * 60)
+
+                emit("log", "Extrayendo información (Etiqueta)")
+
+                et = ONTAutomatedTester(ip, detected_model)
+                et.out_q = out_q
+                et.opcionesTest = opciones
+
+                emit("pruebas", "Extrayendo datos de etiqueta")
+                et.run_all_tests()
+
+                resultados = et._resultados_finales()
+                emit("resultados", resultados)
+
+                emit("log", "Etiqueta completada")
+                emit("pruebas", "Fin etiqueta")
+
+                # Marcar que ya se ejecutó fase2 en esta sesión
+                fase2_executed = True
+
             else:
-                emit("logSuper", nombre)
-            tester = ONTAutomatedTester(ip, detected_model)
-            def emit(kind, payload):
-                if out_q:
-                    tester.out_q = out_q
-                    tester.out_q.put((kind, payload))
-            tester.opcionesTest = opciones
-            print("Las opciones elegidas son: "+str(opciones))
-            # opc["tests"]["factory_reset"] = False
-            # opc["tests"]["software_update"] = True
-            # opc["tests"]["tx_power"] = False
-            # opc["tests"]["rx_power"] = False
-            # opc["tests"]["wifi_24ghz_signal"] = False
-            # opc["tests"]["wifi_5ghz_signal"] = False
-            # opc["tests"]["usb_port"] = False
-            emit("pruebas", "Autenticando dispositivo")
-            tester.run_all_tests()
-            
-            # Mandar a llamar los resultados finales
-            resultados = tester._resultados_finales()
-            emit("resultados", resultados)
-            # Mostrar reporte
-            if detected_model == "MOD001" or detected_model == "MOD008":
-                print("\n" + tester.generate_report())
-                tester.save_results(None)
-            
-            # Generar certificado si todos los tests están habilitados
-            todo_tests_on = all(tester.opcionesTest["tests"].values())
-            if todo_tests_on:
-                tester._generarCertificado()
-            
-            emit("log", "Pruebas completadas")
-            emit("pruebas", "Fin de pruebas")
-            print(f"\n[✓] Pruebas completadas para {ip}")
+                # Modo monitoreo puro (después de unitaria o sin modo definido)
+                emit("log", "Dispositivo detectado. En monitoreo: esperando acción del usuario...")
             
             # FASE 3: MONITOREO
             print(f"\n[FASE 3/3] MONITOREO DE CONEXIÓN")
             print("-" * 60)
-            
+
+            # Monitoreo simple: 3 pings fallidos = desconexión = nuevo ciclo de escaneo
             user_interrupted = monitor_device_connection(ip, interval=1, max_failures=3, stop_event=stop_event)
-            
+
             if user_interrupted:
-                # Usuario presionó Ctrl+C durante el monitoreo
+                # stop_event o Ctrl+C: salir del main_loop
                 print("\n[*] Saliendo del ciclo de monitoreo...")
                 break
-            else:
-                # Conexión perdida, volver a escanear
-                print("\n[*] Dispositivo desconectado. Iniciando nuevo ciclo de escaneo...")
-                # Decir que ya se perdió la conexión
-                emit("con", "DESCONECTADO")
-                time.sleep(1)  # Pequeña pausa antes de re-escanear
+
+            # Ping perdido = desconexión real → nuevo ciclo de escaneo
+            print("\n[*] Dispositivo desconectado. Iniciando nuevo ciclo de escaneo...")
+            emit("con", "DESCONECTADO")
+            fase2_executed = False  # Resetear para que el próximo dispositivo ejecute fase2
+            time.sleep(1)
+            # Vuelve al while principal (nuevo ciclo)
                 
     except KeyboardInterrupt:
         print("\n\n" + "="*80)
