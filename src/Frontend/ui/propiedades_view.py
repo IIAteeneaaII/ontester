@@ -270,10 +270,10 @@ class ModificarParametrosDialog(ctk.CTkToplevel):
             main_scrollable,
             "RANGO DE VALORES EN RX",
             "rx_min", "rx_max",
-            valores_min=["-15.00", "-12.00", "-10.00", "-8.00"],
-            valores_max=["-12.00", "-10.00", "-8.00", "-5.00"],
-            default_min="-15.00",
-            default_max="-10.00"
+            valores_min=["-30.00", "-25.00", "-20.00", "-15.00", "-10.00"],
+            valores_max=["-13.00", "-12.00", "-11.00", "-10.00"],
+            default_min="-20.00",
+            default_max="-12.00"
         )
 
         self._crear_seccion_rango(
@@ -301,7 +301,7 @@ class ModificarParametrosDialog(ctk.CTkToplevel):
 
         busquedas_label = ctk.CTkLabel(
             busquedas_frame,
-            text="BÚSQUEDAS PARA ENCONTRAR SEÑALES WIFI",
+            text="PORCENTAJE DE POTENCIA DE SEÑALES WIFI",
             font=ctk.CTkFont(size=12, weight="bold"),
             text_color="#2C3E50"
         )
@@ -309,13 +309,13 @@ class ModificarParametrosDialog(ctk.CTkToplevel):
 
         self.busquedas_combo = ctk.CTkComboBox(
             busquedas_frame,
-            values=["10", "20", "30", "40", "50"],
+            values=["60", "70", "80", "90", "100"],
             width=200,
             height=32,
             fg_color="white",
             border_color="#8FA3B0"
         )
-        self.busquedas_combo.set("40")
+        self.busquedas_combo.set("60")
         self.busquedas_combo.pack(anchor="w", pady=(0, 10))
 
         botones_frame = ctk.CTkFrame(self, fg_color="transparent")
@@ -359,6 +359,56 @@ class ModificarParametrosDialog(ctk.CTkToplevel):
             height=35
         )
         btn_cancelar.pack(side="left", padx=5)
+
+        # cargar config
+        self.cargar_desdeJSON()
+    
+    def cargar_desdeJSON(self):
+        from src.backend.endpoints.conexion import cargarConfig
+        config = cargarConfig()
+
+        wifi = config.get("wifi", {}) or {}
+        fibra = config.get("fibra", {}) or {}
+
+        # ---- Fibra: tx / rx ----
+        mintx = fibra.get("mintx")
+        if mintx is not None:
+            # formateo para que coincida con las opciones del ComboBox
+            self.tx_min.set(f"{mintx:.2f}")
+
+        maxtx = fibra.get("maxtx")
+        if maxtx is not None:
+            self.tx_max.set(f"{maxtx:.2f}")
+
+        minrx = fibra.get("minrx")
+        if minrx is not None:
+            self.rx_min.set(f"{minrx:.2f}")
+
+        maxrx = fibra.get("maxrx")
+        if maxrx is not None:
+            self.rx_max.set(f"{maxrx:.2f}")
+
+        # ---- WiFi: RSSI ----
+        r24_min = wifi.get("rssi24_min")
+        if r24_min is not None:
+            self.rssi24_min.set(str(int(r24_min)))
+
+        r24_max = wifi.get("rssi24_max")
+        if r24_max is not None:
+            self.rssi24_max.set(str(int(r24_max)))
+
+        r5_min = wifi.get("rssi5_min") or wifi.get("rssi50_min")
+        if r5_min is not None:
+            self.rssi50_min.set(str(int(r5_min)))
+
+        r5_max = wifi.get("rssi5_max") or wifi.get("rssi50_max")
+        if r5_max is not None:
+            self.rssi50_max.set(str(int(r5_max)))
+
+        # ---- Porcentaje de potencia ----
+        min_pct = wifi.get("min24percent") or wifi.get("min5percent")
+        if min_pct is not None:
+            self.busquedas_combo.set(str(int(min_pct)))
 
     def _crear_seccion_rango(self, parent, titulo, var_min_name, var_max_name,
                             valores_min, valores_max, default_min, default_max):
@@ -409,29 +459,32 @@ class ModificarParametrosDialog(ctk.CTkToplevel):
 
     def confirmar(self):
         self.resultado = {
-            'tx_min': self.tx_min.get(),
-            'tx_max': self.tx_max.get(),
-            'rx_min': self.rx_min.get(),
-            'rx_max': self.rx_max.get(),
-            'rssi24_min': self.rssi24_min.get(),
-            'rssi24_max': self.rssi24_max.get(),
-            'rssi50_min': self.rssi50_min.get(),
-            'rssi50_max': self.rssi50_max.get(),
-            'busquedas': self.busquedas_combo.get()
+            'tx_min': float(self.tx_min.get()),
+            'tx_max': float(self.tx_max.get()),
+            'rx_min': float(self.rx_min.get()),
+            'rx_max': float(self.rx_max.get()),
+            'rssi24_min': float(self.rssi24_min.get()),
+            'rssi24_max': float(self.rssi24_max.get()),
+            'rssi50_min': float(self.rssi50_min.get()),
+            'rssi50_max': float(self.rssi50_max.get()),
+            'busquedas': int(self.busquedas_combo.get())
         }
         print(f"Parámetros guardados: {self.resultado}")
+        # guardar en el archivo de configuraciones
+        from src.backend.endpoints.conexion import guardarConfig
+        guardarConfig(self.resultado, "valores")
         self.destroy()
 
     def restaurar(self):
-        self.tx_min.set("1.00")
-        self.tx_max.set("5.00")
-        self.rx_min.set("-15.00")
-        self.rx_max.set("-10.00")
+        self.tx_min.set("1.0")
+        self.tx_max.set("5.0")
+        self.rx_min.set("-19.00")
+        self.rx_max.set("-13.00")
         self.rssi24_min.set("-80")
         self.rssi24_max.set("-5")
         self.rssi50_min.set("-80")
         self.rssi50_max.set("-5")
-        self.busquedas_combo.set("40")
+        self.busquedas_combo.set("60")
         print("Valores restaurados a los valores por defecto")
 
     def cancelar(self):
@@ -444,12 +497,13 @@ class TesterMainView(ctk.CTkFrame):
     Vista principal del ONT TESTER con botones superiores y panel de pruebas.
     """
 
-    def __init__(self, parent, viewmodel=None, **kwargs):
+    def __init__(self, parent, modelo, q, viewmodel=None, **kwargs):
         super().__init__(parent, fg_color="#E8F4F8", **kwargs)
 
         self.viewmodel = viewmodel
         self.numero_estacion = "09"  # Número de estación por defecto
-
+        self.modelo = modelo
+        self.q = q
         # Layout principal
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=0)  # título
@@ -592,7 +646,7 @@ class TesterMainView(ctk.CTkFrame):
         btn4.pack(fill="x", padx=15, pady=(0, 20))
 
         # ---------- Panel de pruebas ----------
-        self.panel_pruebas = PanelPruebasConexion(self)
+        self.panel_pruebas = PanelPruebasConexion(self, self.modelo, self.q)
         self.panel_pruebas.grid(row=2, column=0, sticky="ew", padx=15, pady=(0, 10))
 
     # =========================================================
@@ -611,7 +665,7 @@ class TesterMainView(ctk.CTkFrame):
         except Exception:
             pass
 
-        nueva = view_cls(parent)
+        nueva = view_cls(parent, self.modelo, self.q)
         nueva.pack(fill="both", expand=True)
 
     # ---------- Callbacks de navegación del menú superior ----------

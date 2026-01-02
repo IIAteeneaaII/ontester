@@ -15,7 +15,9 @@ import platform
 import re
 import time
 import requests
+import csv
 from datetime import datetime
+from datetime import date
 from pathlib import Path
 from typing import Dict, Any, List
 import xml.etree.ElementTree as ET
@@ -571,6 +573,117 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
         if(generar):
             ruta = generarCertificado(res)
             print(f"\n[REPORT] Certificado generado en: {ruta}")
+    
+    def ensure_reports_dir(self) -> Path:
+        """
+        Asegura que exista C:\\ONT\\Reportes diarios y devuelve la ruta.
+        Si la carpeta ya existe, no pasa nada.
+        """
+        base_dir = Path(r"C:\ONT")
+        reports_dir = base_dir / "Reportes diarios"
+        reports_dir.mkdir(parents=True, exist_ok=True)
+        return reports_dir
+
+
+    def get_daily_report_path(self,d: date | None = None) -> Path:
+        """
+        Devuelve la ruta del CSV del día.
+        Ej: C:\\ONT\\Reportes diarios\\reportes_2025-12-19.csv
+        """
+        if d is None:
+            d = date.today()
+        reports_dir = self.ensure_reports_dir()
+        filename = f"reportes_{d.isoformat()}.csv"
+        return reports_dir / filename
+
+    def getTipoPrueba(self):
+        # traer el diccionario de opciones
+        opc = self.opcionesTest
+        tests_opts = opc.get("tests", {})
+
+        activos = [nombre for nombre, activo in tests_opts.items() if activo]
+        # 1) Todos activos -> Retest
+        if len(activos) == len(tests_opts) and len(tests_opts) > 0:
+            return "Retest"
+        # 2) Solo ping activo -> Etiqueta
+        if len(activos) == 1 and "ping" in activos:
+            return "Etiqueta"
+        # 3) Cualquier otra combinación -> Inicial
+        return "Inicial"
+
+    def saveBDiaria(self):
+        # Traer los resultados de la prueba
+        res = self._resultados_finales()
+        # Versión del software
+        version_ont = "BETA"
+
+        # Encabezados
+        HEADERS = [
+            "ID",
+            "SN",
+            "MAC",
+            "SSID_24",
+            "SSID_5",
+            "PASSWORD",
+            "MODELO",
+            "STATUS",
+            "VERSION_INICIAL",
+            "VERSION_FINAL",
+            "TIPO_PRUEBA",
+            "FECHA",
+            "VERSION_ONT_TESTER",
+        ]
+
+        ruta_csv = self.get_daily_report_path()
+        archivo_nuevo = not ruta_csv.exists()
+
+        # 4) Calcular el siguiente ID
+        if archivo_nuevo:
+            next_id = 1
+        else:
+            with ruta_csv.open(newline="", encoding="utf-8") as f:
+                reader = csv.reader(f)
+                # saltar encabezado si existe
+                next(reader, None)
+                last_id = 0
+                for row in reader:
+                    if row and row[0].isdigit():
+                        last_id = int(row[0])
+                next_id = last_id + 1
+
+        #Creación de 
+        info  = res.get("info", {})
+        tests = res.get("tests", {})
+        valido = res.get("valido", False)
+        tipo_prueba = self.getTipoPrueba()
+        registro = [
+            next_id,              # ID
+            info.get("sn", ""),            # SN
+            info.get("mac", ""),           # MAC
+            info.get("wifi24", ""),        # SSID_24
+            info.get("wifi5", ""),         # SSID_5
+            info.get("passWifi", ""),      # PASSWORD
+            info.get("modelo", ""),        # MODELO
+            "OK" if valido else "FAIL",        # STATUS
+            "---",   # VERSION_INICIAL
+            info.get("sftVer", ""),     # VERSION_FINAL
+            tipo_prueba,   # TIPO_PRUEBA
+            date.today().strftime("%d-%m-%Y"),     # FECHA
+            version_ont,          # VERSION_ONT_TESTER
+        ]
+
+        # Guardar del archivo
+        ruta_csv = self.get_daily_report_path()
+        archivo_nuevo = not ruta_csv.exists()
+
+        with ruta_csv.open(mode="a", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+
+            # Si es nuevo, escribimos los encabezados primero
+            if archivo_nuevo:
+                writer.writerow(HEADERS)
+
+            writer.writerow(registro)
 
 def main():
     parser = argparse.ArgumentParser(description="ONT Automated Test Suite")
@@ -1065,6 +1178,9 @@ def main_loop(opciones, out_q = None, stop_event=None):
             todo_tests_on = all(tester.opcionesTest["tests"].values())
             if todo_tests_on:
                 tester._generarCertificado()
+
+            # Guardar para base diaria y global
+            tester.saveBDiaria()
             
             emit("log", "Pruebas completadas")
             emit("pruebas", "Fin de pruebas")
