@@ -21,8 +21,8 @@ def load_users_txt(path: str | Path) -> dict[str, str]:
     return users
 
 def load_default_users() -> dict[str, str]:
-    base_utils = Path(__file__).resolve().parents[1]   # -> backend
-    txt_path = base_utils / "utils" / "empleados.txt"
+    # base_utils = Path(__file__).resolve().parents[1]   # -> backend
+    txt_path = Path(r"C:/ONT/empleados.txt") 
     return load_users_txt(txt_path)
 
 def cargarConfig() -> dict:
@@ -107,7 +107,7 @@ def _get_report_path_for(d: date) -> Path:
         filename = f"reportes_{d.isoformat()}.csv"
         return reports_dir / filename
 
-def iniciar_testerConexion(resetFabrica, usb, fibra, wifi, out_q = None, stop_event = None):
+def iniciar_testerConexion(resetFabrica, usb, fibra, wifi, out_q = None, stop_event = None, auto_test_on_detect = True):
     def emit(kind, payload):
         if out_q:
             out_q.put((kind, payload))

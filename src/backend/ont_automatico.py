@@ -1432,6 +1432,9 @@ def main_loop(opciones, out_q = None, stop_event = None, auto_test_on_detect = T
                 emit("pruebas", "Fin de pruebas")
                 print(f"\n[✓] Pruebas completadas para {ip}")
 
+                # Guardar para base diaria y global
+                tester.saveBDiaria()
+
                 # Marcar que ya se ejecutó fase2 en esta sesión
                 fase2_executed = True
                 emit("log", "Entrando a MONITOREO: no se volverán a ejecutar pruebas hasta cambio de modo o prueba unitaria.")
@@ -1462,6 +1465,7 @@ def main_loop(opciones, out_q = None, stop_event = None, auto_test_on_detect = T
             else:
                 # Modo monitoreo puro (después de unitaria o sin modo definido)
                 emit("log", "Dispositivo detectado. En monitoreo: esperando acción del usuario...")
+            
             
             # FASE 3: MONITOREO
             print(f"\n[FASE 3/3] MONITOREO DE CONEXIÓN")
