@@ -266,7 +266,7 @@ class ZTEMixin:
     def info_zte_basic(self, driver):
         # Para "basic", ya navegamos a Status en _login_zte()
         # No necesitamos hacer nada más aquí, solo esperar un momento
-        time.sleep(1)
+        #time.sleep(1)
         print("[SELENIUM] Esperando datos básicos del dispositivo...")
 
     def nav_fibra(self, driver):
@@ -1114,6 +1114,7 @@ class ZTEMixin:
                 
                 # DEBUG: Ver qué contiene parsed
                 if name == "basic":
+                    print("[DEBUG] la raw de info basic es "+str(raw))
                     print(f"[DEBUG] Prueba 'basic' - Contenido de parsed: {list(parsed.keys())}")
                     print(f"[DEBUG] DEVINFO presente: {'DEVINFO' in parsed}")
                     if 'DEVINFO' in parsed:
