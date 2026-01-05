@@ -2135,10 +2135,28 @@ class FiberMixin:
                     return True
                 else:
                     print("[INFO] El software está actualizado")
+                    self.test_results["tests"]["software_update"] = {
+                        "necesaria": False,
+                        "completada": True,
+                        "version_anterior": sftVer,
+                        "version_nueva": sftVer
+                    }
                     return False
             else:
                 print("[ERROR] El archivo .bin no tiene la nomenclatura correcta")
+                self.test_results["tests"]["software_update"] = {
+                "necesaria": True,
+                "completada": False,
+                "version_anterior": sftVer,
+                "version_nueva": "N/A"
+            }
                 return False
         else:
             print("[ERROR] No existe un archivo de actualización en el directorio correcto")
+            self.test_results["tests"]["software_update"] = {
+                "necesaria": True,
+                "completada": False,
+                "version_anterior": sftVer,
+                "version_nueva": "N/A"
+            }
             return False
