@@ -266,7 +266,7 @@ class ZTEMixin:
     def info_zte_basic(self, driver):
         # Para "basic", ya navegamos a Status en _login_zte()
         # No necesitamos hacer nada más aquí, solo esperar un momento
-        #time.sleep(1)
+        time.sleep(1)
         print("[SELENIUM] Esperando datos básicos del dispositivo...")
 
     def nav_fibra(self, driver):
@@ -572,48 +572,12 @@ class ZTEMixin:
                     return True
                 else:
                     print("[INFO] El software está actualizado")
-                    # Guardar info en reporte
-                    if "software_update" not in self.test_results["tests"]:
-                        self.test_results["tests"]["software_update"] = {}
-                    
-                    self.test_results["tests"]["software_update"] = {
-                        "name": "software_update",
-                        "status": True,
-                        "details": {
-                            "previous_version": self.test_results.get('metadata', {}).get('base_info', {}).get('raw_data', {}).get('SoftwareVer', 'N/A'),
-                            "new_version": "VERSION YA ACTUALIZADA",
-                            "firmware_file": archivo,
-                            "update_completed": True
-                        }
-                    }
                     return False
             else:
                 print("[ERROR] El archivo .bin no tiene la nomenclatura correcta")
-                self.test_results["tests"]["software_update"] = {
-                    "name": "software_update",
-                    "status": True,
-                    "details": {
-                        "previous_version": self.test_results.get('metadata', {}).get('base_info', {}).get('raw_data', {}).get('SoftwareVer', 'N/A'),
-                        "new_version": "El archhivo bin no tiene buen nombre",
-                        "firmware_file": "archivo",
-                        "update_completed": False,
-                        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    }
-                }
                 return False
         else:
             print("[ERROR] No existe un archivo de actualización en el directorio correcto")
-            self.test_results["tests"]["software_update"] = {
-                "name": "software_update",
-                "status": True,
-                "details": {
-                    "previous_version": self.test_results.get('metadata', {}).get('base_info', {}).get('raw_data', {}).get('SoftwareVer', 'N/A'),
-                    "new_version": "No hay directorio correcto",
-                    "firmware_file": "archivo",
-                    "update_completed": False,
-                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                }
-            }
             return False
 
     def test_sft_updateZTE(self, driver):
@@ -675,19 +639,19 @@ class ZTEMixin:
                 time.sleep(30)
                 
                 # Guardar captura de pantalla del estado de actualización
-                # try:
-                #     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                #     screenshot_path = f"debug_firmware_upload_{timestamp}.png"
-                #     driver.save_screenshot(screenshot_path)
-                #     print(f"[DEBUG] Captura guardada: {screenshot_path}")
+                try:
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    screenshot_path = f"debug_firmware_upload_{timestamp}.png"
+                    driver.save_screenshot(screenshot_path)
+                    print(f"[DEBUG] Captura guardada: {screenshot_path}")
                     
-                #     # Guardar HTML para debug
-                #     html_path = f"debug_firmware_upload_{timestamp}.html"
-                #     with open(html_path, 'w', encoding='utf-8') as f:
-                #         f.write(driver.page_source)
-                #     print(f"[DEBUG] HTML guardado: {html_path}")
-                # except Exception as e:
-                #     print(f"[DEBUG] No se pudo guardar captura: {e}")
+                    # Guardar HTML para debug
+                    html_path = f"debug_firmware_upload_{timestamp}.html"
+                    with open(html_path, 'w', encoding='utf-8') as f:
+                        f.write(driver.page_source)
+                    print(f"[DEBUG] HTML guardado: {html_path}")
+                except Exception as e:
+                    print(f"[DEBUG] No se pudo guardar captura: {e}")
                 
                 # Monitorear progreso y reinicio (total 200 segundos)
                 print("[SELENIUM] Monitoreando actualización (120 segundos)...")
@@ -1114,7 +1078,6 @@ class ZTEMixin:
                 
                 # DEBUG: Ver qué contiene parsed
                 if name == "basic":
-                    print("[DEBUG] la raw de info basic es "+str(raw))
                     print(f"[DEBUG] Prueba 'basic' - Contenido de parsed: {list(parsed.keys())}")
                     print(f"[DEBUG] DEVINFO presente: {'DEVINFO' in parsed}")
                     if 'DEVINFO' in parsed:
@@ -1380,31 +1343,25 @@ class ZTEMixin:
                 # Verificar si se tiene que hacer factory reset
                 optTest = self.opcionesTest
                 tests_opts = optTest.get("tests", {})
-
-                # Solo intentamos resetear si la opción está activa y NO venimos de un login post–reset
-                if tests_opts.get("factory_reset", True) and not reset:
-                    def emit(kind, payload):
-                        if self.out_q:
-                            self.out_q.put((kind, payload))
-
-                    emit("pruebas", "Ejecutando Reinicio de Fabrica")
-                    print("[RESET] Iniciando Factory Reset ZTE...")
-
-                    reset_ok = self._reset_factory_zte(driver)
-
-                    if not reset_ok:
-                        print("[WARNING] Factory Reset ZTE falló, marcando test como FAIL y saliendo")
-                        driver.quit()
-                        return False
-
-                    print("[INFO] Factory Reset enviado. Cerrando navegador y esperando reinicio...")
-                    driver.quit()
-
-                    # Esperar a que la ONT vuelva a levantar (ajusta si es necesario)
-                    time.sleep(100)
-
-                    # Hacemos un segundo login, pero ya marcando reset=True para NO resetear otra vez
-                    return self._login_zte(True)
+                if tests_opts.get("factory_reset", True):
+                    if (reset is False):
+                        # Antes de ejecutar las demás pruebas hay que resetear de fabrica
+                        def emit(kind, payload):
+                            if self.out_q:
+                                self.out_q.put((kind, payload))
+                        emit("pruebas", "Ejecutando: Reinicio De Fabrica")
+                        resetZTE = self._reset_factory_zte(driver)
+                        print("[INFO] Esperando a que el ZTE reinicie tras Factory Reset...")
+                        time.sleep(100)  # espera
+                        if (resetZTE):
+                            reset = True
+                            self._login_zte(True) # Es necesario volver a loggearse después del reset
+                            driver.quit()
+                            return True
+                        else:
+                            print("[WARNING] No se pudo resetear, saltando pruebas")
+                            driver.quit()
+                            return False
                 #Petición extra:
                 # Utilizando selenium para darle click a un boton || Tactica extrema, no intentar en casa
                 button_selectors = [
