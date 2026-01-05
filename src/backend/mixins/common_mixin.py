@@ -28,7 +28,7 @@ try:
 except ImportError:
     SELENIUM_AVAILABLE = False
     print("[WARNING] Selenium no disponible. Instala con: pip install selenium webdriver-manager")
-
+CREATE_NO_WINDOW = 0x08000000
 # Metodos comunes
 class CommonMixin:
     def generate_report(self) -> str:
@@ -528,7 +528,7 @@ class CommonMixin:
         
         try:
             cmd = ["ping", param, "4", timeout_param, "2000", self.host]
-            output = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+            output = subprocess.run(cmd, capture_output=True, text=True, creationflags=subprocess.CREATE_NO_WINDOW, timeout=10)
             
             if output.returncode == 0:
                 result["status"] = "PASS"

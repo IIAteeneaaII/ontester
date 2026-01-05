@@ -29,7 +29,7 @@ try:
 except ImportError:
     SELENIUM_AVAILABLE = False
     print("[WARNING] Selenium no disponible. Instala con: pip install selenium webdriver-manager")
-
+CREATE_NO_WINDOW = 0x08000000
 class FiberMixin:
     def _login_fiberhome(self) -> bool:
         """
@@ -1472,6 +1472,7 @@ class FiberMixin:
                 while time.time() - start_wait < 300: # 5 min timeout
                     response = subprocess.run(
                         ['ping', '-n', '1', '-w', '1000', self.host],
+                        creationflags=subprocess.CREATE_NO_WINDOW,
                         capture_output=True
                     )
                     if response.returncode == 0:

@@ -57,7 +57,7 @@ from src.backend.certificado.certificado import generarCertificado
 # ==========================
 UNIT_TEST_ACTIVE = threading.Event() # Indica “hay una unitaria corriendo”
 UNIT_TEST_JUST_FINISHED = threading.Event()  # Indica "unitaria recién terminó, skip fase2"
-
+CREATE_NO_WINDOW = 0x08000000
 _SUPPRESS_LOCK = threading.Lock()
 _SUPPRESS_UNTIL = {}     # ip -> deadline (time.monotonic)
 _SUPPRESS_REASON = {}    # ip -> str
@@ -712,9 +712,10 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
         # 3) Cualquier otra combinación -> Inicial
         return "Inicial"
 
-    def saveBDiaria(self):
+    def saveBDiaria(self, resultados):
+        print("[BASE] Llegando a base diaria")
         # Traer los resultados de la prueba
-        res = self._resultados_finales()
+        res = resultados
         # Versión del software
         version_ont = "BETA"
 
@@ -932,6 +933,7 @@ def monitor_device_connection(ip: str, interval: int = 1, max_failures: int = 3,
                     command,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
+                    creationflags=subprocess.CREATE_NO_WINDOW,
                     timeout=2
                 )
                 
@@ -1287,6 +1289,7 @@ def _ping_once(ip: str, timeout_ms: int = 1) -> bool:
             cmd,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
+            creationflags=subprocess.CREATE_NO_WINDOW,
             timeout=max(2, int(timeout_ms / 1000) + 1)
         )
         return r.returncode == 0
@@ -1418,6 +1421,8 @@ def main_loop(opciones, out_q = None, stop_event = None, auto_test_on_detect = T
                 tester.run_all_tests()
 
                 resultados = tester._resultados_finales()
+                # Guardar para base diaria y global
+                tester.saveBDiaria(resultados)
                 emit("resultados", resultados)
 
                 if detected_model == "MOD001" or detected_model == "MOD008":
@@ -1432,8 +1437,7 @@ def main_loop(opciones, out_q = None, stop_event = None, auto_test_on_detect = T
                 emit("pruebas", "Fin de pruebas")
                 print(f"\n[✓] Pruebas completadas para {ip}")
 
-                # Guardar para base diaria y global
-                tester.saveBDiaria()
+                
 
                 # Marcar que ya se ejecutó fase2 en esta sesión
                 fase2_executed = True
@@ -1454,6 +1458,8 @@ def main_loop(opciones, out_q = None, stop_event = None, auto_test_on_detect = T
                 et.run_all_tests()
 
                 resultados = et._resultados_finales()
+                # Guardar para base diaria y global
+                et.saveBDiaria(resultados)
                 emit("resultados", resultados)
 
                 emit("log", "Etiqueta completada")
