@@ -67,7 +67,9 @@ class FiberMixin:
             }
             chrome_options.add_experimental_option("prefs", prefs)
 
-            service = Service(ChromeDriverManager().install())
+            # service = Service(ChromeDriverManager().install())
+            driver_path = self._get_chromedriver_path()
+            service = Service(driver_path)
             driver = webdriver.Chrome(service=service, options=chrome_options)
             
             # --- LIMPIEZA DE SESIONES PREVIA (MEJORADA CON POST) ---
@@ -377,7 +379,9 @@ class FiberMixin:
         
         # Inicializar driver con WebDriver Manager
         print("[SELENIUM] Descargando/verificando ChromeDriver...")
-        service = Service(ChromeDriverManager().install())
+        # service = Service(ChromeDriverManager().install())
+        driver_path = self._get_chromedriver_path()
+        service = Service(driver_path)
         driver = webdriver.Chrome(service=service, options=chrome_options)
         self.driver = driver
         login_url = f"{self.base_url}/html/login_inter.html"

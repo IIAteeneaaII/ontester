@@ -159,6 +159,30 @@ class CommonMixin:
 
         print("\n" + "+"*60)
 
+    def _get_chromedriver_path(self) -> str:
+        """
+        Devuelve la ruta al chromedriver.exe ubicado en:
+        src/backend/drivers/chromedriver.exe
+        """
+
+        if getattr(sys, "frozen", False):
+            # Ejecutándose desde un .exe (PyInstaller)
+            # OJO: cuando empaquetes, usa algo como:
+            #   --add-binary "src/backend/drivers/chromedriver.exe;backend/drivers"
+            base_path = Path(sys._MEIPASS) / "backend" / "drivers"
+        else:
+            # Ejecutándose desde el código fuente
+            here = Path(__file__).resolve()
+
+            # Si ESTE archivo está en src/backend/endpoints/xxx.py -> subir a src/backend
+            backend_root = here.parent
+            if backend_root.name != "backend":
+                backend_root = backend_root.parent  # sube un nivel más si hace falta
+
+            base_path = backend_root / "drivers"
+
+        return str(base_path / "chromedriver.exe")
+
     def save_results2(self, base_dir: str):
         """
         Guarda self.test_results en:
@@ -222,7 +246,9 @@ class CommonMixin:
             
             # Inicializar driver con WebDriver Manager
             print("[SELENIUM] Descargando/verificando ChromeDriver...")
-            service = Service(ChromeDriverManager().install())
+            # service = Service(ChromeDriverManager().install())
+            driver_path = self._get_chromedriver_path()
+            service = Service(driver_path)
             driver = webdriver.Chrome(service=service, options=chrome_options)
             driver.set_page_load_timeout(timeout)
             self.driver = driver
