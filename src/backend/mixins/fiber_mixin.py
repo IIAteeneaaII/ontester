@@ -717,6 +717,7 @@ class FiberMixin:
                     ['arp', '-a', self.host],
                     capture_output=True,
                     text=True,
+                    creationflags=subprocess.CREATE_NO_WINDOW,
                     timeout=3
                 )
                 
@@ -741,6 +742,7 @@ class FiberMixin:
                     ['arp', self.host],
                     capture_output=True,
                     text=True,
+                    creationflags=subprocess.CREATE_NO_WINDOW,
                     timeout=3
                 )
                 

@@ -276,6 +276,7 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
                 capture_output=True,
                 text=True,
                 encoding='utf-8',
+                creationflags=subprocess.CREATE_NO_WINDOW,
                 errors='ignore'
             )
             

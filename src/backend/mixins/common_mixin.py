@@ -970,7 +970,7 @@ class CommonMixin:
             return networks
 
         for attempt in range(retries):
-            proc = subprocess.run(cmd, capture_output=True)
+            proc = subprocess.run(cmd, capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW)
             # decodificar con la codificación de consola típica
             try:
                 output = proc.stdout.decode("cp850", errors="ignore")
