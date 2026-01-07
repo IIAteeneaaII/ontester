@@ -3,6 +3,7 @@
 [![Python](https://img.shields.io/badge/Python-3.8%2B-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-Pending-yellow)]()
 [![Status](https://img.shields.io/badge/Status-Active-success)]()
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/IIAteeneaaII/ontester)
 
 Sistema automatizado para testing, diagnóstico y análisis de dispositivos ONT (Optical Network Terminal) de múltiples fabricantes.
 
