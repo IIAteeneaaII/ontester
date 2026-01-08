@@ -1,0 +1,84 @@
+{
+  "metadata": {
+    "host": "192.168.100.1",
+    "model": "HG8145V5",
+    "timestamp": "2026-01-02T09:35:50.496894",
+    "serial_number": "48575443AB374DAA"
+  },
+  "tests": {
+    "hw_device": {
+      "name": "hw_device",
+      "data": {
+        "model": "HG8145V5",
+        "serial_number": "48575443AB374DAA",
+        "serial_raw": "48575443AB374DAA (HWTCAB374DAA)",
+        "software_version": "V5R022C00S292"
+      }
+    },
+    "hw_lan": {
+      "name": "hw_lan",
+      "data": {
+        "ports": [
+          {
+            "port": "1",
+            "mode": "--",
+            "speed": "--",
+            "status": "Down"
+          },
+          {
+            "port": "2",
+            "mode": "--",
+            "speed": "--",
+            "status": "Down"
+          },
+          {
+            "port": "3",
+            "mode": "--",
+            "speed": "--",
+            "status": "Down"
+          },
+          {
+            "port": "4",
+            "mode": "Full-duplex",
+            "speed": "1000 Mbit/s",
+            "status": "Up"
+          }
+        ]
+      }
+    },
+    "hw_wifi24": {
+      "name": "hw_wifi24",
+      "data": {
+        "band": "2.4GHz",
+        "status": "Enabled",
+        "ssid": "Totalplay-4DAA"
+      }
+    },
+    "hw_wifi5": {
+      "name": "hw_wifi5",
+      "data": {
+        "band": "5GHz",
+        "status": "Enabled",
+        "ssid": "Totalplay-4DAA-5G"
+      }
+    },
+    "hw_mac": {
+      "name": "hw_mac",
+      "data": "6C:E8:74:64:A3:9B"
+    },
+    "hw_wifi24_pass": {
+      "name": "hw_wifi24_pass",
+      "data": {
+        "band": "2.4GHz",
+        "password": "4DAAA39BMGB5Hk5F"
+      }
+    },
+    "hw_wifi5_pass": {
+      "name": "hw_wifi5_pass",
+      "data": {
+        "band": "5GHz",
+        "password": "4DAAA39BMGB5Hk5F"
+      }
+    }
+  }
+}
