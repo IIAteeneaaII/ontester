@@ -449,25 +449,54 @@ class FiberMixin:
             time.sleep(5)
         return False
 
-    def _router_logout_best_effort(self, driver):
-        # 1) intenta URL directa
+    def _router_logout_best_effort(self, driver=None):
+        """
+        Cierra la sesión activa del router Fiberhome.
+        Click en botón logout (id='logout') ubicado en header->top-menu.
+        """
+        if driver is None:
+            driver = self.driver
+        
+        if not driver:
+            print("[LOGOUT] No hay driver, creando uno temporal para logout...")
+            # Crear driver temporal solo para hacer logout
+            try:
+                chrome_options = Options()
+                chrome_options.add_argument('--headless')
+                chrome_options.add_argument('--no-sandbox')
+                chrome_options.add_argument('--disable-dev-shm-usage')
+                chrome_options.add_argument('--disable-gpu')
+                chrome_options.add_argument('--log-level=3')
+                driver_path = self._get_chromedriver_path()
+                service = Service(driver_path)
+                driver = webdriver.Chrome(service=service, options=chrome_options)
+            except Exception as e:
+                print(f"[LOGOUT] Error creando driver temporal: {e}")
+                return False
+        
         try:
-            driver.get(f"{self.base_url}/logout.html")
+            # Navegar a UI principal y click en botón logout
+            driver.get(f"{self.base_url}/html/main_inter.html")
             time.sleep(1)
-            return
-        except:
-            pass
-
-        # 2) si existe botón logout en UI (fallback)
-        try:
-            self.click_anywhere(driver, [
-                # agrega aquí IDs/XPaths si los conoces
-                (By.ID, "logout"),
-                # (By.XPATH, "//a[contains(.,'Logout') or contains(.,'Salir')]"),
-            ], desc="Logout", timeout=3)
-            time.sleep(1)
-        except:
-            pass
+            
+            logout_clicked = self.click_anywhere2(
+                driver, 
+                [(By.ID, "logout")], 
+                desc="Botón Logout", 
+                timeout=5
+            )
+            
+            if logout_clicked:
+                print("[LOGOUT] ✓ Sesión cerrada")
+                time.sleep(1)
+                return True
+            else:
+                print("[LOGOUT] Botón logout no encontrado (puede que ya esté deslogueado)")
+                return True  # Asumimos que ya está deslogueado
+                
+        except Exception as e:
+            print(f"[LOGOUT] Error: {e}")
+            return False
 
     def _enter_main_frameset(self, timeout_total=25) -> bool:
         driver = self.driver
@@ -2041,15 +2070,20 @@ class FiberMixin:
             archivo = self.searchBins(FIRMWARE_PATH)
             stem = Path(archivo).stem      # "HG6145F_RP4379"
             newVer = stem.split("_", 1)[1]  # "RP4379"
-            # Se necesitará hacer otro login con las credenciales de super usuario
-            max_reintentos = 5
+            # Cerrar sesión activa antes de login como Super Admin
+            self._router_logout_best_effort()
+            time.sleep(2)
+            
+            max_reintentos = 3
+            login_ok = False
             for n in range(max_reintentos):
-                print("Intento "+str(n+1)+" de "+str(max_reintentos)+" para iniciar sesión")
-                # ni modo, no sé donde está la sesión activa
-                time.sleep(310)
+                print(f"[INFO] Login Super Admin - intento {n+1}/{max_reintentos}")
                 login_ok = self._login_fiberhomeSuper()
-                if (login_ok):
+                if login_ok:
                     break
+                self._router_logout_best_effort()
+                time.sleep(5)
+                self._router_logout_best_effort()  # Reintentar logout si falló el login
                 time.sleep(10)
             if login_ok:
                 print("[*] Enviando firmware al router por formulario (Selenium)...")
