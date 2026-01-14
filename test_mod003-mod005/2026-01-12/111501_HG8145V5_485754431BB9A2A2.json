@@ -1,0 +1,143 @@
+{
+  "metadata": {
+    "host": "192.168.100.1",
+    "model": "HG8145V5",
+    "timestamp": "2026-01-12T11:09:56.942014",
+    "serial_number": "485754431BB9A2A2"
+  },
+  "tests": {
+    "hw_device": {
+      "name": "hw_device",
+      "data": {
+        "model": "HG8145V5",
+        "serial_number": "485754431BB9A2A2",
+        "serial_raw": "485754431BB9A2A2 (HWTC1BB9A2A2)",
+        "software_version": "V5R021C10S242"
+      }
+    },
+    "hw_lan": {
+      "name": "hw_lan",
+      "data": {
+        "ports": [
+          {
+            "port": "1",
+            "mode": "--",
+            "speed": "--",
+            "status": "Down"
+          },
+          {
+            "port": "2",
+            "mode": "--",
+            "speed": "--",
+            "status": "Down"
+          },
+          {
+            "port": "3",
+            "mode": "--",
+            "speed": "--",
+            "status": "Down"
+          },
+          {
+            "port": "4",
+            "mode": "Full-duplex",
+            "speed": "1000 Mbit/s",
+            "status": "Up"
+          }
+        ]
+      }
+    },
+    "hw_wifi24": {
+      "name": "hw_wifi24",
+      "data": {
+        "band": "2.4GHz",
+        "status": "Enabled",
+        "ssid": "Totalplay-A2A2"
+      }
+    },
+    "hw_wifi5": {
+      "name": "hw_wifi5",
+      "data": {
+        "band": "5GHz",
+        "status": "Enabled",
+        "ssid": "Totalplay-A2A2-5G"
+      }
+    },
+    "hw_mac": {
+      "name": "hw_mac",
+      "data": "8C:E5:EF:FE:0A:75"
+    },
+    "hw_wifi24_pass": {
+      "name": "hw_wifi24_pass",
+      "data": {
+        "band": "2.4GHz",
+        "password": "A2A20A754P2HZyPR"
+      }
+    },
+    "hw_wifi5_pass": {
+      "name": "hw_wifi5_pass",
+      "data": {
+        "band": "5GHz",
+        "password": "A2A20A754P2HZyPR"
+      }
+    },
+    "hw_optical": {
+      "name": "hw_optical",
+      "data": {
+        "tx_optical_power": "-- dBm",
+        "rx_optical_power": "-- dBm"
+      }
+    },
+    "hw_usb": {
+      "name": "hw_usb",
+      "data": {
+        "connected": null,
+        "status": "error",
+        "value": null,
+        "label": null
+      }
+    },
+    "potencia_wifi": {
+      "name": "potencia_wifi",
+      "status": "PASS",
+      "details": {
+        "ssid_24": "Totalplay-A2A2",
+        "ssid_5": "Totalplay-A2A2-5G",
+        "best_24_percent": 70,
+        "best_5_percent": 89,
+        "min_24_percent": 60,
+        "min_5_percent": 60,
+        "pass_24": true,
+        "pass_5": true,
+        "thresholds": {
+          "2.4G": {
+            "min_percent": 60
+          },
+          "5G": {
+            "min_percent": 60
+          }
+        },
+        "raw_24": [
+          {
+            "ssid": "Totalplay-A2A2",
+            "bssid_index": 1,
+            "bssid": null,
+            "signal_percent": 70,
+            "channel": 9,
+            "radio_type": "802.11n"
+          }
+        ],
+        "raw_5": [
+          {
+            "ssid": "Totalplay-A2A2-5G",
+            "bssid_index": 1,
+            "bssid": null,
+            "signal_percent": 89,
+            "channel": 149,
+            "radio_type": "802.11ac"
+          }
+        ],
+        "errors": []
+      }
+    }
+  }
+}
