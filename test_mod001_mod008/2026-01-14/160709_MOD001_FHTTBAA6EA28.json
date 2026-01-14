@@ -1,0 +1,284 @@
+{
+  "metadata": {
+    "host": "192.168.100.1",
+    "model": "MOD001",
+    "timestamp": "2026-01-14T16:01:26.309967",
+    "serial_number": "FHTTBAA6EA28",
+    "device_name": "HG6145F",
+    "device_type": "ONT",
+    "model_display_name": "HG6145F",
+    "serial_number_logical": "FHTTBAA6EA28",
+    "operator": "MEX_TP",
+    "serial_number_physical": "46485454BAA6EA28",
+    "base_info": {
+      "extraction_method": "ajax_get_base_info",
+      "raw_data": {
+        "sessionid": "Ue227klu",
+        "session_valid": 1,
+        "os_version": "Linux (none) 4.1.52 armv7l GNU/Linux",
+        "compile_time": "#1 SMP PREEMPT Sat Sep 14 16:13:37 CST 2024",
+        "lan_port_num": 4,
+        "usb_port_num": 2,
+        "voice_port_num": 1,
+        "wifi_device": 1,
+        "onu_type": 0,
+        "web_port": "80",
+        "https_web_port": "443",
+        "uptime": "109",
+        "brmac": "D4:00:68:A6:EA:28",
+        "tr069_mac": "D4:00:68:A6:EA:29",
+        "ponmode": "1",
+        "informstatus": "2",
+        "connectionrequeststatus": "1",
+        "tr069ipstatus": "0",
+        "handlestatus": "0",
+        "uplink_mode": "dev.pon.1",
+        "Lan4_status": "NoLink",
+        "onu_id": "0",
+        "lan_status_1": "Up",
+        "lan_status_2": "NoLink",
+        "lan_status_3": "NoLink",
+        "lan_status_4": "NoLink",
+        "HardwareVersion": "WKE2.094.373A01",
+        "SoftwareVersion": "RP4375",
+        "Manufacturer": "FiberHome",
+        "ManufacturerOUI": "000AC2",
+        "ModelName": "HG6145F",
+        "usb_status": "inactive",
+        "cpu_usage": "28",
+        "mem_total": "524288",
+        "mem_free": "371524",
+        "flash_usage": "81",
+        "loid_name": "fiberhome",
+        "httpsEnable": "0",
+        "tr69url": "http://tr069.totalplay.com.mx/MyACS/Provisioning.aspx",
+        "vendor": "",
+        "gponsn": "46485454BAA6EA28",
+        "regSuccTime": "",
+        "authStatus": "1",
+        "isLos": "",
+        "fecStatus": "3",
+        "loid_reg_state": "0",
+        "pon_reg_state": "1",
+        "ponBytesSent": "31854",
+        "ponBytesReceived": "0",
+        "ponPacketsSent": "341",
+        "ponPacketsReceived": "0",
+        "txpower": "-40.00",
+        "rxpower": "-40.00",
+        "supplyvottage": "3.33",
+        "biascurrent": "0.29",
+        "transceivertemperature": "37.97",
+        "WANAccessType": "GPON",
+        "SerialNumber": "FHTTBAA6EA28",
+        "loid": "fiberhome",
+        "loid_status": "99",
+        "loid_result": "99"
+      },
+      "model_name": "HG6145F",
+      "manufacturer": "FiberHome",
+      "manufacturer_oui": "000AC2",
+      "hardware_version": "WKE2.094.373A01",
+      "software_version": "RP4375",
+      "serial_number_logical": "FHTTBAA6EA28",
+      "serial_number_physical": "46485454BAA6EA28",
+      "mac_address_br": "D4:00:68:A6:EA:28",
+      "mac_address": "D4:00:68:A6:EA:28",
+      "mac_address_tr069": "D4:00:68:A6:EA:29",
+      "tx_power_dbm": "-40.00",
+      "rx_power_dbm": "-40.00",
+      "uptime_seconds": "109",
+      "os_version": "Linux (none) 4.1.52 armv7l GNU/Linux",
+      "compile_time": "#1 SMP PREEMPT Sat Sep 14 16:13:37 CST 2024",
+      "lan_ports": 4,
+      "usb_ports": 2,
+      "voice_ports": 1,
+      "wifi_capable": true,
+      "lan_status": {
+        "lan1": "Up",
+        "lan2": "NoLink",
+        "lan3": "NoLink",
+        "lan4": "NoLink"
+      },
+      "lan_status_physical": {
+        "lan1": "Up"
+      },
+      "pon_mode": "1",
+      "pon_registered": true,
+      "wan_access_type": "GPON",
+      "loid": "fiberhome",
+      "loid_name": "fiberhome",
+      "pon_bytes_sent": 31854,
+      "pon_bytes_received": 0,
+      "supply_voltage": "3.33",
+      "bias_current": "0.29",
+      "transceiver_temperature": "37.97",
+      "cpu_usage_percent": 28,
+      "memory_total_kb": 524288,
+      "memory_free_kb": 371524,
+      "memory_used_percent": 29.14,
+      "flash_usage_percent": 81,
+      "usb_status": "inactive",
+      "wifi_info": {
+        "ssid_24ghz": "Totalplay-2.4G-ea28",
+        "enabled_24ghz": true,
+        "ssid_5ghz": "Totalplay-5G-ea28",
+        "enabled_5ghz": true,
+        "wifi_5g_capable": true,
+        "wifi_device_count": 1,
+        "wifi_port_num": 8,
+        "extraction_method": "get_allwan_info_broadBand"
+      }
+    },
+    "mac_address": "D4:00:68:A6:EA:28",
+    "mac_source": "get_base_info.brmac",
+    "hardware_version": "WKE2.094.373A01",
+    "software_version": "RP4375"
+  },
+  "tests": {
+    "PWD_PASS": {
+      "name": "PWD_PASS",
+      "status": "PASS",
+      "details": {
+        "serial_number": "FHTTBAA6EA28",
+        "operator": "MEX_TP",
+        "method": "AJAX get_operator"
+      }
+    },
+    "PING_CONNECTIVITY": {
+      "name": "PING_CONNECTIVITY",
+      "status": "PASS",
+      "details": {
+        "reachable": true,
+        "avg_latency_ms": 0
+      }
+    },
+    "HTTP_CONNECTIVITY": {
+      "name": "HTTP_CONNECTIVITY",
+      "status": "PASS",
+      "details": {
+        "http_accessible": true,
+        "response_time_ms": 25.27,
+        "status_code": 200
+      }
+    },
+    "PORT_SCAN": {
+      "name": "PORT_SCAN",
+      "status": "PASS",
+      "details": {
+        "ports": {
+          "80": {
+            "open": true,
+            "response_time_ms": 18.78
+          },
+          "443": {
+            "open": false,
+            "response_time_ms": null
+          },
+          "22": {
+            "open": false,
+            "response_time_ms": null
+          },
+          "23": {
+            "open": false,
+            "response_time_ms": null
+          },
+          "8080": {
+            "open": false,
+            "response_time_ms": null
+          }
+        }
+      }
+    },
+    "DNS_RESOLUTION": {
+      "name": "DNS_RESOLUTION",
+      "status": "PASS",
+      "details": {
+        "resolved_hosts": [
+          {
+            "domain": "google.com",
+            "ip": "192.178.56.78",
+            "success": true
+          },
+          {
+            "domain": "cloudflare.com",
+            "ip": "104.16.132.229",
+            "success": true
+          }
+        ],
+        "dns_working": true
+      }
+    },
+    "SOFTWARE_PASS": {
+      "name": "SOFTWARE_PASS",
+      "status": "PASS",
+      "details": {
+        "method": "AJAX get_base_info",
+        "model_name": "HG6145F",
+        "manufacturer": "FiberHome",
+        "hardware_version": "WKE2.094.373A01",
+        "software_version": "RP4375",
+        "serial_number": "FHTTBAA6EA28"
+      }
+    },
+    "FACTORY_RESET_PASS": {
+      "name": "FACTORY_RESET_PASS",
+      "status": "PASS",
+      "details": {
+        "reason": "Test no destructivo - requiere verificacion manual",
+        "reset_performed": true,
+        "relogin_success": true,
+        "wizard_skipped": true,
+        "post_reset_info": "Extracted"
+      }
+    },
+    "software_update": {
+      "necesaria": true,
+      "completada": false,
+      "version_anterior": "RP4375",
+      "version_nueva": "RP4379"
+    },
+    "USB_PORT": {
+      "name": "USB_PORT",
+      "status": "FAIL",
+      "details": {
+        "hardware_method": "AJAX get_base_info",
+        "usb_ports_capacity": 2,
+        "usb_status_flag": "inactive",
+        "method": "AJAX get_base_info + AJAX get_ftpclient_info",
+        "usb_devices_connected": 0,
+        "usb_devices_list": [],
+        "usb_list_raw": "",
+        "note": "Capacidad de hardware: 2 puerto(s); dispositivos detectados: 0. Revisar conexión de memorias USB o posible fallo de puerto."
+      }
+    },
+    "TX_POWER": {
+      "name": "TX_POWER",
+      "status": "PASS",
+      "details": {
+        "method": "AJAX get_base_info",
+        "tx_power_dbm": "-40.00",
+        "note": "Datos obtenidos de get_base_info"
+      }
+    },
+    "RX_POWER": {
+      "name": "RX_POWER",
+      "status": "PASS",
+      "details": {
+        "method": "AJAX get_base_info",
+        "rx_power_dbm": "-40.00",
+        "note": "Datos obtenidos de get_base_info"
+      }
+    }
+  },
+  "additional_info": {
+    "wifi_info": {
+      "psw": {
+        "password_24ghz": "k7BFuE9dStN97GnE",
+        "extraction_method": "selenium_dom_manipulation",
+        "password_5ghz": "k7BFuE9dStN97GnE",
+        "password_5ghz_note": "Asumida igual a 2.4GHz (no se encontró selector)"
+      }
+    }
+  }
+}
