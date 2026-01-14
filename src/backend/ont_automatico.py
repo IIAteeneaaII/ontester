@@ -1426,9 +1426,11 @@ def main_loop(opciones, out_q = None, stop_event = None, auto_test_on_detect = T
                 tester.saveBDiaria(resultados)
                 emit("resultados", resultados)
 
-                if detected_model == "MOD001" or detected_model == "MOD008":
+                # print("[RESULTADOS] El modelo es: "+str(tester.model))
+                if (tester.model == "MOD001" or tester.model == "MOD008"):
+                    print("[RESULTADOS] Entrando a opción guardar resultados")
                     print("\n" + tester.generate_report())
-                    tester.save_results(None)
+                    tester.save_results2("test_mod001_mod008")
 
                 todo_tests_on = all(tester.opcionesTest["tests"].values())
                 if todo_tests_on:

@@ -985,7 +985,7 @@ class FiberMixin:
             except ValueError:
                 pass
         
-        # ya que hay 147 llamadas a base_info, voy a poner aqui la info del wifi - U
+        # ya que hay 151 llamadas a base_info, voy a poner aqui la info del wifi - U
         wifi_info = self._extract_wifi_allwan()
         meta = self.test_results.setdefault("metadata", {})
         base = meta.setdefault("base_info", {})
