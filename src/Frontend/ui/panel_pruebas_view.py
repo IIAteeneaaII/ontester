@@ -19,7 +19,7 @@ import threading
 from src.backend.endpoints.conexion import iniciar_pruebaUnitariaConexion
 
 import customtkinter as ctk
-
+import traceback
 # ---------------------------------------------------------------------
 # Configuración del path para poder importar los botones reutilizables
 # ---------------------------------------------------------------------

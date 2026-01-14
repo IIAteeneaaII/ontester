@@ -1187,14 +1187,16 @@ class HuaweiMixin:
         if ok:
             print("[INFO] Actualizando software...")
             # Configurar ruta y patrón según el modelo
-            if modelo in ["MOD003", "MOD007"]:
-                FIRMWARE_PATH = r"C:\BINS\X6"
+            if modelo == "MOD003":
+                FIRMWARE_PATH = r"C:\BINS\X6-10"
                 # Patrón: HG8145X6_V500R022C00SPC297
                 patron = re.compile(r'^HG8145X6_V[\d\w]+$')
             elif modelo in ["MOD004", "MOD005"]:
                 FIRMWARE_PATH = r"C:\BINS\HG8145V5"
                 # Patrón: HG8145V5_V500R022C00SPC292
                 patron = re.compile(r'^HG8145V5_V[\d\w]+$')
+            elif modelo == "MOD007":
+                FIRMWARE_PATH = r"C:\BINS\X6"
             else:
                 print(f"[ERROR] Modelo {modelo} no soportado para actualización de firmware")
                 return False
@@ -1444,7 +1446,9 @@ class HuaweiMixin:
 
                 # Inicializar driver con WebDriver Manager
                 print("[SELENIUM] Descargando/verificando ChromeDriver...")
-                service = Service(ChromeDriverManager().install())
+                # service = Service(ChromeDriverManager().install())
+                driver_path = self._get_chromedriver_path()
+                service = Service(driver_path)
                 driver = webdriver.Chrome(service=service, options=chrome_options)
                 driver.set_page_load_timeout(timeout)
                 

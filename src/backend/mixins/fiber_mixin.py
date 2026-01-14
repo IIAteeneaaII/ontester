@@ -29,7 +29,7 @@ try:
 except ImportError:
     SELENIUM_AVAILABLE = False
     print("[WARNING] Selenium no disponible. Instala con: pip install selenium webdriver-manager")
-
+CREATE_NO_WINDOW = 0x08000000
 class FiberMixin:
     def _login_fiberhome(self) -> bool:
         """
@@ -67,7 +67,9 @@ class FiberMixin:
             }
             chrome_options.add_experimental_option("prefs", prefs)
 
-            service = Service(ChromeDriverManager().install())
+            # service = Service(ChromeDriverManager().install())
+            driver_path = self._get_chromedriver_path()
+            service = Service(driver_path)
             driver = webdriver.Chrome(service=service, options=chrome_options)
             
             # --- LIMPIEZA DE SESIONES PREVIA (MEJORADA CON POST) ---
@@ -377,7 +379,9 @@ class FiberMixin:
         
         # Inicializar driver con WebDriver Manager
         print("[SELENIUM] Descargando/verificando ChromeDriver...")
-        service = Service(ChromeDriverManager().install())
+        # service = Service(ChromeDriverManager().install())
+        driver_path = self._get_chromedriver_path()
+        service = Service(driver_path)
         driver = webdriver.Chrome(service=service, options=chrome_options)
         self.driver = driver
         login_url = f"{self.base_url}/html/login_inter.html"
@@ -713,6 +717,7 @@ class FiberMixin:
                     ['arp', '-a', self.host],
                     capture_output=True,
                     text=True,
+                    creationflags=subprocess.CREATE_NO_WINDOW,
                     timeout=3
                 )
                 
@@ -737,6 +742,7 @@ class FiberMixin:
                     ['arp', self.host],
                     capture_output=True,
                     text=True,
+                    creationflags=subprocess.CREATE_NO_WINDOW,
                     timeout=3
                 )
                 
@@ -979,7 +985,7 @@ class FiberMixin:
             except ValueError:
                 pass
         
-        # ya que hay 147 llamadas a base_info, voy a poner aqui la info del wifi - U
+        # ya que hay 151 llamadas a base_info, voy a poner aqui la info del wifi - U
         wifi_info = self._extract_wifi_allwan()
         meta = self.test_results.setdefault("metadata", {})
         base = meta.setdefault("base_info", {})
@@ -1472,6 +1478,7 @@ class FiberMixin:
                 while time.time() - start_wait < 300: # 5 min timeout
                     response = subprocess.run(
                         ['ping', '-n', '1', '-w', '1000', self.host],
+                        creationflags=subprocess.CREATE_NO_WINDOW,
                         capture_output=True
                     )
                     if response.returncode == 0:
@@ -2135,10 +2142,28 @@ class FiberMixin:
                     return True
                 else:
                     print("[INFO] El software está actualizado")
+                    self.test_results["tests"]["software_update"] = {
+                        "necesaria": False,
+                        "completada": True,
+                        "version_anterior": sftVer,
+                        "version_nueva": sftVer
+                    }
                     return False
             else:
                 print("[ERROR] El archivo .bin no tiene la nomenclatura correcta")
+                self.test_results["tests"]["software_update"] = {
+                "necesaria": True,
+                "completada": False,
+                "version_anterior": sftVer,
+                "version_nueva": "N/A"
+            }
                 return False
         else:
             print("[ERROR] No existe un archivo de actualización en el directorio correcto")
+            self.test_results["tests"]["software_update"] = {
+                "necesaria": True,
+                "completada": False,
+                "version_anterior": sftVer,
+                "version_nueva": "N/A"
+            }
             return False

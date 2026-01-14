@@ -1,0 +1,612 @@
+{
+  "metadata": {
+    "host": "192.168.1.1",
+    "model": "F670L",
+    "timestamp": "2026-01-03T12:29:52.250074",
+    "serial_number": "ZTEGCE445393",
+    "base_info": {
+      "raw_data": {
+        "_InstID": "IGD",
+        "ManuFacturerOui": 343654,
+        "VerDate": "2024-12-29 03:20:50",
+        "SoftwareVer": "V9.0.11P1N94",
+        "ModelName": "F670L",
+        "SoftwareVerExtent": "07e8P1N9404cd",
+        "HardwareVer": "V9.0",
+        "OnuAlias": "",
+        "ManuFacturer": "ZTE",
+        "SerialNumber": "ZTEGCE445393",
+        "BootVer": "V9.0.11P10N6"
+      }
+    }
+  },
+  "tests": {
+    "basic": {
+      "name": "basic",
+      "status": true,
+      "details": {
+        "error": {
+          "param": "SUCC",
+          "type": "SUCC",
+          "str": "SUCC",
+          "id": "0"
+        },
+        "DEVINFO": {
+          "_InstID": "IGD",
+          "ManuFacturerOui": 343654,
+          "VerDate": "2024-12-29 03:20:50",
+          "SoftwareVer": "V9.0.11P1N94",
+          "ModelName": "F670L",
+          "SoftwareVerExtent": "07e8P1N9404cd",
+          "HardwareVer": "V9.0",
+          "OnuAlias": "",
+          "ManuFacturer": "ZTE",
+          "SerialNumber": "ZTEGCE445393",
+          "BootVer": "V9.0.11P10N6"
+        },
+        "CPUMEMUSAGE": {
+          "_InstID": "IGD",
+          "CpuUsage2": 1,
+          "CpuUsage1": 1,
+          "CpuUsage4": 0,
+          "CpuUsage3": 0,
+          "MemUsage": 57
+        },
+        "POWERONTIME": {
+          "_InstID": "IGD",
+          "PowerOnTime": 371
+        },
+        "SN_INFO": {
+          "_InstID": "IGD",
+          "Sn": "ZTEGce445393"
+        },
+        "FLASHINFO": {
+          "_InstID": "IGD",
+          "TotalFlash": 134217728,
+          "Flash_Percent_Used": 56
+        },
+        "PON_OPTICALPARA": {
+          "_InstID": "IGD",
+          "Temp": "32.98"
+        }
+      }
+    },
+    "lan": {
+      "name": "lan",
+      "status": true,
+      "details": {
+        "error": {
+          "param": "SUCC",
+          "type": "SUCC",
+          "str": "SUCC",
+          "id": "0"
+        },
+        "PON_PORT_BASIC_STATUS": [
+          {
+            "_InstID": "DEV.ETH.IF1",
+            "InDiscard": 0,
+            "InError": 0,
+            "OutMulticast": 28,
+            "InBytes": 298256,
+            "OutPkts": 4210,
+            "Status": 0,
+            "Duplex": "Full",
+            "OutDiscard": 0,
+            "InUnicast": 2588,
+            "Speed": 1000,
+            "InPkts": 2770,
+            "InMulticast": 152,
+            "OutError": 0,
+            "OutUnicast": 4182,
+            "OutBytes": 4547348
+          },
+          {
+            "_InstID": "DEV.ETH.IF2",
+            "InDiscard": 0,
+            "InError": 0,
+            "OutMulticast": 0,
+            "InBytes": 0,
+            "OutPkts": 0,
+            "Status": 1,
+            "Duplex": "Half",
+            "OutDiscard": 0,
+            "InUnicast": 0,
+            "Speed": 10,
+            "InPkts": 0,
+            "InMulticast": 0,
+            "OutError": 0,
+            "OutUnicast": 0,
+            "OutBytes": 0
+          },
+          {
+            "_InstID": "DEV.ETH.IF3",
+            "InDiscard": 0,
+            "InError": 0,
+            "OutMulticast": 0,
+            "InBytes": 0,
+            "OutPkts": 0,
+            "Status": 1,
+            "Duplex": "Half",
+            "OutDiscard": 0,
+            "InUnicast": 0,
+            "Speed": 10,
+            "InPkts": 0,
+            "InMulticast": 0,
+            "OutError": 0,
+            "OutUnicast": 0,
+            "OutBytes": 0
+          },
+          {
+            "_InstID": "DEV.ETH.IF4",
+            "InDiscard": 0,
+            "InError": 0,
+            "OutMulticast": 0,
+            "InBytes": 0,
+            "OutPkts": 0,
+            "Status": 1,
+            "Duplex": "Half",
+            "OutDiscard": 0,
+            "InUnicast": 0,
+            "Speed": 10,
+            "InPkts": 0,
+            "InMulticast": 0,
+            "OutError": 0,
+            "OutUnicast": 0,
+            "OutBytes": 0
+          }
+        ]
+      }
+    },
+    "wifi": {
+      "name": "wifi",
+      "status": true,
+      "details": {
+        "error": {
+          "param": "SUCC",
+          "type": "SUCC",
+          "str": "SUCC",
+          "id": "0"
+        },
+        "WLANAP": [
+          {
+            "_InstID": "DEV.WIFI.AP1",
+            "VapIsolationEnable": 0,
+            "Enable": 1,
+            "WPAAuthMode": "PSKAuthentication",
+            "BeaconType": "11i",
+            "WLANViewName": "DEV.WIFI.RD1",
+            "Alias": "SSID1",
+            "WEPAuthMode": "None",
+            "WPAGroupRekey": 0,
+            "11iEncryptType": "AESEncryption",
+            "MaxUserNum": 32,
+            "ESSIDHideEnable": 0,
+            "11iAuthMode": "PSKAuthentication",
+            "ESSID": "Totalplay-5393",
+            "ESSIDPrefix": "",
+            "WEPKeyIndex": 1,
+            "WPAEncryptType": "AESEncryption"
+          },
+          {
+            "_InstID": "DEV.WIFI.AP2",
+            "VapIsolationEnable": 0,
+            "Enable": 0,
+            "WPAAuthMode": "PSKAuthentication",
+            "BeaconType": "11i",
+            "WLANViewName": "DEV.WIFI.RD1",
+            "Alias": "SSID2",
+            "WEPAuthMode": "None",
+            "WPAGroupRekey": 0,
+            "11iEncryptType": "AESEncryption",
+            "MaxUserNum": 32,
+            "ESSIDHideEnable": 0,
+            "11iAuthMode": "PSKAuthentication",
+            "ESSID": "SSID2",
+            "ESSIDPrefix": "",
+            "WEPKeyIndex": 1,
+            "WPAEncryptType": "AESEncryption"
+          },
+          {
+            "_InstID": "DEV.WIFI.AP3",
+            "VapIsolationEnable": 0,
+            "Enable": 0,
+            "WPAAuthMode": "PSKAuthentication",
+            "BeaconType": "11i",
+            "WLANViewName": "DEV.WIFI.RD1",
+            "Alias": "SSID3",
+            "WEPAuthMode": "None",
+            "WPAGroupRekey": 0,
+            "11iEncryptType": "AESEncryption",
+            "MaxUserNum": 32,
+            "ESSIDHideEnable": 0,
+            "11iAuthMode": "PSKAuthentication",
+            "ESSID": "SSID3",
+            "ESSIDPrefix": "",
+            "WEPKeyIndex": 1,
+            "WPAEncryptType": "AESEncryption"
+          },
+          {
+            "_InstID": "DEV.WIFI.AP5",
+            "VapIsolationEnable": 0,
+            "Enable": 1,
+            "WPAAuthMode": "PSKAuthentication",
+            "BeaconType": "11i",
+            "WLANViewName": "DEV.WIFI.RD2",
+            "Alias": "SSID5",
+            "WEPAuthMode": "None",
+            "WPAGroupRekey": 0,
+            "11iEncryptType": "AESEncryption",
+            "MaxUserNum": 32,
+            "ESSIDHideEnable": 0,
+            "11iAuthMode": "PSKAuthentication",
+            "ESSID": "Totalplay-5393-5G",
+            "ESSIDPrefix": "",
+            "WEPKeyIndex": 1,
+            "WPAEncryptType": "AESEncryption"
+          },
+          {
+            "_InstID": "DEV.WIFI.AP6",
+            "VapIsolationEnable": 0,
+            "Enable": 1,
+            "WPAAuthMode": "PSKAuthentication",
+            "BeaconType": "11i",
+            "WLANViewName": "DEV.WIFI.RD2",
+            "Alias": "SSID6",
+            "WEPAuthMode": "None",
+            "WPAGroupRekey": 0,
+            "11iEncryptType": "AESEncryption",
+            "MaxUserNum": 32,
+            "ESSIDHideEnable": 0,
+            "11iAuthMode": "PSKAuthentication",
+            "ESSID": "Totalplay-5393",
+            "ESSIDPrefix": "",
+            "WEPKeyIndex": 1,
+            "WPAEncryptType": "AESEncryption"
+          },
+          {
+            "_InstID": "DEV.WIFI.AP7",
+            "VapIsolationEnable": 0,
+            "Enable": 0,
+            "WPAAuthMode": "PSKAuthentication",
+            "BeaconType": "11i",
+            "WLANViewName": "DEV.WIFI.RD2",
+            "Alias": "SSID7",
+            "WEPAuthMode": "None",
+            "WPAGroupRekey": 0,
+            "11iEncryptType": "AESEncryption",
+            "MaxUserNum": 32,
+            "ESSIDHideEnable": 0,
+            "11iAuthMode": "PSKAuthentication",
+            "ESSID": "SSID7",
+            "ESSIDPrefix": "",
+            "WEPKeyIndex": 1,
+            "WPAEncryptType": "AESEncryption"
+          }
+        ],
+        "WLANSETTING": [
+          {
+            "_InstID": "DEV.WIFI.RD1",
+            "Band": "2.4GHz",
+            "RadioStatus": 1
+          },
+          {
+            "_InstID": "DEV.WIFI.RD2",
+            "Band": "5GHz",
+            "RadioStatus": 1
+          }
+        ],
+        "WLANWEPKEY": [
+          {
+            "_InstID": "DEV.WIFI.AP1.WEP1",
+            "WEPKey": "5p9yxUETAoO47NjSrNscEQ=="
+          },
+          {
+            "_InstID": "DEV.WIFI.AP1.WEP2",
+            "WEPKey": "JYUzgTShaJVEITR6oz2fZA=="
+          },
+          {
+            "_InstID": "DEV.WIFI.AP1.WEP3",
+            "WEPKey": "hlOqcjxNrQXO8D0WVs2Lxw=="
+          },
+          {
+            "_InstID": "DEV.WIFI.AP1.WEP4",
+            "WEPKey": "SHND8aU80wizYhkzTK8rMg=="
+          },
+          {
+            "_InstID": "DEV.WIFI.AP2.WEP1",
+            "WEPKey": "5p9yxUETAoO47NjSrNscEQ=="
+          },
+          {
+            "_InstID": "DEV.WIFI.AP2.WEP2",
+            "WEPKey": "JYUzgTShaJVEITR6oz2fZA=="
+          },
+          {
+            "_InstID": "DEV.WIFI.AP2.WEP3",
+            "WEPKey": "hlOqcjxNrQXO8D0WVs2Lxw=="
+          },
+          {
+            "_InstID": "DEV.WIFI.AP2.WEP4",
+            "WEPKey": "SHND8aU80wizYhkzTK8rMg=="
+          },
+          {
+            "_InstID": "DEV.WIFI.AP3.WEP1",
+            "WEPKey": "5p9yxUETAoO47NjSrNscEQ=="
+          },
+          {
+            "_InstID": "DEV.WIFI.AP3.WEP2",
+            "WEPKey": "JYUzgTShaJVEITR6oz2fZA=="
+          },
+          {
+            "_InstID": "DEV.WIFI.AP3.WEP3",
+            "WEPKey": "hlOqcjxNrQXO8D0WVs2Lxw=="
+          },
+          {
+            "_InstID": "DEV.WIFI.AP3.WEP4",
+            "WEPKey": "SHND8aU80wizYhkzTK8rMg=="
+          },
+          {
+            "_InstID": "DEV.WIFI.AP5.WEP1",
+            "WEPKey": "5p9yxUETAoO47NjSrNscEQ=="
+          },
+          {
+            "_InstID": "DEV.WIFI.AP5.WEP2",
+            "WEPKey": "JYUzgTShaJVEITR6oz2fZA=="
+          },
+          {
+            "_InstID": "DEV.WIFI.AP5.WEP3",
+            "WEPKey": "hlOqcjxNrQXO8D0WVs2Lxw=="
+          },
+          {
+            "_InstID": "DEV.WIFI.AP5.WEP4",
+            "WEPKey": "SHND8aU80wizYhkzTK8rMg=="
+          },
+          {
+            "_InstID": "DEV.WIFI.AP6.WEP1",
+            "WEPKey": "5p9yxUETAoO47NjSrNscEQ=="
+          },
+          {
+            "_InstID": "DEV.WIFI.AP6.WEP2",
+            "WEPKey": "JYUzgTShaJVEITR6oz2fZA=="
+          },
+          {
+            "_InstID": "DEV.WIFI.AP6.WEP3",
+            "WEPKey": "hlOqcjxNrQXO8D0WVs2Lxw=="
+          },
+          {
+            "_InstID": "DEV.WIFI.AP6.WEP4",
+            "WEPKey": "SHND8aU80wizYhkzTK8rMg=="
+          },
+          {
+            "_InstID": "DEV.WIFI.AP7.WEP1",
+            "WEPKey": "5p9yxUETAoO47NjSrNscEQ=="
+          },
+          {
+            "_InstID": "DEV.WIFI.AP7.WEP2",
+            "WEPKey": "JYUzgTShaJVEITR6oz2fZA=="
+          },
+          {
+            "_InstID": "DEV.WIFI.AP7.WEP3",
+            "WEPKey": "hlOqcjxNrQXO8D0WVs2Lxw=="
+          },
+          {
+            "_InstID": "DEV.WIFI.AP7.WEP4",
+            "WEPKey": "SHND8aU80wizYhkzTK8rMg=="
+          }
+        ],
+        "WLANPSK": [
+          {
+            "_InstID": "DEV.WIFI.AP1.PSK1",
+            "KeyPassphrase": "NnhmZR8FYLKzgzO8Av9UYq7ljmVFl2R0kxdlD49I8ms="
+          },
+          {
+            "_InstID": "DEV.WIFI.AP2.PSK1",
+            "KeyPassphrase": "gq3Yqesaa8dRvP8G9nrrkA=="
+          },
+          {
+            "_InstID": "DEV.WIFI.AP3.PSK1",
+            "KeyPassphrase": "gq3Yqesaa8dRvP8G9nrrkA=="
+          },
+          {
+            "_InstID": "DEV.WIFI.AP5.PSK1",
+            "KeyPassphrase": "NnhmZR8FYLKzgzO8Av9UYq7ljmVFl2R0kxdlD49I8ms="
+          },
+          {
+            "_InstID": "DEV.WIFI.AP6.PSK1",
+            "KeyPassphrase": "NnhmZR8FYLKzgzO8Av9UYq7ljmVFl2R0kxdlD49I8ms="
+          },
+          {
+            "_InstID": "DEV.WIFI.AP7.PSK1",
+            "KeyPassphrase": "gq3Yqesaa8dRvP8G9nrrkA=="
+          }
+        ],
+        "MAP_MASTER": {
+          "_InstID": "IGD",
+          "EnBandSteer": 1
+        }
+      }
+    },
+    "mac": {
+      "name": "mac",
+      "status": true,
+      "details": {
+        "error": {
+          "param": "SUCC",
+          "type": "SUCC",
+          "str": "SUCC",
+          "id": "0"
+        },
+        "WAN_COMFIG": [
+          {
+            "_InstID": "DEV.IP.IF4",
+            "Enable": 0,
+            "DSCP": "-1",
+            "UpTime": 0,
+            "Priority": 0,
+            "TxBytes": 0,
+            "VLANID": 401,
+            "IsNAT": 0,
+            "SubnetMask": "0.0.0.0",
+            "uplink": 2,
+            "ConnError": "ERROR_NOT_ENABLED_FOR_INTERNET",
+            "IpMode": "IPv4",
+            "TxPackets": 0,
+            "MTU": 1500,
+            "xdslMode": "NULL",
+            "RxPackets": 0,
+            "DNS3": "0.0.0.0",
+            "RxBytes": 0,
+            "WorkIFMac": "34:36:54:94:46:cd",
+            "WANCName": "2_VOIP_R_VID_401",
+            "Addressingtype": "DHCP",
+            "pageType": 1,
+            "RemainLeaseTime": 0,
+            "DNS1": "0.0.0.0",
+            "mode": "route",
+            "IsDefGW": 0,
+            "wantype": "dhcp/static",
+            "linkMode": "IP",
+            "GateWay": "0.0.0.0",
+            "IPAddress": "0.0.0.0",
+            "DNS2": "0.0.0.0",
+            "ServList": 4,
+            "VlanEnable": 1,
+            "ConnStatus": "Disconnected",
+            "StrServList": "VOIP"
+          },
+          {
+            "_InstID": "DEV.IP.IF5",
+            "Enable": 0,
+            "DSCP": "-1",
+            "UpTime": 0,
+            "Priority": 0,
+            "TxBytes": 0,
+            "VLANID": 402,
+            "IsNAT": 1,
+            "SubnetMask": "0.0.0.0",
+            "uplink": 2,
+            "ConnError": "ERROR_NOT_ENABLED_FOR_INTERNET",
+            "IpMode": "IPv4",
+            "TxPackets": 0,
+            "MTU": 1500,
+            "xdslMode": "NULL",
+            "RxPackets": 0,
+            "DNS3": "0.0.0.0",
+            "RxBytes": 0,
+            "WorkIFMac": "34:36:54:94:46:ce",
+            "WANCName": "3_IPTV_R_VID_402",
+            "Addressingtype": "DHCP",
+            "pageType": 1,
+            "RemainLeaseTime": 0,
+            "DNS1": "0.0.0.0",
+            "mode": "route",
+            "IsDefGW": 0,
+            "wantype": "dhcp/static",
+            "linkMode": "IP",
+            "GateWay": "0.0.0.0",
+            "IPAddress": "0.0.0.0",
+            "DNS2": "0.0.0.0",
+            "ServList": 8,
+            "VlanEnable": 1,
+            "ConnStatus": "Disconnected",
+            "StrServList": "OTHER"
+          },
+          {
+            "wantype": "bridge",
+            "uplink": 2,
+            "_InstID": "DEV.BRIDGING.BR1.BRPORT14",
+            "WANCName": "4_INTERNET_B_VID_417",
+            "TxPackets": 0,
+            "RxPackets": 0,
+            "RxBytes": 0,
+            "Priority": 0,
+            "TxBytes": 0,
+            "VLANID": 417,
+            "pageType": 1,
+            "WBDMode": 0,
+            "VlanEnable": 1,
+            "mode": "bridge",
+            "xdslMode": "NULL",
+            "Enable": 1
+          },
+          {
+            "LLA": "::",
+            "Dns3v6": "::",
+            "UpTime": 0,
+            "TxBytes": 0,
+            "Dns2v6": "::",
+            "IsNAT": 1,
+            "Gua1PrefixLen": 0,
+            "UserName": "zfsF90Q9H0MFi/K7wuKLO9dbIk7eT8z5ixHtHW9wHu8=",
+            "EnablePassThrough": 0,
+            "xdslMode": "NULL",
+            "Pd": "::",
+            "wantype": "pppoe",
+            "WorkIFMac": "34:36:54:94:46:cc",
+            "WANCName": "1_TR069_INTERNET_R_VID_400",
+            "EchoTime": 10,
+            "TransType": "PPPoE",
+            "PPPoeServiceName": "",
+            "mode": "route",
+            "uplink": 2,
+            "IsSLAAC": 1,
+            "pageType": 1,
+            "VlanEnable": 1,
+            "ConnStatus": "Unconfigured",
+            "ConnStatus6": "Disconnected",
+            "Gua1": "::",
+            "_InstID": "DEV.IP.IF3",
+            "Enable": 1,
+            "DSCP": "-1",
+            "PPPoEACName": "",
+            "Gua2": "::",
+            "IsGUA": 1,
+            "IsPdAddr": 1,
+            "AuthType": "PAP,CHAP,MS-CHAP",
+            "Priority": 0,
+            "RemoteLLA": "::",
+            "Gateway6": "::",
+            "Gua3PrefixLen": 0,
+            "linkMode": "PPP",
+            "RxBytes": 0,
+            "SubnetMask": "0.0.0.0",
+            "Gua2PrefixLen": 0,
+            "RxPackets": 0,
+            "TxPackets": 0,
+            "MTU": 1492,
+            "DNS1": "0.0.0.0",
+            "DNS3": "0.0.0.0",
+            "UpTimeV6": 0,
+            "GateWay": "0.0.0.0",
+            "PrefixPTime": 0,
+            "ServList": 3,
+            "ConnError": "ERROR_NO_CARRIER",
+            "Unnumbered": 0,
+            "ConnTrigger": "AlwaysOn",
+            "VLANID": 400,
+            "Gua3": "::",
+            "IsDefGW": 1,
+            "Password": "WP8ASnY+SSchiSuv/q3L43WljvOUOpkFO+Wh29Be9Jw=",
+            "IsPD": 1,
+            "IPAddress": "0.0.0.0",
+            "DNS2": "0.0.0.0",
+            "EchoRetry": 3,
+            "PdLen": 0,
+            "GuaNum": 0,
+            "IPv6AcquireMode": "Auto",
+            "IpMode": "Both",
+            "Dns1v6": "::",
+            "StrServList": "INTERNET_TR069"
+          }
+        ]
+      }
+    },
+    "Contraseña": {
+      "name": "Contraseña",
+      "status": false,
+      "details": {
+        "band": "2.4GHz",
+        "password": "539346CCeUX2FU5p"
+      }
+    }
+  }
+}

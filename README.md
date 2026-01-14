@@ -3,6 +3,7 @@
 [![Python](https://img.shields.io/badge/Python-3.8%2B-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-Pending-yellow)]()
 [![Status](https://img.shields.io/badge/Status-Active-success)]()
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/IIAteeneaaII/ontester)
 
 Sistema automatizado para testing, diagnóstico y análisis de dispositivos ONT (Optical Network Terminal) de múltiples fabricantes.
 
@@ -27,13 +28,13 @@ Sistema automatizado para testing, diagnóstico y análisis de dispositivos ONT 
 | Métrica | Valor |
 |---------|-------|
 | **Tests Implementados** | 15/15 (100%) |
-| **Modelos Soportados** | 6 (MOD001-006) |
+| **Modelos Soportados** | 8 (MOD001-008) |
 | **Tipos de Dispositivos** | ONT + ATA |
 | **Reportes Generados** | 20+ |
 | **Python Version** | 3.8+ |
 
 **Dispositivos Soportados**:
-- 🔵 ONT: Fiberhome, ZTE, Huawei (5 modelos)
+- 🔵 ONT: Fiberhome, ZTE, Huawei (7 modelos)
 - 🟢 ATA: Grandstream HT818 (1 modelo)
 
 ---
@@ -70,6 +71,9 @@ pip install -r requirements.txt
 ### Uso Básico
 
 ```bash
+# Ejecución completa (con interfaz)
+python main.py
+
 # Test completo (auto-detecta modelo)
 python scripts/ont_automated_tester.py --host 192.168.100.1 --mode test
 
@@ -113,12 +117,12 @@ RESUMEN: 6 PASS | 5 FAIL | 1 SKIP
 | 4 | HTTP_CONNECTIVITY | ✅ | Tiempo respuesta HTTP |
 | 5 | PORT_SCAN | ✅ | Escaneo de puertos |
 | 6 | DNS_RESOLUTION | ✅ | Resolución DNS |
-| 7 | USB_PORT | ❌ | Requiere login completo |
+| 7 | USB_PORT | ✅ | Escaneo de puertos USB activos |
 | 8 | SOFTWARE_PASS | ✅ | Versión de software |
-| 9 | TX_POWER | ❌ | Requiere login completo |
-| 10 | RX_POWER | ❌ | Requiere login completo |
-| 11 | WIFI_24GHZ | ❌ | Requiere login completo |
-| 12 | WIFI_5GHZ | ❌ | Requiere login completo |
+| 9 | TX_POWER | ✅ | Potencia de fibra óptica (transmitida) |
+| 10 | RX_POWER | ✅ | Potencia de fibra óptica (recibida) |
+| 11 | WIFI_24GHZ | ✅ | Potencia de señal WiFi 2.4GHz |
+| 12 | WIFI_5GHZ | ✅ | Potencia de señal WiFi 5GHz |
 
 ---
 
@@ -126,11 +130,14 @@ RESUMEN: 6 PASS | 5 FAIL | 1 SKIP
 
 | Código | Modelo | Fabricante | SN Físico |
 |--------|--------|------------|-----------|
-| MOD001 | HG6145F / HG6145F1 | Fiberhome | ✅ Auto-calculable |
-| MOD002 | F670L | ZTE | ⚠️ Manual |
-| MOD003 | HG8145X6-10 | Huawei | ⚠️ Manual |
-| MOD004 | HG8145V5 | Huawei | ⚠️ Manual |
-| MOD005 | HG145V5 SMALL | Huawei | ⚠️ Manual |
+| MOD001 | HG6145F | Fiberhome | ✅ Auto-calculable |
+| MOD002 | F670L | ZTE | ✅ Auto-calculable |
+| MOD003 | HG8145X6-10 | Huawei | ✅ Auto-calculable |
+| MOD004 | HG8145V5 | Huawei | ✅ Auto-calculable |
+| MOD005 | HG145V5 SMALL | Huawei | ✅ Auto-calculable |
+| MOD006 | HT818 | GRANDSTREAM | ✅ Auto-calculable |
+| MOD007 | HG8145X6 | Huawei | ✅ Auto-calculable |
+| MOD008 | HG6145F1 | Fiberhome | ✅ Auto-calculable |
 
 ---
 
@@ -304,7 +311,7 @@ Las contribuciones son bienvenidas! Áreas que necesitan ayuda:
 ```
 Tests:     ████████████░░░░░░░░  50%  (6/12 PASS)
 RF:        ███░░░░░░░░░░░░░░░░░  29%  (9/31)
-Modelos:   █████████████████████ 100%  (5/5)
+Modelos:   █████████████████████ 100%  (8/8)
 ```
 
 ---
@@ -319,7 +326,7 @@ Modelos:   █████████████████████ 100% 
 
 ---
 
-**Última Actualización**: 10/11/2025  
+**Última Actualización**: 06/01/2026  
 **Versión**: 1.0.0  
 **Status**: ✅ Listo para Pull Request
 

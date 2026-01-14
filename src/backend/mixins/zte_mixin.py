@@ -572,12 +572,48 @@ class ZTEMixin:
                     return True
                 else:
                     print("[INFO] El software está actualizado")
+                    # Guardar info en reporte
+                    if "software_update" not in self.test_results["tests"]:
+                        self.test_results["tests"]["software_update"] = {}
+                    
+                    self.test_results["tests"]["software_update"] = {
+                        "name": "software_update",
+                        "status": True,
+                        "details": {
+                            "previous_version": self.test_results.get('metadata', {}).get('base_info', {}).get('raw_data', {}).get('SoftwareVer', 'N/A'),
+                            "new_version": "VERSION YA ACTUALIZADA",
+                            "firmware_file": archivo,
+                            "update_completed": True
+                        }
+                    }
                     return False
             else:
                 print("[ERROR] El archivo .bin no tiene la nomenclatura correcta")
+                self.test_results["tests"]["software_update"] = {
+                    "name": "software_update",
+                    "status": True,
+                    "details": {
+                        "previous_version": self.test_results.get('metadata', {}).get('base_info', {}).get('raw_data', {}).get('SoftwareVer', 'N/A'),
+                        "new_version": "El archhivo bin no tiene buen nombre",
+                        "firmware_file": "archivo",
+                        "update_completed": False,
+                        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    }
+                }
                 return False
         else:
             print("[ERROR] No existe un archivo de actualización en el directorio correcto")
+            self.test_results["tests"]["software_update"] = {
+                "name": "software_update",
+                "status": True,
+                "details": {
+                    "previous_version": self.test_results.get('metadata', {}).get('base_info', {}).get('raw_data', {}).get('SoftwareVer', 'N/A'),
+                    "new_version": "No hay directorio correcto",
+                    "firmware_file": "archivo",
+                    "update_completed": False,
+                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                }
+            }
             return False
 
     def test_sft_updateZTE(self, driver):
@@ -1199,7 +1235,9 @@ class ZTEMixin:
                 
                 # Inicializar driver con WebDriver Manager
                 print("[SELENIUM] Descargando/verificando ChromeDriver...")
-                service = Service(ChromeDriverManager().install())
+                # service = Service(ChromeDriverManager().install())
+                driver_path = self._get_chromedriver_path()
+                service = Service(driver_path)
                 driver = webdriver.Chrome(service=service, options=chrome_options)
                 driver.set_page_load_timeout(timeout)
                 

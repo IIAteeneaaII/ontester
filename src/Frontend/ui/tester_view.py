@@ -25,7 +25,7 @@ from src.Frontend.navigation.botones import (
 from src.Frontend.ui.menu_superior_view import MenuSuperiorDesplegable
 
 class TesterView(ctk.CTkFrame):
-    def __init__(self, parent, event_q, viewmodel=None, **kwargs):
+    def __init__(self, parent, mdebug, event_q, viewmodel=None, **kwargs):
         
         #Vista
         super().__init__(parent, fg_color="#E9F5FF", **kwargs)
@@ -319,7 +319,7 @@ class TesterView(ctk.CTkFrame):
             self.destroy()
         except Exception:
             pass
-        nueva = view_cls(parent, **init_kwargs)
+        nueva = view_cls(parent, modelo=None, q=self.event_q, **init_kwargs)
         nueva.pack(fill="both", expand=True)
 
     def ir_a_ont_tester(self):
@@ -718,6 +718,9 @@ class TesterView(ctk.CTkFrame):
         print("La payload recibida es: "+str(payload))
         info  = payload.get("info", {})
         tests = payload.get("tests", {})
+
+        # Actualizar obj panel_pruebas
+        self.panel_pruebas.modelo = info.get("modelo", "—")
         # valido = payload.get("valido", False)
 
         # INFO

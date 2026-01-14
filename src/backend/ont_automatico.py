@@ -16,7 +16,9 @@ import re
 import threading
 import time
 import requests
+import csv
 from datetime import datetime
+from datetime import date
 from pathlib import Path
 from typing import Dict, Any, List
 import xml.etree.ElementTree as ET
@@ -55,7 +57,7 @@ from src.backend.certificado.certificado import generarCertificado
 # ==========================
 UNIT_TEST_ACTIVE = threading.Event() # Indica “hay una unitaria corriendo”
 UNIT_TEST_JUST_FINISHED = threading.Event()  # Indica "unitaria recién terminó, skip fase2"
-
+CREATE_NO_WINDOW = 0x08000000
 _SUPPRESS_LOCK = threading.Lock()
 _SUPPRESS_UNTIL = {}     # ip -> deadline (time.monotonic)
 _SUPPRESS_REASON = {}    # ip -> str
@@ -205,14 +207,14 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
         self.maxWifi5Signal = max5
     
     def _configFibraThresholds(self, min24: int, min5: int):
-        """Configura los umbrales mínimos de señal WiFi para los tests"""
+        """Configura los umbrales mínimos de señal de fibra para los tests"""
         self.minTX = min24
-        self.minTX = min5
+        self.minRX = min5
 
     def _configFibraThresholdsMax(self, max24: int, max5: int):
-        """Configura los umbrales maximos de señal WiFi para los tests"""
+        """Configura los umbrales maximos de señal de fibra para los tests"""
         self.maxTX = max24
-        self.maxTX = max5
+        self.maxRX = max5
 
     def _getMinFibraTx(self):
         return self.minTX
@@ -274,6 +276,7 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
                 capture_output=True,
                 text=True,
                 encoding='utf-8',
+                creationflags=subprocess.CREATE_NO_WINDOW,
                 errors='ignore'
             )
             
@@ -502,7 +505,46 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
         
         return display_names.get(model_code, reported_name or model_code)
          
+    def setConfig(self):
+        from src.backend.endpoints.conexion import cargarConfig
+        config = cargarConfig()
+
+        # --- WIFI ---
+        wifi_cfg = config.get("wifi", {})
+
+        if wifi_cfg:
+            # Umbrales de señal (porcentaje/RSSI) – adapta los defaults a lo que tú quieras
+            min24 = float(wifi_cfg.get("rssi24_min", -80))
+            min5  = float(wifi_cfg.get("rssi5_min", -80))
+            max24 = float(wifi_cfg.get("rssi24_max", -5))
+            max5  = float(wifi_cfg.get("rssi5_max", -5))
+
+            # Usar tus setters ya definidos
+            self._configWifiSignalThresholds(min24=min24, min5=min5)
+            self._configWifiSignalThresholdsMax(max24=max24, max5=max5)
+
+            # porcentaje:
+            minWifiPercent24 = int(wifi_cfg.get("min24percent", 60))
+            minWifiPercent5  = int(wifi_cfg.get("min5percent", 60))
+
+            self._configWifiSignalThresholdsPercent(minWifiPercent24, minWifiPercent5)
+
+        # --- FIBRA ---
+        fibra_cfg = config.get("fibra", {})
+
+        if fibra_cfg:
+            mintx = float(fibra_cfg.get("mintx", 0.0))
+            maxtx = float(fibra_cfg.get("maxtx", 1.0))
+            minrx = float(fibra_cfg.get("minrx", 0.0))
+            maxrx = float(fibra_cfg.get("maxrx", 1.0))
+
+            # Ojo con tu implementación: aquí asumo que el primero es TX y el segundo RX
+            self._configFibraThresholds(min24=mintx, min5=minrx)
+            self._configFibraThresholdsMax(max24=maxtx, max5=maxrx)
+
     def run_all_tests(self) -> Dict[str, Any]:
+        # Mandar a llamar a las configuraciones
+        self.setConfig()
         def _cancelled():
             return bool(getattr(self, "stop_event", None)) and self.stop_event.is_set()
 
@@ -633,6 +675,118 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
         if(generar):
             ruta = generarCertificado(res)
             print(f"\n[REPORT] Certificado generado en: {ruta}")
+    
+    def ensure_reports_dir(self) -> Path:
+        """
+        Asegura que exista C:\\ONT\\Reportes diarios y devuelve la ruta.
+        Si la carpeta ya existe, no pasa nada.
+        """
+        base_dir = Path(r"C:\ONT")
+        reports_dir = base_dir / "Reportes diarios"
+        reports_dir.mkdir(parents=True, exist_ok=True)
+        return reports_dir
+
+
+    def get_daily_report_path(self,d: date | None = None) -> Path:
+        """
+        Devuelve la ruta del CSV del día.
+        Ej: C:\\ONT\\Reportes diarios\\reportes_2025-12-19.csv
+        """
+        if d is None:
+            d = date.today()
+        reports_dir = self.ensure_reports_dir()
+        filename = f"reportes_{d.isoformat()}.csv"
+        return reports_dir / filename
+
+    def getTipoPrueba(self):
+        # traer el diccionario de opciones
+        opc = self.opcionesTest
+        tests_opts = opc.get("tests", {})
+
+        activos = [nombre for nombre, activo in tests_opts.items() if activo]
+        # 1) Todos activos -> Retest
+        if len(activos) == len(tests_opts) and len(tests_opts) > 0:
+            return "Retest"
+        # 2) Solo ping activo -> Etiqueta
+        if len(activos) == 1 and "ping" in activos:
+            return "Etiqueta"
+        # 3) Cualquier otra combinación -> Inicial
+        return "Inicial"
+
+    def saveBDiaria(self, resultados):
+        print("[BASE] Llegando a base diaria")
+        # Traer los resultados de la prueba
+        res = resultados
+        # Versión del software
+        version_ont = "BETA"
+
+        # Encabezados
+        HEADERS = [
+            "ID",
+            "SN",
+            "MAC",
+            "SSID_24",
+            "SSID_5",
+            "PASSWORD",
+            "MODELO",
+            "STATUS",
+            "VERSION_INICIAL",
+            "VERSION_FINAL",
+            "TIPO_PRUEBA",
+            "FECHA",
+            "VERSION_ONT_TESTER",
+        ]
+
+        ruta_csv = self.get_daily_report_path()
+        archivo_nuevo = not ruta_csv.exists()
+
+        # 4) Calcular el siguiente ID
+        if archivo_nuevo:
+            next_id = 1
+        else:
+            with ruta_csv.open(newline="", encoding="utf-8") as f:
+                reader = csv.reader(f)
+                # saltar encabezado si existe
+                next(reader, None)
+                last_id = 0
+                for row in reader:
+                    if row and row[0].isdigit():
+                        last_id = int(row[0])
+                next_id = last_id + 1
+
+        #Creación de 
+        info  = res.get("info", {})
+        tests = res.get("tests", {})
+        valido = res.get("valido", False)
+        tipo_prueba = self.getTipoPrueba()
+        registro = [
+            next_id,              # ID
+            info.get("sn", ""),            # SN
+            info.get("mac", ""),           # MAC
+            info.get("wifi24", ""),        # SSID_24
+            info.get("wifi5", ""),         # SSID_5
+            info.get("passWifi", ""),      # PASSWORD
+            info.get("modelo", ""),        # MODELO
+            "OK" if valido else "FAIL",        # STATUS
+            "---",   # VERSION_INICIAL
+            info.get("sftVer", ""),     # VERSION_FINAL
+            tipo_prueba,   # TIPO_PRUEBA
+            date.today().strftime("%d-%m-%Y"),     # FECHA
+            version_ont,          # VERSION_ONT_TESTER
+        ]
+
+        # Guardar del archivo
+        ruta_csv = self.get_daily_report_path()
+        archivo_nuevo = not ruta_csv.exists()
+
+        with ruta_csv.open(mode="a", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+
+            # Si es nuevo, escribimos los encabezados primero
+            if archivo_nuevo:
+                writer.writerow(HEADERS)
+
+            writer.writerow(registro)
 
 def main():
     parser = argparse.ArgumentParser(description="ONT Automated Test Suite")
@@ -780,6 +934,7 @@ def monitor_device_connection(ip: str, interval: int = 1, max_failures: int = 3,
                     command,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
+                    creationflags=subprocess.CREATE_NO_WINDOW,
                     timeout=2
                 )
                 
@@ -1135,6 +1290,7 @@ def _ping_once(ip: str, timeout_ms: int = 1) -> bool:
             cmd,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
+            creationflags=subprocess.CREATE_NO_WINDOW,
             timeout=max(2, int(timeout_ms / 1000) + 1)
         )
         return r.returncode == 0
@@ -1266,11 +1422,15 @@ def main_loop(opciones, out_q = None, stop_event = None, auto_test_on_detect = T
                 tester.run_all_tests()
 
                 resultados = tester._resultados_finales()
+                # Guardar para base diaria y global
+                tester.saveBDiaria(resultados)
                 emit("resultados", resultados)
 
-                if detected_model == "MOD001" or detected_model == "MOD008":
+                # print("[RESULTADOS] El modelo es: "+str(tester.model))
+                if (tester.model == "MOD001" or tester.model == "MOD008"):
+                    print("[RESULTADOS] Entrando a opción guardar resultados")
                     print("\n" + tester.generate_report())
-                    tester.save_results(None)
+                    tester.save_results2("test_mod001_mod008")
 
                 todo_tests_on = all(tester.opcionesTest["tests"].values())
                 if todo_tests_on:
@@ -1279,6 +1439,8 @@ def main_loop(opciones, out_q = None, stop_event = None, auto_test_on_detect = T
                 emit("log", "Pruebas completadas")
                 emit("pruebas", "Fin de pruebas")
                 print(f"\n[✓] Pruebas completadas para {ip}")
+
+                
 
                 # Marcar que ya se ejecutó fase2 en esta sesión
                 fase2_executed = True
@@ -1299,6 +1461,8 @@ def main_loop(opciones, out_q = None, stop_event = None, auto_test_on_detect = T
                 et.run_all_tests()
 
                 resultados = et._resultados_finales()
+                # Guardar para base diaria y global
+                et.saveBDiaria(resultados)
                 emit("resultados", resultados)
 
                 emit("log", "Etiqueta completada")
@@ -1310,6 +1474,7 @@ def main_loop(opciones, out_q = None, stop_event = None, auto_test_on_detect = T
             else:
                 # Modo monitoreo puro (después de unitaria o sin modo definido)
                 emit("log", "Dispositivo detectado. En monitoreo: esperando acción del usuario...")
+            
             
             # FASE 3: MONITOREO
             print(f"\n[FASE 3/3] MONITOREO DE CONEXIÓN")
@@ -1338,6 +1503,8 @@ def main_loop(opciones, out_q = None, stop_event = None, auto_test_on_detect = T
         if last_tested_ip:
             print(f"Último dispositivo testeado: {last_tested_ip}")
         print("\n[*] Programa finalizado")
+
+#def pruebaUnitariaONT():
 
 if __name__ == "__main__":
     # Verificar si se pasan argumentos de línea de comandos

@@ -381,7 +381,7 @@ class InicioView(ctk.CTkFrame):
             self.destroy()
         except Exception:
             pass
-        nueva = view_cls(parent, event_q=self.bus_q, **init_kwargs,)
+        nueva = view_cls(parent, mdebug=None, event_q=self.bus_q, **init_kwargs,)
         nueva.pack(fill="both", expand=True)
 
     def _on_comenzar(self):
@@ -400,7 +400,7 @@ class InicioView(ctk.CTkFrame):
 
 
 # Test rápido
-if __name__ == "__main__":
+def run_app():
     ctk.set_appearance_mode("light")
     ctk.set_default_color_theme("blue")
 
@@ -411,5 +411,17 @@ if __name__ == "__main__":
 
     view = InicioView(app)
     view.pack(fill="both", expand=True)
-
+    icon_path = (
+            Path(__file__)
+            .resolve()
+            .parent              # ui
+            .parent              # Frontend
+            / "assets"
+            / "icons"
+            / "ont.ico"
+        )
+    app.iconbitmap(str(icon_path))
     app.mainloop()
+
+if __name__ == "__main__":
+    run_app()

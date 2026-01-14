@@ -1,5 +1,7 @@
 import customtkinter as ctk
 import sys
+import csv
+from datetime import date
 from pathlib import Path
 
 # Para poder usar imports absolutos
@@ -15,11 +17,13 @@ class ReporteGlobalView(ctk.CTkFrame):
     Vista de Reporte Global - Título, contenido central y panel de pruebas.
     """
 
-    def __init__(self, parent, viewmodel=None, **kwargs):
+    def __init__(self, parent, modelo, q, viewmodel=None, **kwargs):
         super().__init__(parent, fg_color="#E8F4F8", **kwargs)
 
         self.viewmodel = viewmodel
 
+        self.modelo = modelo
+        self.q = q
         # Para almacenar los datos y referencias de las filas
         self.table_rows = []
         self.row_widgets = []
@@ -59,9 +63,59 @@ class ReporteGlobalView(ctk.CTkFrame):
         self._crear_contenido_central()
 
         # ---------- Panel de pruebas ----------
-        self.panel_pruebas = PanelPruebasConexion(self)
+        self.panel_pruebas = PanelPruebasConexion(self, self.modelo, self.q)
         self.panel_pruebas.grid(row=2, column=0, sticky="ew", padx=15, pady=(0, 10))
 
+    # Helpers para la tabla
+    def _clear_table(self):
+        """Elimina todas las filas actuales de la tabla (deja solo encabezados)."""
+        for row_info in self.row_widgets:
+            for frame in row_info['frames']:
+                frame.destroy()
+
+        self.row_widgets = []
+        self.table_rows = []
+
+    def _set_table_rows(self, rows):
+        """
+        Recibe una lista de filas (listas de valores) y las pinta en la tabla.
+        El orden de las columnas debe coincidir con 'headers' definidos en _crear_contenido_central.
+        """
+        self._clear_table()
+
+        self.table_rows = rows
+        body_font = ctk.CTkFont(size=10)
+
+        for row_idx, row_data in enumerate(rows, start=1):
+            row_frames = []
+            row_color = "#F0F4F8" if row_idx % 2 == 1 else "#E1E8ED"
+
+            for col, value in enumerate(row_data):
+                cell_frame = ctk.CTkFrame(
+                    self.table_frame,
+                    fg_color=row_color,
+                    corner_radius=0,
+                    border_width=1,
+                    border_color="#B8C5D0"
+                )
+                cell_frame.grid(row=row_idx, column=col, sticky="nsew")
+
+                label = ctk.CTkLabel(
+                    cell_frame,
+                    text=str(value),
+                    font=body_font,
+                    text_color="#2C3E50",
+                    fg_color="transparent",
+                )
+                label.pack(padx=4, pady=3)
+
+                row_frames.append(cell_frame)
+
+            self.row_widgets.append({
+                'frames': row_frames,
+                'data': row_data,
+                'original_color': row_color
+            })
     # =========================================================
     #                NAVEGACIÓN (REDIRECCIÓN)
     # =========================================================
@@ -75,7 +129,7 @@ class ReporteGlobalView(ctk.CTkFrame):
         except Exception:
             pass
 
-        nueva = view_cls(parent)
+        nueva = view_cls(parent, self.modelo, self.q)
         nueva.pack(fill="both", expand=True)
 
     def ir_a_ont_tester(self):
@@ -86,7 +140,7 @@ class ReporteGlobalView(ctk.CTkFrame):
     def ir_a_base_diaria(self):
         print("Navegando a BASE DIARIA")
         try:
-            from src.Frontend.ui.escaneos_dia__view import EscaneosDiaView
+            from src.Frontend.ui.escaneos_dia_view import EscaneosDiaView
         except ImportError:
             from src.Frontend.ui.escaneos_dia_view import EscaneosDiaView
         self._swap_view(EscaneosDiaView)
@@ -137,7 +191,7 @@ class ReporteGlobalView(ctk.CTkFrame):
 
         self.equipos_count_label = ctk.CTkLabel(
             equipos_frame,
-            text="10",
+            text="",
             font=ctk.CTkFont(size=32, weight="bold"),
             text_color="#2C3E50"
         )
@@ -281,7 +335,7 @@ class ReporteGlobalView(ctk.CTkFrame):
         headers = [
             "ID", "SERIE", "MAC", "VERSION_INICIAL", "VERSION_FINAL", "MODELO",
             "FECHA_DE_PRUEBA", "VERSION_DE_ONT_TES",
-            "ETHERNET_1", "ETHERNET_2", "ETHERNET_3", "CONEXIÓN"
+            "SSID", "SSID5", "CONTRASEÑA", "STATUS"
         ]
 
         self.table_frame = ctk.CTkFrame(self.table_scrollable, fg_color="transparent")
@@ -311,7 +365,8 @@ class ReporteGlobalView(ctk.CTkFrame):
             )
             label.pack(padx=4, pady=5)
 
-        self._agregar_filas_ejemplo()
+        # self._agregar_filas_ejemplo()
+        self.cargar_base_global()
 
     def _agregar_filas_ejemplo(self):
         """Agrega múltiples filas de ejemplo a la tabla."""
@@ -385,14 +440,101 @@ class ReporteGlobalView(ctk.CTkFrame):
         mes = self.mes_combo.get()
         anio = self.anio_combo.get()
         print(f"Cargando base del día: {dia}/{mes}/{anio}")
-        if self.viewmodel:
-            pass
+        dia = int(dia)
+        mes = int(mes)
+        anio = int(anio)
+        d = date(anio, mes, dia)
+        from src.backend.endpoints.conexion import _get_report_path_for
+        ruta_csv = _get_report_path_for(d)
+
+        if not ruta_csv.exists():
+            print("No existe archivo para esa fecha.")
+            self._set_table_rows([])
+            self.equipos_count_label.configure(text="0")
+            return
+
+        rows = []
+        with ruta_csv.open(newline="", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+
+            for row in reader:
+                # HEADERS en tu CSV:
+                # "ID", "SN", "MAC", "SSID_24", "SSID_5", "PASSWORD",
+                # "MODELO", "STATUS", "VERSION_INICIAL", "VERSION_FINAL",
+                # "TIPO_PRUEBA", "FECHA", "VERSION_ONT_TESTER"
+
+                fila = [
+                    row.get("ID", ""),
+                    row.get("SN", ""),                 # SERIE
+                    row.get("MAC", ""),
+                    row.get("VERSION_INICIAL", ""),
+                    row.get("VERSION_FINAL", ""),
+                    row.get("MODELO", ""),
+                    row.get("FECHA", ""),              # FECHA_DE_PRUEBA
+                    row.get("VERSION_ONT_TESTER", ""), # VERSION_DE_ONT_TES
+                    row.get("SSID_24", ""),            # SSID
+                    row.get("SSID_5", ""),             # SSID5
+                    row.get("PASSWORD", ""),           # CONTRASEÑA
+                    row.get("STATUS", ""),
+                ]
+                rows.append(fila)
+
+        self._set_table_rows(rows)
+        self.equipos_count_label.configure(text=str(len(rows)))
 
     def cargar_base_global(self):
         """Carga la base de datos global."""
         print("Cargando base global...")
-        if self.viewmodel:
-            pass
+        base_dir = Path(r"C:\ONT")
+        reports_dir = base_dir / "Reportes diarios"
+
+        if not reports_dir.exists():
+            print("No existe la carpeta de reportes.")
+            # Limpia tabla
+            self._set_table_rows([])
+            self.equipos_count_label.configure(text="0")
+            return
+
+        # Buscar todos los archivos reportes_YYYY-MM-DD.csv
+        files = sorted(reports_dir.glob("reportes_*.csv"))  # ordenados por nombre (fecha)
+        if not files:
+            print("No hay archivos CSV en la carpeta de reportes.")
+            self._set_table_rows([])
+            self.equipos_count_label.configure(text="0")
+            return
+
+        rows = []
+
+        for fpath in files:
+            with fpath.open(newline="", encoding="utf-8") as f:
+                reader = csv.DictReader(f)
+
+                for row in reader:
+                    # Mapeo CSV -> columnas de la tabla:
+                    # headers = [
+                    #   "ID", "SERIE", "MAC", "VERSION_INICIAL", "VERSION_FINAL",
+                    #   "MODELO", "FECHA_DE_PRUEBA", "VERSION_DE_ONT_TES",
+                    #   "SSID", "SSID5", "CONTRASEÑA", "STATUS"
+                    # ]
+                    fila = [
+                        row.get("ID", ""),
+                        row.get("SN", ""),                 # SERIE
+                        row.get("MAC", ""),
+                        row.get("VERSION_INICIAL", ""),
+                        row.get("VERSION_FINAL", ""),
+                        row.get("MODELO", ""),
+                        row.get("FECHA", ""),              # FECHA_DE_PRUEBA
+                        row.get("VERSION_ONT_TESTER", ""), # VERSION_DE_ONT_TES
+                        row.get("SSID_24", ""),            # SSID
+                        row.get("SSID_5", ""),             # SSID5
+                        row.get("PASSWORD", ""),           # CONTRASEÑA
+                        row.get("STATUS", ""),
+                    ]
+                    rows.append(fila)
+
+        # Pintar todo en la tabla
+        self._set_table_rows(rows)
+        self.equipos_count_label.configure(text=str(len(rows)))
 
     def generar_excel(self):
         """Genera archivo Excel con los datos."""

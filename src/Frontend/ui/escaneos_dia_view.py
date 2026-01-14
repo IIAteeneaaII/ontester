@@ -1,5 +1,6 @@
 import customtkinter as ctk
 import sys
+import csv
 from pathlib import Path
 from tkinter import messagebox
 
@@ -17,11 +18,12 @@ class EscaneosDiaView(ctk.CTkFrame):
     Vista para 'Escaneos del día' - Estilo mejorado compacto con campos en línea.
     """
 
-    def __init__(self, parent, viewmodel=None, **kwargs):
+    def __init__(self, parent, modelo, q, viewmodel=None, **kwargs):
         super().__init__(parent, fg_color="#E8F4F8", **kwargs)
 
         self.viewmodel = viewmodel
-
+        self.modelo = modelo
+        self.q = q
         # Para los tooltips
         self.tooltip_window = None
         self.tooltip_job = None
@@ -35,7 +37,7 @@ class EscaneosDiaView(ctk.CTkFrame):
             "SSID-5G",
             "PASSWORD",
             "STATUS",
-            "CÓDIGO",
+            "PRUEBA",
             "MODELO",
             "FECHA",
         ]
@@ -49,7 +51,7 @@ class EscaneosDiaView(ctk.CTkFrame):
             "SSID-5G": "SSID 5G:",
             "PASSWORD": "PASSWORD:",
             "STATUS": "STATUS:",
-            "CÓDIGO": "CÓDIGO:",
+            "PRUEBA": "PRUEBA:",
             "MODELO": "MODELO:",
             "FECHA": "FECHA:",
         }
@@ -316,8 +318,48 @@ class EscaneosDiaView(ctk.CTkFrame):
         self.btn_borrar.pack(fill="x", padx=10, pady=(0, 8))
 
         # ---------- Panel de pruebas FIJO ----------
-        self.panel_pruebas = PanelPruebasConexion(self)
+        self.panel_pruebas = PanelPruebasConexion(self, self.modelo, self.q)
         self.panel_pruebas.grid(row=2, column=0, sticky="ew", padx=15, pady=(0, 10))
+
+        # Cargar registros
+        self.load_daily_records()
+
+    def load_daily_records(self):
+        from src.backend.endpoints.conexion import get_daily_report_path
+        ruta_csv = get_daily_report_path()
+
+        if not ruta_csv.exists():
+            # No hay archivo hoy → tabla vacía
+            self.set_table_rows([])
+            self.detail_status_var.set("No hay registros para el día de hoy.")
+            return
+
+        rows = []
+        with ruta_csv.open(newline="", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+
+            for row in reader:
+                # HEADERS del CSV (los que usaste en saveBDiaria):
+                # "ID", "SN", "MAC", "SSID_24", "SSID_5", "PASSWORD",
+                # "MODELO", "STATUS", "VERSION_INICIAL", "VERSION_FINAL",
+                # "TIPO_PRUEBA", "FECHA", "VERSION_ONT_TESTER"
+
+                fila = [
+                    row.get("ID", ""),
+                    row.get("SN", ""),          # se mostrará como "SNN" en la tabla
+                    row.get("MAC", ""),
+                    row.get("SSID_24", ""),
+                    row.get("SSID_5", ""),
+                    row.get("PASSWORD", ""),
+                    row.get("STATUS", ""),
+                    row.get("TIPO_PRUEBA", ""),
+                    row.get("MODELO", ""),
+                    row.get("FECHA", ""),
+                ]
+                rows.append(fila)
+
+        self.set_table_rows(rows)
+        self.detail_status_var.set(f"{len(rows)} registros cargados.")
 
     # =========================================================
     #                NAVEGACIÓN (REDIRECCIÓN)
@@ -332,7 +374,7 @@ class EscaneosDiaView(ctk.CTkFrame):
         except Exception:
             pass
 
-        nueva = view_cls(parent)
+        nueva = view_cls(parent, self.modelo, self.q)
         nueva.pack(fill="both", expand=True)
 
     def ir_a_ont_tester(self):
@@ -342,6 +384,7 @@ class EscaneosDiaView(ctk.CTkFrame):
 
     def ir_a_base_diaria(self):
         print("Navegando a BASE DIARIA")
+        self.load_daily_records()
         # Ya estás aquí. Si quieres "refresh", descomenta:
         # self._swap_view(EscaneosDiaView)
         pass
