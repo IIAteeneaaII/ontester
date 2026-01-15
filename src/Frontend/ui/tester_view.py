@@ -769,23 +769,44 @@ class TesterView(ctk.CTkFrame):
         set_if_present("w24", "wifi_24ghz_signal")
         set_if_present("w5", "wifi_5ghz_signal")
 
+        def _to_float_safe(v):
+                try:
+                    return float(v)
+                except (TypeError, ValueError):
+                    return None
+
+        from src.backend.endpoints.conexion import cargarConfig
+        config = cargarConfig()
+        fibra_cfg = config.get("fibra", {})
+        mintx = float(fibra_cfg.get("mintx", 0.0))
+        maxtx = float(fibra_cfg.get("maxtx", 1.0))
+        minrx = float(fibra_cfg.get("minrx", 0.0))
+        maxrx = float(fibra_cfg.get("maxrx", 1.0))
         # TX/RX solo si vienen (para no borrar el valor anterior)
         if "tx" in tests:
             tx = tests.get("tx")
-            self.panel_pruebas._set_button_status("tx_power", tx)
             self.txInfo.configure(text=("Fo TX: —" if tx in (False, None) else f"Fo TX: {tx} dBm"))
-
+            if(_to_float_safe(tx) >= mintx and _to_float_safe(tx) <= maxtx):
+                # Validar si está dentro de los valores
+                txp = True
+            else:
+                txp = False
+            self.panel_pruebas._set_button_status("tx_power", txp)
         if "rx" in tests:
             rx = tests.get("rx")
-            self.panel_pruebas._set_button_status("rx_power", rx)
             self.rxInfo.configure(text=("Fo RX: —" if rx in (False, None) else f"Fo RX: {rx} dBm"))
+            if(_to_float_safe(rx) >= minrx and _to_float_safe(rx) <= maxrx):
+                rxp = True
+            else:
+                rxp = False
+            self.panel_pruebas._set_button_status("rx_power", rxp)
 
         # USB label solo si viene
         if "usb" in tests:
             usb = tests.get("usb")
             if usb == "SIN PRUEBA":
                 usb_label = "Prueba omitida"
-            elif usb == "PASS":
+            elif usb == "PASS" or usb == True:
                 usb_label = "USB detectada"
             else:
                 usb_label = "USB no detectada"
@@ -803,15 +824,6 @@ class TesterView(ctk.CTkFrame):
         # Si tx/rx son números (dBm), los formateamos
         self.txInfo.configure(text=("Fo TX: —" if tx in (False, None) else f"Fo TX: {tx} dBm"))
         self.rxInfo.configure(text=("Fo RX: —" if rx in (False, None) else f"Fo RX: {rx} dBm"))
-
-        # USB puede venir "PASS"/"ERROR"/"SIN PRUEBA"
-        if usb == "SIN PRUEBA":
-            usb_label = "Prueba omitida"
-        elif usb == True and usb == "PASS":
-            usb_label = "USB detectada"
-        else:
-            usb_label = "USB no detectada"
-        self.usbInfo.configure(text="Usb Port: "+str(usb_label))
 
         self.estado_prueba_label.configure(text="EJECUTADO")
         self.estado_prueba_label.configure(text_color="#6B9080")

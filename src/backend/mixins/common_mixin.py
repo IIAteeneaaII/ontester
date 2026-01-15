@@ -1209,22 +1209,26 @@ class CommonMixin:
         if tests_opts.get("wifi_24ghz_signal", True) and tests_opts.get("wifi_5ghz_signal", True):
             w24 = self.test_results['tests']['WIFI_24GHZ']['details'].get('enabled') # true
             w5 = self.test_results['tests']['WIFI_5GHZ']['details'].get('enabled') # true
-            rssi_2g = int(self.test_results['tests']["WIFI_24GHZ"]["details"]["data"]["wifi_status"][0]["rssi_2g"]) # valor negativo con la potencia del wifi
-            rssi_5g = int(self.test_results['tests']["WIFI_24GHZ"]["details"]["data"]["wifi_status"][0]["rssi_5g"]) # valor negativo con la potencia del wifi
+            try:
+                rssi_2g = int(self.test_results['tests']["WIFI_24GHZ"]["details"]["data"]["wifi_status"][0]["rssi_2g"]) # valor negativo con la potencia del wifi
+                rssi_5g = int(self.test_results['tests']["WIFI_24GHZ"]["details"]["data"]["wifi_status"][0]["rssi_5g"]) # valor negativo con la potencia del wifi
+                
+                min_valor_wifi = self._getMinWifi24Signal()
+                min_valor_wifi5 = self._getMinWifi5Signal()
+                max_valor_wifi = self._getMaxWifi24Signal()
+                max_valor_wifi5 = self._getMaxWifi5Signal()
 
-            min_valor_wifi = self._getMinWifi24Signal()
-            min_valor_wifi5 = self._getMinWifi5Signal()
-            max_valor_wifi = self._getMaxWifi24Signal()
-            max_valor_wifi5 = self._getMaxWifi5Signal()
+                if(rssi_2g >= min_valor_wifi and rssi_2g <= max_valor_wifi):
+                    w24 = True
+                else:
+                    w24 = False
 
-            if(rssi_2g >= min_valor_wifi and rssi_2g <= max_valor_wifi):
-                w24 = True
-            else:
+                if(rssi_5g >= min_valor_wifi5 and rssi_5g <= max_valor_wifi5):
+                    w5 = True
+                else:
+                    w5 = False
+            except:
                 w24 = False
-
-            if(rssi_5g >= min_valor_wifi5 and rssi_5g <= max_valor_wifi5):
-                w5 = True
-            else:
                 w5 = False
         else:
             w24 = "SIN PRUEBA"
