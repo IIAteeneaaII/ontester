@@ -44,9 +44,10 @@ class FiberMixin:
         headless = True # DEBUG: Visible para el usuario
         try:
             print(f"[SELENIUM] Iniciando login Fiberhome a {self.host}...")
-            
             # Configurar opciones de Chrome
             chrome_options = Options()
+            chrome_binary = self._get_chrome_binary_path()
+            chrome_options.binary_location = chrome_binary
             if headless:
                 chrome_options.add_argument('--headless=new')
             chrome_options.add_argument('--no-sandbox')
@@ -365,6 +366,8 @@ class FiberMixin:
             self.driver.quit()
             self.driver = None
         chrome_options = Options()
+        chrome_binary = self._get_chrome_binary_path()
+        chrome_options.binary_location = chrome_binary
         if headless:
             chrome_options.add_argument('--headless=new')  # Modo headless moderno
         chrome_options.add_argument('--no-sandbox')
@@ -462,6 +465,8 @@ class FiberMixin:
             # Crear driver temporal solo para hacer logout
             try:
                 chrome_options = Options()
+                chrome_binary = self._get_chrome_binary_path()
+                chrome_options.binary_location = chrome_binary
                 chrome_options.add_argument('--headless')
                 chrome_options.add_argument('--no-sandbox')
                 chrome_options.add_argument('--disable-dev-shm-usage')

@@ -1464,10 +1464,10 @@ def main_loop(opciones, out_q = None, stop_event = None, auto_test_on_detect = T
                 # Guardar para base diaria y global
                 et.saveBDiaria(resultados)
                 emit("resultados", resultados)
-                if (tester.model == "MOD001" or tester.model == "MOD008"):
+                if (et.model == "MOD001" or et.model == "MOD008"):
                     print("[RESULTADOS] Entrando a opción guardar resultados")
-                    print("\n" + tester.generate_report())
-                    tester.save_results2("test_mod001_mod008")
+                    print("\n" + et.generate_report())
+                    et.save_results2("test_mod001_mod008")
                 emit("log", "Etiqueta completada")
                 emit("pruebas", "Fin etiqueta")
 
