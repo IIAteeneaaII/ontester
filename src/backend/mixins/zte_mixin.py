@@ -1217,9 +1217,10 @@ class ZTEMixin:
             timeout = 10
             try:
                 print(f"[SELENIUM] Iniciando login automático a {self.host}...")
-                
                 # Configurar opciones de Chrome
                 chrome_options = Options()
+                chrome_binary = self._get_chrome_binary_path()
+                chrome_options.binary_location = chrome_binary
                 if headless:
                     chrome_options.add_argument('--headless=new')  # Modo headless moderno
                 chrome_options.add_argument('--no-sandbox')

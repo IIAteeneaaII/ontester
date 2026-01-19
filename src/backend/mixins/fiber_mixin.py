@@ -44,9 +44,10 @@ class FiberMixin:
         headless = True # DEBUG: Visible para el usuario
         try:
             print(f"[SELENIUM] Iniciando login Fiberhome a {self.host}...")
-            
             # Configurar opciones de Chrome
             chrome_options = Options()
+            chrome_binary = self._get_chrome_binary_path()
+            chrome_options.binary_location = chrome_binary
             if headless:
                 chrome_options.add_argument('--headless=new')
             chrome_options.add_argument('--no-sandbox')
@@ -365,6 +366,8 @@ class FiberMixin:
             self.driver.quit()
             self.driver = None
         chrome_options = Options()
+        chrome_binary = self._get_chrome_binary_path()
+        chrome_options.binary_location = chrome_binary
         if headless:
             chrome_options.add_argument('--headless=new')  # Modo headless moderno
         chrome_options.add_argument('--no-sandbox')
@@ -449,25 +452,56 @@ class FiberMixin:
             time.sleep(5)
         return False
 
-    def _router_logout_best_effort(self, driver):
-        # 1) intenta URL directa
+    def _router_logout_best_effort(self, driver=None):
+        """
+        Cierra la sesión activa del router Fiberhome.
+        Click en botón logout (id='logout') ubicado en header->top-menu.
+        """
+        if driver is None:
+            driver = self.driver
+        
+        if not driver:
+            print("[LOGOUT] No hay driver, creando uno temporal para logout...")
+            # Crear driver temporal solo para hacer logout
+            try:
+                chrome_options = Options()
+                chrome_binary = self._get_chrome_binary_path()
+                chrome_options.binary_location = chrome_binary
+                chrome_options.add_argument('--headless')
+                chrome_options.add_argument('--no-sandbox')
+                chrome_options.add_argument('--disable-dev-shm-usage')
+                chrome_options.add_argument('--disable-gpu')
+                chrome_options.add_argument('--log-level=3')
+                driver_path = self._get_chromedriver_path()
+                service = Service(driver_path)
+                driver = webdriver.Chrome(service=service, options=chrome_options)
+            except Exception as e:
+                print(f"[LOGOUT] Error creando driver temporal: {e}")
+                return False
+        
         try:
-            driver.get(f"{self.base_url}/logout.html")
+            # Navegar a UI principal y click en botón logout
+            driver.get(f"{self.base_url}/html/main_inter.html")
             time.sleep(1)
-            return
-        except:
-            pass
-
-        # 2) si existe botón logout en UI (fallback)
-        try:
-            self.click_anywhere(driver, [
-                # agrega aquí IDs/XPaths si los conoces
-                (By.ID, "logout"),
-                # (By.XPATH, "//a[contains(.,'Logout') or contains(.,'Salir')]"),
-            ], desc="Logout", timeout=3)
-            time.sleep(1)
-        except:
-            pass
+            
+            logout_clicked = self.click_anywhere2(
+                driver, 
+                [(By.ID, "logout")], 
+                desc="Botón Logout", 
+                timeout=5
+            )
+            
+            if logout_clicked:
+                print("[LOGOUT] ✓ Sesión cerrada")
+                time.sleep(1)
+                return True
+            else:
+                print("[LOGOUT] Botón logout no encontrado (puede que ya esté deslogueado)")
+                return True  # Asumimos que ya está deslogueado
+                
+        except Exception as e:
+            print(f"[LOGOUT] Error: {e}")
+            return False
 
     def _enter_main_frameset(self, timeout_total=25) -> bool:
         driver = self.driver
@@ -1541,8 +1575,14 @@ class FiberMixin:
             result["details"]["note"] = "get_base_info no disponible"
             return result
 
-        usb_ports = base_info.get("usb_ports", base_info.get("usb_port_num", 0))
+        usb_ports = base_info.get("usb_ports", base_info.get("usb_port_num", 0)) or 0
         usb_status = base_info.get("usb_status")
+
+        # Normaliza el tipo
+        try:
+            usb_ports = int(usb_ports)
+        except (TypeError, ValueError):
+            usb_ports = 0
 
         result["details"]["hardware_method"] = "AJAX get_base_info"
         result["details"]["usb_ports_capacity"] = usb_ports
@@ -1554,42 +1594,83 @@ class FiberMixin:
             result["details"]["note"] = "El equipo no reporta puertos USB en base_info."
             return result
 
-        # 2) Dispositivos conectados vía get_ftpclient_info
+        # 2) Dispositivos conectados vía get_ftpclient_info (mejor esfuerzo)
+        ftp_info: Dict[str, Any] = {}
+        devices: list[str] = []
+        connected_count: int = 0
+
         try:
-            ftp_info = self._ajax_get("get_ftpclient_info")
+            ftp_info = self._ajax_get("get_ftpclient_info") or {}
         except Exception as e:
-            result["details"]["error"] = f"Error llamando get_ftpclient_info: {e}"
-            result["details"]["method"] = "AJAX get_ftpclient_info"
-            return result
+            # NO hacemos return aquí; solo dejamos registro y usamos solo base_info
+            result["details"]["warning_ftp"] = f"Error llamando get_ftpclient_info: {e}"
+        else:
+            # Normaliza session_valid (puede venir como '1', '0', 1, 0, etc.)
+            session_raw = ftp_info.get("session_valid")
+            try:
+                session_valid = int(session_raw)
+            except (TypeError, ValueError):
+                # si viene raro, no lo tomamos como fatal
+                session_valid = None
 
-        if ftp_info.get("session_valid") != 1:
-            result["details"]["error"] = f"get_ftpclient_info devolvió session_valid={ftp_info.get('session_valid')}"
-            result["details"]["method"] = "AJAX get_ftpclient_info"
-            return result
+            result["details"]["ftp_session_valid"] = session_raw
 
-        usb_list_raw = ftp_info.get("UsbList") or ""
+            usb_list_raw = ftp_info.get("UsbList") or ftp_info.get("USBList") or ""
+            usb_list_raw = str(usb_list_raw)
 
-        devices = [d for d in re.split(r"[,\s]+", usb_list_raw) if d]
-        connected_count = len(devices)
+            if usb_list_raw:
+                devices = [d for d in re.split(r"[,\s]+", usb_list_raw) if d]
+                connected_count = len(devices)
+                result["details"]["usb_devices_connected"] = connected_count
+                result["details"]["usb_devices_list"] = devices
+                result["details"]["usb_list_raw"] = usb_list_raw
+            else:
+                # No lista de dispositivos; marcamos aviso pero no lo tratamos como fallo “duro”
+                if session_valid not in (1, None):
+                    result["details"]["warning_ftp"] = (
+                        f"get_ftpclient_info devolvió session_valid={session_raw} "
+                        "y no se recibió UsbList."
+                    )
 
-        result["details"]["method"] = "AJAX get_base_info + AJAX get_ftpclient_info"
-        result["details"]["usb_devices_connected"] = connected_count
-        result["details"]["usb_devices_list"] = devices
-        result["details"]["usb_list_raw"] = usb_list_raw
+        # 3) Decidir PASS/FAIL usando TODA la info disponible
 
-        # 3) Comparar capacidad vs dispositivos detectados
-        if connected_count == usb_ports:
+        usb_status_str = str(usb_status).strip().lower() if usb_status is not None else ""
+        status_indica_activo = usb_status_str in ("active", "on", "1", "enable", "enabled", "inserted")
+
+        # Caso ideal: tenemos lista y coincide con la capacidad
+        if connected_count >= usb_ports and usb_ports > 0: # Aparentemente el puerto 2 sobre reporta conexiones
             result["status"] = "PASS"
             result["details"]["note"] = (
-                f"Capacidad de hardware: {usb_ports} puerto(s); "
+                f"Capacidad declarada: {usb_ports} puerto(s); "
                 f"dispositivos detectados: {connected_count} (OK)."
             )
+
+        # Hay algunos dispositivos, pero menos que la capacidad -> FAIL
+        elif connected_count > 0 and usb_ports > 0:
+            result["status"] = "FAIL"
+            result["details"]["note"] = (
+                f"Capacidad declarada: {usb_ports} puerto(s); "
+                f"solo se detectaron {connected_count} dispositivo(s). "
+                "Revisar todos los puertos USB."
+            )
+
+        # No tenemos lista de dispositivos, pero el flag de estado dice activo
+        elif connected_count == 0 and status_indica_activo:
+            # Aquí tú decides: PASS “suave” o FAIL.
+            # Yo lo dejaría como PASS pero aclarando que es por flag:
+            result["status"] = "PASS"
+            result["details"]["note"] = (
+                f"El equipo reporta {usb_ports} puerto(s) USB y estado '{usb_status_str}', "
+                "pero no se pudo leer lista de dispositivos. Verificar manualmente si es necesario."
+            )
+
+        # Nada detectado y sin flag de activo -> FAIL
         else:
             result["status"] = "FAIL"
             result["details"]["note"] = (
                 f"Capacidad de hardware: {usb_ports} puerto(s); "
-                f"dispositivos detectados: {connected_count}. "
-                "Revisar conexión de memorias USB o posible fallo de puerto."
+                "no se detectaron dispositivos USB. "
+                "Revisar conexión de memorias o posible fallo de puertos."
             )
 
         return result
@@ -2041,15 +2122,20 @@ class FiberMixin:
             archivo = self.searchBins(FIRMWARE_PATH)
             stem = Path(archivo).stem      # "HG6145F_RP4379"
             newVer = stem.split("_", 1)[1]  # "RP4379"
-            # Se necesitará hacer otro login con las credenciales de super usuario
-            max_reintentos = 5
+            # Cerrar sesión activa antes de login como Super Admin
+            self._router_logout_best_effort()
+            time.sleep(2)
+            
+            max_reintentos = 3
+            login_ok = False
             for n in range(max_reintentos):
-                print("Intento "+str(n+1)+" de "+str(max_reintentos)+" para iniciar sesión")
-                # ni modo, no sé donde está la sesión activa
-                time.sleep(310)
+                print(f"[INFO] Login Super Admin - intento {n+1}/{max_reintentos}")
                 login_ok = self._login_fiberhomeSuper()
-                if (login_ok):
+                if login_ok:
                     break
+                self._router_logout_best_effort()
+                time.sleep(5)
+                self._router_logout_best_effort()  # Reintentar logout si falló el login
                 time.sleep(10)
             if login_ok:
                 print("[*] Enviando firmware al router por formulario (Selenium)...")

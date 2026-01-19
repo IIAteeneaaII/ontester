@@ -181,7 +181,20 @@ class CommonMixin:
 
             base_path = backend_root / "drivers"
 
-        return str(base_path / "chromedriver.exe")
+        driver_path = base_path / "chromedriver.exe"
+        print(f"[DEBUG] chromedriver path = {driver_path}  exists={driver_path.exists()}")
+        return str(driver_path)
+
+    def _get_chrome_binary_path(self) -> str:
+        if getattr(sys, "frozen", False):
+            base_path = Path(sys._MEIPASS) / "backend" / "drivers" / "chrome"
+        else:
+            here = Path(__file__).resolve()
+            backend_root = here.parent if here.parent.name == "backend" else here.parent.parent
+            base_path = backend_root / "drivers" / "chrome"
+        chrome_binary = base_path / "chrome.exe"
+        print(f"[DEBUG] chrome binary = {chrome_binary}  exists={chrome_binary.exists()}")
+        return str(chrome_binary)
 
     def save_results2(self, base_dir: str):
         """
@@ -232,6 +245,8 @@ class CommonMixin:
             
             # Configurar opciones de Chrome
             chrome_options = Options()
+            chrome_binary = self._get_chrome_binary_path()
+            chrome_options.binary_location = chrome_binary
             if headless:
                 chrome_options.add_argument('--headless=new')  # Modo headless moderno
             chrome_options.add_argument('--no-sandbox')
@@ -1209,22 +1224,26 @@ class CommonMixin:
         if tests_opts.get("wifi_24ghz_signal", True) and tests_opts.get("wifi_5ghz_signal", True):
             w24 = self.test_results['tests']['WIFI_24GHZ']['details'].get('enabled') # true
             w5 = self.test_results['tests']['WIFI_5GHZ']['details'].get('enabled') # true
-            rssi_2g = int(self.test_results['tests']["WIFI_24GHZ"]["details"]["data"]["wifi_status"][0]["rssi_2g"]) # valor negativo con la potencia del wifi
-            rssi_5g = int(self.test_results['tests']["WIFI_24GHZ"]["details"]["data"]["wifi_status"][0]["rssi_5g"]) # valor negativo con la potencia del wifi
+            try:
+                rssi_2g = int(self.test_results['tests']["WIFI_24GHZ"]["details"]["data"]["wifi_status"][0]["rssi_2g"]) # valor negativo con la potencia del wifi
+                rssi_5g = int(self.test_results['tests']["WIFI_24GHZ"]["details"]["data"]["wifi_status"][0]["rssi_5g"]) # valor negativo con la potencia del wifi
+                
+                min_valor_wifi = self._getMinWifi24Signal()
+                min_valor_wifi5 = self._getMinWifi5Signal()
+                max_valor_wifi = self._getMaxWifi24Signal()
+                max_valor_wifi5 = self._getMaxWifi5Signal()
 
-            min_valor_wifi = self._getMinWifi24Signal()
-            min_valor_wifi5 = self._getMinWifi5Signal()
-            max_valor_wifi = self._getMaxWifi24Signal()
-            max_valor_wifi5 = self._getMaxWifi5Signal()
+                if(rssi_2g >= min_valor_wifi and rssi_2g <= max_valor_wifi):
+                    w24 = True
+                else:
+                    w24 = False
 
-            if(rssi_2g >= min_valor_wifi and rssi_2g <= max_valor_wifi):
-                w24 = True
-            else:
+                if(rssi_5g >= min_valor_wifi5 and rssi_5g <= max_valor_wifi5):
+                    w5 = True
+                else:
+                    w5 = False
+            except:
                 w24 = False
-
-            if(rssi_5g >= min_valor_wifi5 and rssi_5g <= max_valor_wifi5):
-                w5 = True
-            else:
                 w5 = False
         else:
             w24 = "SIN PRUEBA"

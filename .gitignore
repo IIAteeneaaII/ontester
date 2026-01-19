@@ -64,3 +64,6 @@ Thumbs.db
 
 # Keep directory structure
 !.gitkeep
+
+# Chrome driver
+/src/backend/drivers
