@@ -230,3 +230,59 @@ def iniciar_pruebaUnitariaConexion(resetFabrica, sftU, usb, fibra, wifi, model, 
     if not (stop_event and stop_event.is_set()):
         emit("log", "Prueba unitaria terminada.")
     
+def generaEtiquetaTxt(payload):
+    print("[CONEXION] Generando etiqueta")
+    info  = payload.get("info", {})
+    tests = payload.get("tests", {})
+     # Obtener el modelo para variaciones de nombres de redes
+    modelo = info.get("modelo", "DESCONOCIDO").upper()
+
+    # Extraer valores para la banda 2.4 GHz
+    wifi24_limpio = info.get("wifi24", "")[-4:] if info.get("wifi24") else ""
+
+    # Extraer valores para la banda 5 GHz (ZTE usa un SSID distinto)
+    es_zte = "ZTE" in modelo.upper() or "F670" in modelo.upper()
+
+    if es_zte:
+        wifi5_raw = info.get("wifi5", "")
+
+        # Formato exclusivo de ZTE: "Totalplay-XXXX-5G", se debe extrear "XXXX"
+        partes = wifi5_raw.split("-") if wifi5_raw else []
+        wifi5_limpio = partes[1] if len(partes) >= 2 else ""
+    else:
+        wifi5_limpio = info.get("wifi5", "")[-4:] if info.get("wifi5") else ""
+
+    # Filtrar valores para txt
+    valores = [
+        info.get("sn", ""),
+        info.get("mac", "").replace(":", "").replace("-", ""), # sin separadores
+        wifi24_limpio, # últimos 4 caracteres
+        info.get("passWifi", ""),
+        wifi5_limpio,
+        info.get("passWifi", "")
+    ]
+
+    # Crear línea CSV (sin espacios)
+    linea_csv = ",".join(valores)
+
+    # Obtener modelo y limpiar caracteres inválidos para nombre de archivo
+    modelo = info.get("modelo", "DESCONOCIDO")
+    modelo_seguro = modelo.replace("/", "-").replace("\\", "-").replace(" ", "_")
+    
+    # Crear directorio etiquetas si no existe
+    directorio_etiquetas = Path(r"C:\ONT\etiquetas")
+    directorio_etiquetas.mkdir(parents=True, exist_ok=True)
+    
+    # Ruta del archivo por modelo
+    ruta_txt = directorio_etiquetas / f"etiqueta_{modelo_seguro}.txt"
+    
+    # Si el archivo no existe o está vacío, agregar cabecera
+    escribir_cabecera = not ruta_txt.exists() or ruta_txt.stat().st_size == 0
+    
+    # Guardar (append) al archivo del modelo correspondiente
+    with ruta_txt.open("a", encoding="utf-8") as f:
+        if escribir_cabecera:
+            f.write("GPON SN,MAC,SSID,KEY,SSID5g,KEY5g\n")
+        f.write(linea_csv + "\n")
+    
+    print(f"[TXT] Guardado en: {ruta_txt}")

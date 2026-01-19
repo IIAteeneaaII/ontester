@@ -719,6 +719,11 @@ class TesterView(ctk.CTkFrame):
         info  = payload.get("info", {})
         tests = payload.get("tests", {})
 
+        #Archivo txt para modo etiqueta
+        if self.modo_var.get() == "Etiqueta":
+            # Usar funcion en archivo conexion
+            from src.backend.endpoints.conexion import generaEtiquetaTxt
+            generaEtiquetaTxt(payload)
         # Actualizar obj panel_pruebas
         self.panel_pruebas.modelo = info.get("modelo", "—")
         # valido = payload.get("valido", False)
@@ -811,6 +816,8 @@ class TesterView(ctk.CTkFrame):
             else:
                 usb_label = "USB no detectada"
             self.usbInfo.configure(text="Usb Port: " + str(usb_label))
+        else:
+            self.usbInfo.configure(text="Usb Port: —")
 
         # -------- INFO (lado izquierdo) --------
         self.snInfo.configure(text="SN: "+str(sn))
