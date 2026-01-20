@@ -497,13 +497,14 @@ class TesterMainView(ctk.CTkFrame):
     Vista principal del ONT TESTER con botones superiores y panel de pruebas.
     """
 
-    def __init__(self, parent, modelo, q, viewmodel=None, **kwargs):
+    def __init__(self, parent, modelo, viewmodel=None, **kwargs):
         super().__init__(parent, fg_color="#E8F4F8", **kwargs)
 
         self.viewmodel = viewmodel
         self.numero_estacion = "09"  # Número de estación por defecto
         self.modelo = modelo
-        self.q = q
+        app = self.winfo_toplevel()
+        self.q = app.event_q
         # Layout principal
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=0)  # título
@@ -646,7 +647,7 @@ class TesterMainView(ctk.CTkFrame):
         btn4.pack(fill="x", padx=15, pady=(0, 20))
 
         # ---------- Panel de pruebas ----------
-        self.panel_pruebas = PanelPruebasConexion(self, self.modelo, self.q)
+        self.panel_pruebas = PanelPruebasConexion(self, self.modelo)
         self.panel_pruebas.grid(row=2, column=0, sticky="ew", padx=15, pady=(0, 10))
 
     # =========================================================
@@ -665,8 +666,11 @@ class TesterMainView(ctk.CTkFrame):
         except Exception:
             pass
 
-        nueva = view_cls(parent, self.modelo, self.q)
+        nueva = view_cls(parent, self.modelo)
         nueva.pack(fill="both", expand=True)
+
+        # El dispatcher del parent ahora apunta a la nueva vista
+        parent.dispatcher.set_target(nueva)
 
     # ---------- Callbacks de navegación del menú superior ----------
 
@@ -680,7 +684,7 @@ class TesterMainView(ctk.CTkFrame):
         print("Navegando a BASE DIARIA")
         # Soporta escaneos_dia_view.py o escaneos_dia__view.py
         try:
-            from src.Frontend.ui.escaneos_dia__view import EscaneosDiaView
+            from src.Frontend.ui.escaneos_dia_view import EscaneosDiaView
         except ImportError:
             from src.Frontend.ui.escaneos_dia_view import EscaneosDiaView
 
@@ -729,8 +733,152 @@ class TesterMainView(ctk.CTkFrame):
             print(f"Parámetros guardados: {dialog.resultado}")
 
     def on_prueba(self):
-        print("Prueba clickeado")
+        # Aqui voy a habilitar la opción para leer la bd
+        # Validar si se tiene los permisos suficientes
+        root = self.winfo_toplevel()
+        user_id = int(getattr(root, "current_user_id", None))
+        print("El usuario es: "+str(user_id))
+        if (user_id == 27 or user_id == 121):
+            # Permisos ok
+            self._generarBDVista()
+        else:
+            print("Sin permisos")
 
+    def _generarBDVista(self):
+        # Ventana hija
+        win = ctk.CTkToplevel(self)
+        win.title("Consulta de base de datos")
+        win.geometry("900x500")
+        win.grab_set()
+        win.focus_set()
+
+        # --------- PANEL SUPERIOR (combo de tablas + botón) ----------
+        top_frame = ctk.CTkFrame(win)
+        top_frame.pack(side="top", fill="x", padx=10, pady=10)
+
+        lbl_tabla = ctk.CTkLabel(top_frame, text="Tabla:")
+        lbl_tabla.pack(side="left", padx=(0, 10))
+
+        win.selected_table = ctk.StringVar()
+
+        combo_tablas = ctk.CTkComboBox(
+            top_frame,
+            width=250,
+            state="readonly",
+            variable=win.selected_table,
+            values=[],
+        )
+        combo_tablas.pack(side="left")
+
+        btn_cargar = ctk.CTkButton(
+            top_frame,
+            text="Cargar",
+            command=lambda: self._cargar_tabla_en_vista(win),
+        )
+        btn_cargar.pack(side="left", padx=10)
+
+        win.combo_tablas = combo_tablas
+
+        # --------- PANEL INFERIOR (encabezados + filas scrollables) ----------
+        table_frame = ctk.CTkFrame(win)
+        table_frame.pack(side="top", fill="both", expand=True, padx=10, pady=(0, 10))
+
+        # Encabezados (no scroll)
+        header_frame = ctk.CTkFrame(table_frame)
+        header_frame.pack(side="top", fill="x")
+        win.header_frame = header_frame
+
+        # Filas con scroll vertical
+        scroll_frame = ctk.CTkScrollableFrame(
+            table_frame,
+            orientation="vertical",
+            fg_color="transparent",   # opcional, para que se funda con el fondo
+        )
+        scroll_frame.pack(side="top", fill="both", expand=True)
+        win.table_scroll = scroll_frame
+
+        # Cargar lista de tablas al abrir
+        self._cargar_lista_tablas(win)
+    
+    def _cargar_lista_tablas(self, win):
+        """Llena el combo con las tablas disponibles de la BD."""
+        try:
+            from src.backend.sua_client.dao import obtenerTablas
+            tablas = obtenerTablas()  # adapta el nombre de tu cliente
+        except Exception as e:
+            print(f"[BD] Error listando tablas: {e}")
+            tablas = []
+
+        if not tablas:
+            win.combo_tablas.configure(values=["<sin tablas>"])
+            win.combo_tablas.set("<sin tablas>")
+            return
+
+        win.combo_tablas.configure(values=tablas)
+        win.combo_tablas.set(tablas[0])  # seleccionar la primera por defecto
+
+        # Cargar la primera tabla de inmediato
+        self._cargar_tabla_en_vista(win)
+
+    def _cargar_tabla_en_vista(self, win):
+        tabla = win.combo_tablas.get()
+        if not tabla or tabla == "<sin tablas>":
+            return
+
+        try:
+            from src.backend.sua_client.dao import fetch_table
+            columnas, filas = fetch_table(tabla)
+            # columnas: list[str]
+            # filas: list[tuple] o list[dict]
+        except Exception as e:
+            print(f"[BD] Error obteniendo datos de '{tabla}': {e}")
+            columnas, filas = [], []
+
+        header_frame = win.header_frame
+        scroll_frame = win.table_scroll
+
+        # ----- LIMPIAR CONTENIDO ANTERIOR -----
+        for w in header_frame.winfo_children():
+            w.destroy()
+        for w in scroll_frame.winfo_children():
+            w.destroy()
+
+        # Si no hay columnas, no seguimos
+        if not columnas:
+            lbl_empty = ctk.CTkLabel(scroll_frame, text="(Sin datos)")
+            lbl_empty.grid(row=0, column=0, padx=5, pady=5, sticky="w")
+            return
+
+        # Configurar pesos de columnas para que se repartan el ancho
+        for i in range(len(columnas)):
+            header_frame.grid_columnconfigure(i, weight=1)
+            scroll_frame.grid_columnconfigure(i, weight=1)
+
+        # ----- ENCABEZADOS -----
+        for col_idx, col_name in enumerate(columnas):
+            lbl = ctk.CTkLabel(
+                header_frame,
+                text=col_name,
+                font=ctk.CTkFont(weight="bold"),
+                anchor="w",
+            )
+            lbl.grid(row=0, column=col_idx, padx=3, pady=3, sticky="ew")
+
+        # ----- FILAS -----
+        for r_idx, row in enumerate(filas):
+            # Row como dict o tupla
+            if isinstance(row, dict):
+                valores = [row.get(c, "") for c in columnas]
+            else:
+                valores = list(row)
+
+            for c_idx, value in enumerate(valores):
+                cell = ctk.CTkLabel(
+                    scroll_frame,
+                    text=str(value),
+                    anchor="w",
+                )
+                cell.grid(row=r_idx, column=c_idx, padx=3, pady=1, sticky="ew")
 
 # Test de la vista
 if __name__ == "__main__":

@@ -675,19 +675,19 @@ class ZTEMixin:
                 time.sleep(30)
                 
                 # Guardar captura de pantalla del estado de actualización
-                try:
-                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    screenshot_path = f"debug_firmware_upload_{timestamp}.png"
-                    driver.save_screenshot(screenshot_path)
-                    print(f"[DEBUG] Captura guardada: {screenshot_path}")
+                # try:
+                #     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                #     screenshot_path = f"debug_firmware_upload_{timestamp}.png"
+                #     driver.save_screenshot(screenshot_path)
+                #     print(f"[DEBUG] Captura guardada: {screenshot_path}")
                     
-                    # Guardar HTML para debug
-                    html_path = f"debug_firmware_upload_{timestamp}.html"
-                    with open(html_path, 'w', encoding='utf-8') as f:
-                        f.write(driver.page_source)
-                    print(f"[DEBUG] HTML guardado: {html_path}")
-                except Exception as e:
-                    print(f"[DEBUG] No se pudo guardar captura: {e}")
+                #     # Guardar HTML para debug
+                #     html_path = f"debug_firmware_upload_{timestamp}.html"
+                #     with open(html_path, 'w', encoding='utf-8') as f:
+                #         f.write(driver.page_source)
+                #     print(f"[DEBUG] HTML guardado: {html_path}")
+                # except Exception as e:
+                #     print(f"[DEBUG] No se pudo guardar captura: {e}")
                 
                 # Monitorear progreso y reinicio (total 200 segundos)
                 print("[SELENIUM] Monitoreando actualización (120 segundos)...")

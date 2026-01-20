@@ -18,12 +18,13 @@ class EscaneosDiaView(ctk.CTkFrame):
     Vista para 'Escaneos del día' - Estilo mejorado compacto con campos en línea.
     """
 
-    def __init__(self, parent, modelo, q, viewmodel=None, **kwargs):
+    def __init__(self, parent, modelo, viewmodel=None, **kwargs):
         super().__init__(parent, fg_color="#E8F4F8", **kwargs)
 
         self.viewmodel = viewmodel
         self.modelo = modelo
-        self.q = q
+        app = self.winfo_toplevel()
+        self.q = app.event_q
         # Para los tooltips
         self.tooltip_window = None
         self.tooltip_job = None
@@ -318,7 +319,7 @@ class EscaneosDiaView(ctk.CTkFrame):
         self.btn_borrar.pack(fill="x", padx=10, pady=(0, 8))
 
         # ---------- Panel de pruebas FIJO ----------
-        self.panel_pruebas = PanelPruebasConexion(self, self.modelo, self.q)
+        self.panel_pruebas = PanelPruebasConexion(self, self.modelo)
         self.panel_pruebas.grid(row=2, column=0, sticky="ew", padx=15, pady=(0, 10))
 
         # Cargar registros
@@ -374,8 +375,11 @@ class EscaneosDiaView(ctk.CTkFrame):
         except Exception:
             pass
 
-        nueva = view_cls(parent, self.modelo, self.q)
+        nueva = view_cls(parent, self.modelo)
         nueva.pack(fill="both", expand=True)
+
+        # El dispatcher del parent ahora apunta a la nueva vista
+        parent.dispatcher.set_target(nueva)
 
     def ir_a_ont_tester(self):
         print("Navegando a ONT TESTER")
