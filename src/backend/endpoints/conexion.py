@@ -331,29 +331,30 @@ def iniciar_pruebaUnitariaConexion(resetFabrica, sftU, usb, fibra, wifi, model, 
 def generaEtiquetaTxt(payload):
     print("[CONEXION] Generando etiqueta")
     info  = payload.get("info", {})
-    tests = payload.get("tests", {})
-     # Obtener el modelo para variaciones de nombres de redes
+
+    # Obtener el modelo para variaciones de nombres de redes
     modelo = info.get("modelo", "DESCONOCIDO").upper()
 
     # Extraer valores para la banda 2.4 GHz
     wifi24_limpio = info.get("wifi24", "")[-4:] if info.get("wifi24") else ""
 
     # Extraer valores para la banda 5 GHz (ZTE usa un SSID distinto)
-    es_zte = "ZTE" in modelo.upper() or "F670" in modelo.upper()
+    es_fiber = "FIBER" in modelo.upper() or "HG6145" in modelo.upper()
 
-    if es_zte:
+    if not es_fiber:
         wifi5_raw = info.get("wifi5", "")
 
-        # Formato exclusivo de ZTE: "Totalplay-XXXX-5G", se debe extrear "XXXX"
+        # Formato del resto de dispositivos: "Totalplay-XXXX-5G", se debe extrear "XXXX"
         partes = wifi5_raw.split("-") if wifi5_raw else []
         wifi5_limpio = partes[1] if len(partes) >= 2 else ""
     else:
+        # Formato de dispositivos Fiber: "Totalplay-5G-XXXX", se debe extraer "XXXX
         wifi5_limpio = info.get("wifi5", "")[-4:] if info.get("wifi5") else ""
 
     # Filtrar valores para txt
     valores = [
         info.get("sn", ""),
-        info.get("mac", "").replace(":", "").replace("-", ""), # sin separadores
+        info.get("mac", "").replace(":", "-").upper(), # MAC con guiones y mayúsculas
         wifi24_limpio, # últimos 4 caracteres
         info.get("passWifi", ""),
         wifi5_limpio,
@@ -364,7 +365,7 @@ def generaEtiquetaTxt(payload):
     linea_csv = ",".join(valores)
 
     # Obtener modelo y limpiar caracteres inválidos para nombre de archivo
-    modelo = info.get("modelo", "DESCONOCIDO")
+    modelo = info.get("modelo", "DESCONOCIDO").upper()
     modelo_seguro = modelo.replace("/", "-").replace("\\", "-").replace(" ", "_")
     
     # Crear directorio etiquetas si no existe
