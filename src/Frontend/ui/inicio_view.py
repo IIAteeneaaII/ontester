@@ -319,7 +319,7 @@ class InicioView(ctk.CTkFrame):
         """
         Devuelve (ok: bool, nombre: str|None)
         """
-        id_str = (id_str or "").strip()
+        id_str = int(id_str)
 
         # 1) Si tu viewmodel trae un método real:
         if self.viewmodel:
@@ -397,6 +397,10 @@ class InicioView(ctk.CTkFrame):
         root.current_user_id = str(self.usuario_id)
         root.current_user_name = str(self.usuario_nombre)
 
+        # Almacenar en user_station
+        from src.backend.endpoints.conexion import inicializaruserStation
+        inicializaruserStation(int(self.usuario_id))
+
         from src.Frontend.ui.tester_view import TesterView
         self._swap_view(TesterView, viewmodel=self.viewmodel)
 
@@ -446,6 +450,11 @@ def run_app():
         try:
             if app.aws_bridge:
                 app.aws_bridge.stop()
+        except Exception:
+            pass
+        try:
+            from src.backend.sua_client.dao import clear_user_station
+            clear_user_station()
         except Exception:
             pass
         app.destroy()

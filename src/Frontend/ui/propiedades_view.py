@@ -16,9 +16,8 @@ class CambiarEstacionDialog(ctk.CTkToplevel):
     Ventana emergente para cambiar el número de estación.
     """
 
-    def __init__(self, parent, estacion_actual):
+    def __init__(self, parent, estacion_actual, userConsumible):
         super().__init__(parent)
-
         self.nuevo_numero = None
 
         # Configuración de la ventana
@@ -84,6 +83,17 @@ class CambiarEstacionDialog(ctk.CTkToplevel):
             height=35
         )
         btn_cancelar.pack(side="left", padx=5)
+        self.userConsumible = userConsumible
+        self.cargarEstacion()
+    
+    def cargarEstacion(self):
+        # Modificar valor desde config
+        from src.backend.endpoints.conexion import cargarConfig
+        config = cargarConfig()
+        general = config.get("general", {}) or {}
+        estacion = general.get("estacion")
+        self.entry_estacion.delete(0, "end")
+        self.entry_estacion.insert(0, estacion)
 
     def confirmar(self):
         """Valida y guarda el nuevo número de estación."""
@@ -104,6 +114,9 @@ class CambiarEstacionDialog(ctk.CTkToplevel):
                 parent=self
             )
             return
+        from src.backend.endpoints.conexion import guardarConfig
+        user_id = self.userConsumible
+        guardarConfig(valor, "estacion", user_id)
 
         self.nuevo_numero = valor.zfill(2)  # 01, 02, etc.
         self.destroy()
@@ -119,7 +132,7 @@ class ModificarEtiquetadoDialog(ctk.CTkToplevel):
     Ventana emergente para configurar el modo de etiqueta.
     """
 
-    def __init__(self, parent):
+    def __init__(self, parent, userConsumible):
         super().__init__(parent)
 
         self.resultado = None
@@ -198,10 +211,30 @@ class ModificarEtiquetadoDialog(ctk.CTkToplevel):
             height=35
         )
         btn_aceptar.pack(pady=(20, 15))
+        self.userConsumible = userConsumible
+        self.cargarEtiqueta()
+    
+    def cargarEtiqueta(self):
+        from src.backend.endpoints.conexion import cargarConfig
+        config = cargarConfig()
+        general = config.get("general", {}) or {}
+        etiqueta = general.get("etiqueta")
+        if etiqueta == 1:
+            etiqueta = "unica"
+        else:
+            etiqueta = "doble"
+        self.etiqueta_var.set(etiqueta)
 
     def confirmar(self):
         self.resultado = self.etiqueta_var.get()
         print(f"Modo de etiqueta seleccionado: {self.resultado}")
+        if(self.resultado == "unica"):
+            etiq = 1
+        else:
+            etiq = 2
+        from src.backend.endpoints.conexion import guardarConfig
+        user_id = self.userConsumible
+        guardarConfig(etiq, "etiqueta", user_id)
         self.destroy()
 
     def cancelar(self):
@@ -214,7 +247,7 @@ class ModificarParametrosDialog(ctk.CTkToplevel):
     Ventana emergente para configurar los parámetros del ONT TESTER.
     """
 
-    def __init__(self, parent):
+    def __init__(self, parent, userConsumible):
         super().__init__(parent)
 
         self.resultado = None
@@ -361,6 +394,7 @@ class ModificarParametrosDialog(ctk.CTkToplevel):
         btn_cancelar.pack(side="left", padx=5)
 
         # cargar config
+        self.userConsumible = userConsumible
         self.cargar_desdeJSON()
     
     def cargar_desdeJSON(self):
@@ -472,7 +506,8 @@ class ModificarParametrosDialog(ctk.CTkToplevel):
         print(f"Parámetros guardados: {self.resultado}")
         # guardar en el archivo de configuraciones
         from src.backend.endpoints.conexion import guardarConfig
-        guardarConfig(self.resultado, "valores")
+        user_id = self.userConsumible
+        guardarConfig(self.resultado, "valores", user_id)
         self.destroy()
 
     def restaurar(self):
@@ -501,7 +536,11 @@ class TesterMainView(ctk.CTkFrame):
         super().__init__(parent, fg_color="#E8F4F8", **kwargs)
 
         self.viewmodel = viewmodel
-        self.numero_estacion = "09"  # Número de estación por defecto
+        from src.backend.endpoints.conexion import cargarConfig
+        config = cargarConfig()
+        general = config.get("general", {}) or {}
+        estacion = general.get("estacion")
+        self.numero_estacion = str(estacion) # Número de estación por defecto
         self.modelo = modelo
         app = self.winfo_toplevel()
         self.q = app.event_q
@@ -650,6 +689,10 @@ class TesterMainView(ctk.CTkFrame):
         self.panel_pruebas = PanelPruebasConexion(self, self.modelo)
         self.panel_pruebas.grid(row=2, column=0, sticky="ew", padx=15, pady=(0, 10))
 
+        root = self.winfo_toplevel()
+        user_id = int(getattr(root, "current_user_id", None))
+        self.userConsumible = user_id
+
     # =========================================================
     #                NAVEGACIÓN (REDIRECCIÓN)
     # =========================================================
@@ -706,7 +749,7 @@ class TesterMainView(ctk.CTkFrame):
     # =========================================================
 
     def on_cambiar_estacion(self):
-        dialog = CambiarEstacionDialog(self, self.numero_estacion)
+        dialog = CambiarEstacionDialog(self, self.numero_estacion, self.userConsumible)
         self.wait_window(dialog)
 
         if dialog.nuevo_numero is not None:
@@ -719,14 +762,14 @@ class TesterMainView(ctk.CTkFrame):
         )
 
     def on_modificar_etiquetado(self):
-        dialog = ModificarEtiquetadoDialog(self)
+        dialog = ModificarEtiquetadoDialog(self, self.userConsumible)
         self.wait_window(dialog)
 
         if dialog.resultado is not None:
             print(f"Configuración de etiqueta guardada: {dialog.resultado}")
 
     def on_modificar_parametros(self):
-        dialog = ModificarParametrosDialog(self)
+        dialog = ModificarParametrosDialog(self, self.userConsumible)
         self.wait_window(dialog)
 
         if dialog.resultado is not None:

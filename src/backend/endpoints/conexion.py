@@ -1,86 +1,184 @@
 from pathlib import Path
 import threading
 import time
-from datetime import date
-import json
+from datetime import date, datetime
 from src.backend.ont_automatico import main_loop
 
 _UNIT_RUNNING = threading.Event()
 _UNIT_LOCK = threading.Lock()
 
-def load_users_txt(path: str | Path) -> dict[str, str]:
-    users = {}
-    path = Path(path)
-    with path.open("r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            k, v = line.split("=", 1)
-            users[k.strip()] = v.strip()
-    return users
+# def load_users_txt(path: str | Path) -> dict[str, str]:
+#     users = {}
+#     path = Path(path)
+#     with path.open("r", encoding="utf-8") as f:
+#         for line in f:
+#             line = line.strip()
+#             if not line or line.startswith("#"):
+#                 continue
+#             k, v = line.split("=", 1)
+#             users[k.strip()] = v.strip()
+#     return users
+
+def now_local_iso():
+    # ISO con zona local (ej: 2026-01-21T15:33:05-06:00)
+    return datetime.now().astimezone().isoformat(timespec="seconds")
 
 def load_default_users() -> dict[str, str]:
     # base_utils = Path(__file__).resolve().parents[1]   # -> backend
-    txt_path = Path(r"C:/ONT/empleados.txt") 
-    return load_users_txt(txt_path)
+    from src.backend.sua_client.dao import get_usuarios_activos
+    return get_usuarios_activos()
+
+def inicializaruserStation(user_id):
+    from src.backend.sua_client.dao import insertar_userStation, extraer_ultimo
+    estacion = extraer_ultimo("stations")
+    id_station = estacion["id"]
+    insertar_userStation(user_id, id_station)
 
 def cargarConfig() -> dict:
     """Devuelve el diccionario de configuración, o {} si no existe / falla."""
-    config_path = Path("C:/ONT/config.json")
-    if not config_path.exists():
-        return {}
+    # Desde la bd obtener ultimo id_settings para obtener los id de wifi y fibra, así como el campo de etiqueta
+    from src.backend.sua_client.dao import extraer_ultimo, extraer_by_id
+    config = extraer_ultimo("settings") # id || id_wifi || id_fibra || etiqueta
+    station = extraer_ultimo("stations") # id || desc || activo || update || id_settings || created_at
+    config["id"] # Registro a la station    
+    id_wifi = config["id_wifi"]   # consulto wifi_set por id
+    id_fibra = config["id_fibra"]  # consulto fibra_set por id
+    etiqueta = config["etiqueta"]  # guardo config
 
-    try:
-        with config_path.open("r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception as e:
-        print(f"[CONFIG] Error leyendo config: {e}")
-        return {}
+    wifi_config = extraer_by_id(id_wifi, "wifi_set") # id || rssi_min || rssi_max || min_percent
+    fibra_config = extraer_by_id(id_fibra, "fibra_set") # id || min_tx || max_tx || min_rx || max_rx
 
-def guardarConfig(configRecibida, tipo):
+    # armar json de config
+    config_final = {
+        "wifi": {
+            "rssi24_min":   float(wifi_config["rssi_min"]),
+            "rssi5_min":    float(wifi_config["rssi_min"]),
+            "rssi24_max":   float(wifi_config["rssi_max"]),
+            "rssi5_max":    float(wifi_config["rssi_max"]),
+            "min24percent": int(wifi_config["min_percent"]),
+            "min5percent":  int(wifi_config["min_percent"])
+        },
+        "fibra": {
+            "mintx": float(fibra_config["min_tx"]),
+            "maxtx": float(fibra_config["max_tx"]),
+            "minrx": float(fibra_config["min_rx"]),
+            "maxrx": float(fibra_config["max_rx"])
+        },
+        "general": {
+            "etiqueta": etiqueta,
+            "estacion": station["id"]
+        }
+    }
+
+    return config_final
+
+def guardarConfig(configRecibida, tipo, user_id):
     # config es el diccionario de info recibida, tipo es de que grupo pertenece
-    config_path = Path("C:/ONT/config.json")
-    config_path.parent.mkdir(parents=True, exist_ok=True)
+    # Consultar ultima station (la actual)
+    from src.backend.sua_client.dao import extraer_ultimo, insertar_settings, insertar_etiqueta, insertar_estacion
+    from src.backend.sua_client.dao import insertar_userStation, existe_valor_en_campo, insertar_wifi, insertar_fibra, update_settings
+    from src.backend.sua_client.dao import update_fecha_station
+    now = now_local_iso()
+    estacion = extraer_ultimo("stations")
+    # Consultar id_settings
+    id_settings = estacion["id_settings"]
+    if (id_settings == 0):
+        # Configuración inicial ∴ crear nuevo registro
+        # insert into settings + valores default (posteriormente se actualizan)
+        # obtener nuevo id y cambiar id_settings (variable local)
+        id_settings = insertar_settings()
 
-    if config_path.exists():
-        with config_path.open("r", encoding="utf-8") as f:
-            config = json.load(f)
-    else:
-        config = {
-            "wifi": {},   # wifi
-            "fibra": {},   # fibra 
-            "general": {}    # estación, etiqueta, etc.
-        }
+    # Configuración ya iniciada ∴ solo actualizar seccion
+    if tipo == "valores":
+        # Configuración de fibra y wifi
+        # Nuevo registro en fibra Y en wifi + update settings where id = id_settings
+        rssi_min = configRecibida.get("rssi24_min")
+        rssi_max = configRecibida.get("rssi50_max")
+        min_percent = configRecibida.get("busquedas")
+        id_wifi = insertar_wifi(rssi_min, rssi_max, min_percent)
 
-    if(tipo == "valores"):
-          #configuracion de fibra y wifi
-        seccion = config.setdefault("wifi", {})
-        wifi = {
-            "rssi24_min": configRecibida.get("rssi24_min"),
-            "rssi5_min": configRecibida.get("rssi50_min"),
-            "rssi24_max": configRecibida.get("rssi24_max"),
-            "rssi5_max": configRecibida.get("rssi50_max"),
-            "min24percent": configRecibida.get("busquedas"),
-            "min5percent": configRecibida.get("busquedas")
-        }
-        seccion.update(wifi)
-        seccion = config.setdefault("fibra", {})
-        fibra = {
-            "mintx": configRecibida.get("tx_min"),
-            "maxtx": configRecibida.get("tx_max"),
-            "minrx": configRecibida.get("rx_min"),
-            "maxrx": configRecibida.get("rx_max")
-        }
-        seccion.update(fibra)
+        min_tx = configRecibida.get("tx_min")
+        max_tx = configRecibida.get("tx_max")
+        min_rx = configRecibida.get("rx_min")
+        max_rx = configRecibida.get("rx_max")
+        id_fibra = insertar_fibra(min_tx, max_tx, min_rx, max_rx)
+
+        update_settings(id_wifi, id_fibra, id_settings)
+
+    elif tipo == "estacion":
+        # Configuracion de numero de estacion
+        # Crear nuevo registro de stations (id++ no need, "nueva estacion", 1, now, id_settings, now)
+        # Nuevo registro en user_station
+        # revisar si existe el id, si no existe insert into estacion, si existe solo insert UserStation
+        if (existe_valor_en_campo("stations", "id", configRecibida)):
+            # Hacer update de fecha
+            id_station = configRecibida
+            update_fecha_station(id_station, now)
+        else:
+            id_station = insertar_estacion(configRecibida, "nueva estacion",1, now, id_settings, now)
+        insertar_userStation(user_id, id_station)
     else:
-        # configuración de estación y modo etiqueta
-        seccion = config.setdefault("general", {})
-        seccion.update(configRecibida)
-        pass
-        
-    with config_path.open("w", encoding="utf-8") as f:
-        json.dump(config, f, indent=2, ensure_ascii=False)
+        # Configuracion de etiqueta
+        # insert into settings where id = id_settings
+        insertar_etiqueta(id_settings, configRecibida)
+
+
+def norm_result(v, *, false_means: str = "FAIL") -> str:
+    """
+    false_means: "FAIL" o "SIN_PRUEBA"
+    """
+    ALLOWED = {"PASS", "FAIL", "SIN_PRUEBA"}
+    if v is None:
+        return "SIN_PRUEBA"
+
+    if isinstance(v, bool):
+        if v is True:
+            return "PASS"
+        return false_means  # False
+
+    if isinstance(v, (int, float)):
+        # Si llegan números aquí, no aplican a enum
+        return "SIN_PRUEBA"
+
+    if isinstance(v, str):
+        s = v.strip().upper().replace(" ", "_")
+        # normalizaciones comunes
+        if s in ("SINPRUEBA", "SIN-PRUEBA"):
+            s = "SIN_PRUEBA"
+        if s == "OK":
+            s = "PASS"
+        if s == "ERROR":
+            s = "FAIL"
+        return s if s in ALLOWED else "SIN_PRUEBA"
+
+    return "SIN_PRUEBA"
+
+def norm_power(valor, tipo):
+    def _to_float_safe(v):
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return None
+    from src.backend.endpoints.conexion import cargarConfig
+    config = cargarConfig()
+    fibra_cfg = config.get("fibra", {})
+    mintx = float(fibra_cfg.get("mintx", 0.0))
+    maxtx = float(fibra_cfg.get("maxtx", 1.0))
+    minrx = float(fibra_cfg.get("minrx", 0.0))
+    maxrx = float(fibra_cfg.get("maxrx", 1.0))
+    # TX/RX solo si vienen (para no borrar el valor anterior)
+    if tipo == "tx":
+        if(_to_float_safe(valor) >= mintx and _to_float_safe(valor) <= maxtx):
+            # Validar si está dentro de los valores
+            return "PASS"
+        else:
+            return "FAIL"
+    if tipo == "rx":
+        if(_to_float_safe(valor) >= minrx and _to_float_safe(valor) <= maxrx):
+            return "PASS"
+        else:
+            return "FAIL"
+    return "SIN_PRUEBA"
 
 def get_daily_report_path() -> Path:
         """

@@ -19,6 +19,10 @@ def _schema_path() -> Path:
 
 def init_db() -> None:
     schema_file = _schema_path()
+    print("SCHEMA PATH:", schema_file)
+    print("SCHEMA EXISTS:", schema_file.exists())
+    if schema_file.exists():
+        print("SCHEMA SIZE:", schema_file.stat().st_size)
     with get_conn() as conn, schema_file.open(encoding="utf-8") as f:
         sql = f.read()
         conn.executescript(sql)

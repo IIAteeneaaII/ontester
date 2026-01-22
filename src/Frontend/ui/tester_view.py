@@ -647,7 +647,9 @@ class TesterView(ctk.CTkFrame):
             # guardar en DB
             from src.backend.sua_client.dao import insertar_operacion
             modo = self.modo_var.get()
-            insertar_operacion(payload, modo)
+            root = self.winfo_toplevel()
+            user_id = int(getattr(root, "current_user_id", None))
+            id = insertar_operacion(payload, modo, user_id)
             # publicar a IOT
         elif kind == "test_individual":
             # Actualiza el botón de una prueba individual al terminar

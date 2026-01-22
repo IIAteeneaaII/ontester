@@ -2,7 +2,6 @@
 import traceback
 from pathlib import Path
 from datetime import datetime
-from src.Frontend.ui.inicio_view import run_app
 from src.backend.sua_client.local_db import init_db
 
 if __name__ == "__main__":
@@ -10,6 +9,7 @@ if __name__ == "__main__":
         # Iniciar la db
         init_db()
         # Correr interfaz
+        from src.Frontend.ui.inicio_view import run_app
         run_app()
     except Exception as e:
         log_path = Path("C:/ONT/ontester_exe_error.log")
