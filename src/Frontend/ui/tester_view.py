@@ -645,12 +645,14 @@ class TesterView(ctk.CTkFrame):
             # ejemplo: pintar resultados en tu UI
             self._render_resultados(payload)
             # guardar en DB
-            from src.backend.sua_client.dao import insertar_operacion
+            from src.backend.sua_client.dao import insertar_operacion, extraer_by_id
             modo = self.modo_var.get()
             root = self.winfo_toplevel()
             user_id = int(getattr(root, "current_user_id", None))
             id = insertar_operacion(payload, modo, user_id)
+            payload_final = extraer_by_id(id, "operations")
             # publicar a IOT
+            
         elif kind == "test_individual":
             # Actualiza el botón de una prueba individual al terminar
             # payload = {"name": "TX_POWER", "status": "PASS"} o "FAIL"
