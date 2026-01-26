@@ -167,6 +167,10 @@ def norm_power(valor, tipo):
     minrx = float(fibra_cfg.get("minrx", 0.0))
     maxrx = float(fibra_cfg.get("maxrx", 1.0))
     # TX/RX solo si vienen (para no borrar el valor anterior)
+    try:
+        float(valor)
+    except (TypeError, ValueError):
+        return "SIN_PRUEBA"
     if tipo == "tx":
         if(_to_float_safe(valor) >= mintx and _to_float_safe(valor) <= maxtx):
             # Validar si está dentro de los valores
@@ -354,7 +358,7 @@ def generaEtiquetaTxt(payload):
     # Filtrar valores para txt
     valores = [
         info.get("sn", ""),
-        info.get("mac", "").replace(":", "-").upper(), # MAC con guiones y mayúsculas
+        info.get("mac", "").replace(":", "").upper(), # MAC sin guiones y mayúsculas
         wifi24_limpio, # últimos 4 caracteres
         info.get("passWifi", ""),
         wifi5_limpio,
@@ -371,17 +375,34 @@ def generaEtiquetaTxt(payload):
     # Crear directorio etiquetas si no existe
     directorio_etiquetas = Path(r"C:\ONT\etiquetas")
     directorio_etiquetas.mkdir(parents=True, exist_ok=True)
+
+    # Fecha para histórico
+    today = date.today().isoformat()
     
     # Ruta del archivo por modelo
     ruta_txt = directorio_etiquetas / f"etiqueta_{modelo_seguro}.txt"
+    ruta_historico = directorio_etiquetas / f"historico_etiqueta_{modelo_seguro}_{today}.txt"
+
+    # Formato de cabecera para Bartender
+    cabecera = "GPON SN,MAC,SSID,KEY,SSID5g,KEY5g\n"
     
-    # Si el archivo no existe o está vacío, agregar cabecera
-    escribir_cabecera = not ruta_txt.exists() or ruta_txt.stat().st_size == 0
-    
-    # Guardar (append) al archivo del modelo correspondiente
-    with ruta_txt.open("a", encoding="utf-8") as f:
-        if escribir_cabecera:
-            f.write("GPON SN,MAC,SSID,KEY,SSID5g,KEY5g\n")
-        f.write(linea_csv + "\n")
-    
-    print(f"[TXT] Guardado en: {ruta_txt}")
+    # 1) Sobrescribir el archivo "etiqueta_[modelo].txt" con SOLO el último registro
+    try:
+        with ruta_txt.open("w", encoding="utf-8") as f:
+            f.write(cabecera)
+            f.write(linea_csv + "\n")
+    except Exception as e:
+        print(f"[TXT] Error escribiendo {ruta_txt}: {e}")
+
+    # 2) Agregar al histórico "historico_etiqueta_[modelo].txt"
+    try:
+        escribir_cabecera_hist = not ruta_historico.exists() or ruta_historico.stat().st_size == 0
+        with ruta_historico.open("a", encoding="utf-8") as f:
+            if escribir_cabecera_hist:
+                f.write(cabecera)
+            f.write(linea_csv + "\n")
+    except Exception as e:
+        print(f"[TXT] Error escribiendo {ruta_historico}: {e}")
+
+    print(f"[TXT] Etiqueta actual guardada en: {ruta_txt}")
+    print(f"[TXT] Registro añadido a histórico: {ruta_historico}")
