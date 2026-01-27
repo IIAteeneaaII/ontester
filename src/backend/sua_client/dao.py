@@ -103,6 +103,9 @@ def insertar_operacion(payload, modo, id_user):
     info  = payload.get("info", {})
     tests = payload.get("tests", {})
     modo = modo.upper()
+    # Comprobar que no viene de una unitaria
+    if (modo not in  {"ETIQUETA", "TESTEO", "RETEST"}):
+        return -1
     id_station = 0
     id_settings = 0
     false_means = "FAIL"

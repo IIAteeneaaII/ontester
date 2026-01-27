@@ -456,7 +456,7 @@ class TesterView(ctk.CTkFrame):
         return resetFabrica, usb, fibra, wifi
     
     # Helper para arrancar/reanudar el loop (auto-test o monitor) creando un stop_event nuevo y evitando duplicar hilos
-    def _start_loop(self, auto_test_on_detect: bool):
+    def _start_loop(self, auto_test_on_detect: bool, start_in_monitor: bool = False):
         # stop_event nuevo:
         # - El anterior pudo quedar "set" (por cambiar de modo / detener el loop / correr una unitaria)
         # - Si lo reusamos, main_loop saldría inmediatamente
@@ -479,7 +479,8 @@ class TesterView(ctk.CTkFrame):
         self.tester_thread = threading.Thread(
             target=iniciar_testerConexion,
             args=(resetFabrica, usb, fibra, wifi, self.master.event_q, self.stop_event),
-            kwargs={"auto_test_on_detect": auto_test_on_detect},  # Clave
+            kwargs={"auto_test_on_detect": auto_test_on_detect,
+                    "start_in_monitor": start_in_monitor,},  # Clave
             daemon=True
         )
         self.tester_thread.start()
@@ -636,8 +637,8 @@ class TesterView(ctk.CTkFrame):
                 self.panel_pruebas.actualizar_estado_conexion(False)
 
                 # Si estamos en unitaria (o acaba de ocurrir), NO borres PASS/FAIL
-                if (not self._unit_running) and (time.time() >= self._suppress_cleanup_until):
-                    self._limpiezaElementos()
+                # if (not self._unit_running) and (time.time() >= self._suppress_cleanup_until):
+                self._limpiezaElementos()
             else:
                 self.panel_pruebas.actualizar_estado_conexion(True)
 
@@ -680,7 +681,10 @@ class TesterView(ctk.CTkFrame):
 
         elif kind == "resume_monitor":
             # Reanudar en MONITOR: vuelve a escaneo/pings pero NO dispara pruebas completas al detectar
-            self._start_loop(auto_test_on_detect=False)
+            # self._start_loop(auto_test_on_detect=False)
+            modo = self.modo_var.get()
+            auto = (modo in ("Testeo", "Retesteo"))
+            self._start_loop(auto_test_on_detect=auto, start_in_monitor=True)
 
     def _limpiezaElementos(self):
         # Label

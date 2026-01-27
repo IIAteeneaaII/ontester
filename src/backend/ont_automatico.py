@@ -1278,7 +1278,13 @@ def pruebaUnitariaONT(opcionesTest, out_q=None, modelo=None, stop_event=None):
     except Exception as e:
         emit("log", f"[WARN] No se pudo emitir resultados finales: {e}")
 
-    UNIT_TEST_JUST_FINISHED.set()  # Marcar que unitaria terminó
+    # Solo avisamos al loop principal para que SALTE FASE 2
+    # si la prueba unitaria fue disruptiva (reset de fábrica o actualización).
+    if disruptiva:
+        UNIT_TEST_JUST_FINISHED.set()
+    else:
+        # Nos aseguramos de no dejar un flag viejo encendido
+        UNIT_TEST_JUST_FINISHED.clear()
     emit("resume_monitor", None)
 
 # Función helper para ping único
@@ -1312,7 +1318,7 @@ def wait_for_reconnect(ip: str, grace_s: int = 240, interval_s: float = 2.0, sto
         time.sleep(interval_s)
     return False
 
-def main_loop(opciones, out_q = None, stop_event = None, auto_test_on_detect = True):
+def main_loop(opciones, out_q = None, stop_event = None, auto_test_on_detect = True, start_in_monitor=False):
     """
     Ciclo principal recursivo:
     1. Escanea red y encuentra dispositivo
@@ -1332,7 +1338,7 @@ def main_loop(opciones, out_q = None, stop_event = None, auto_test_on_detect = T
     cycle_count = 0
     last_tested_ip = None
     auto_test_default = auto_test_on_detect  # para restaurar al desconectar
-    fase2_executed = False  # Indica si ya se ejecutó fase2 en esta sesión (se resetea al desconectar)
+    fase2_executed = start_in_monitor # Indica si ya se ejecutó fase2 en esta sesión (se resetea al desconectar)
 
     def is_etiqueta_mode(opc: dict) -> bool:
         tests = (opc or {}).get("tests", {})
@@ -1405,6 +1411,7 @@ def main_loop(opciones, out_q = None, stop_event = None, auto_test_on_detect = T
                 emit("log", "Dispositivo detectado. En monitoreo tras unitaria...")
             elif fase2_executed:
                 emit("log", "Dispositivo detectado. En monitoreo: esperando acción del usuario...")
+                print("[DEBUG FASE2] Branch = FASE2_ALREADY_EXECUTED")
             elif auto_test_on_detect:
                 # Modo Testeo/Retesteo: ejecutar pruebas completas
                 print(f"\n[FASE 2/3] EJECUCIÓN DE PRUEBAS")
