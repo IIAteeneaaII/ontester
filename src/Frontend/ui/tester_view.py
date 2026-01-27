@@ -25,15 +25,14 @@ from src.Frontend.navigation.botones import (
 from src.Frontend.ui.menu_superior_view import MenuSuperiorDesplegable
 
 class TesterView(ctk.CTkFrame):
-    def __init__(self, parent, mdebug, event_q, viewmodel=None, **kwargs):
+    def __init__(self, parent, mdebug, viewmodel=None, **kwargs):
         
         #Vista
         super().__init__(parent, fg_color="#E9F5FF", **kwargs)
 
         self.viewmodel = viewmodel
         # Para la queue
-        self.event_q = event_q
-        self._polling = True
+        self._polling = False # ya no se usará
         self.stop_event = threading.Event()  # Para cancelar hilos al cambiar de modo
         self.tester_thread = None # Hilo actual del tester
         self.modelo_detectado = None  # Se actualiza cuando el backend detecta el modelo
@@ -42,7 +41,6 @@ class TesterView(ctk.CTkFrame):
         self._unit_stop_event = None  # Evento de parada para la unitaria
         self._unit_running = False
         self._suppress_cleanup_until = 0.0
-        self.after(100, self._poll_queue)
         # Paleta de colores para estados de botones (pastel)
         self.color_neutro_fg = "#4EA5D9"
         self.color_neutro_hover = "#3B8CC2"
@@ -277,7 +275,6 @@ class TesterView(ctk.CTkFrame):
         self.panel_pruebas = PanelPruebasConexion(
             self.main_content,
             modelo=None,
-            q=self.event_q,
             on_run_unit=self._run_unit_from_panel  # Callback
         )
         self.panel_pruebas.pack(side="bottom", fill="x", padx=0, pady=(0, 10)) #, expand=False
@@ -319,9 +316,11 @@ class TesterView(ctk.CTkFrame):
             self.destroy()
         except Exception:
             pass
-        nueva = view_cls(parent, modelo=None, q=self.event_q, **init_kwargs)
+        nueva = view_cls(parent, modelo=None, **init_kwargs)
         nueva.pack(fill="both", expand=True)
 
+        # El dispatcher del parent ahora apunta a la nueva vista
+        parent.dispatcher.set_target(nueva)
     def ir_a_ont_tester(self):
         pass
 
@@ -457,7 +456,7 @@ class TesterView(ctk.CTkFrame):
         return resetFabrica, usb, fibra, wifi
     
     # Helper para arrancar/reanudar el loop (auto-test o monitor) creando un stop_event nuevo y evitando duplicar hilos
-    def _start_loop(self, auto_test_on_detect: bool):
+    def _start_loop(self, auto_test_on_detect: bool, start_in_monitor: bool = False):
         # stop_event nuevo:
         # - El anterior pudo quedar "set" (por cambiar de modo / detener el loop / correr una unitaria)
         # - Si lo reusamos, main_loop saldría inmediatamente
@@ -479,8 +478,9 @@ class TesterView(ctk.CTkFrame):
         from src.backend.endpoints.conexion import iniciar_testerConexion
         self.tester_thread = threading.Thread(
             target=iniciar_testerConexion,
-            args=(resetFabrica, usb, fibra, wifi, self.event_q, self.stop_event),
-            kwargs={"auto_test_on_detect": auto_test_on_detect},  # Clave
+            args=(resetFabrica, usb, fibra, wifi, self.master.event_q, self.stop_event),
+            kwargs={"auto_test_on_detect": auto_test_on_detect,
+                    "start_in_monitor": start_in_monitor,},  # Clave
             daemon=True
         )
         self.tester_thread.start()
@@ -522,12 +522,12 @@ class TesterView(ctk.CTkFrame):
             try:
                 # 3) esperar a que muera el loop anterior
                 if prev_thread and prev_thread.is_alive():
-                    self.event_q.put(("log", "Deteniendo ciclo actual para ejecutar unitaria..."))
+                    self.master.event_q.put(("log", "Deteniendo ciclo actual para ejecutar unitaria..."))
                     prev_thread.join(timeout=20)
 
                 # si no murió, no corras unitaria encima
                 if prev_thread and prev_thread.is_alive():
-                    self.event_q.put(("log", "No se pudo detener el ciclo anterior. Ignorando unitaria."))
+                    self.master.event_q.put(("log", "No se pudo detener el ciclo anterior. Ignorando unitaria."))
                     return
 
                 # 4) correr la unitaria
@@ -535,7 +535,7 @@ class TesterView(ctk.CTkFrame):
                 iniciar_pruebaUnitariaConexion(
                     reset, soft, usb, fibra, wifi,
                     model=modelo,
-                    out_q=self.event_q,
+                    out_q=self.master.event_q,
                     stop_event=unit_stop
                 )
 
@@ -547,7 +547,7 @@ class TesterView(ctk.CTkFrame):
 
                 # 6) reanudar MONITOR SI NO fue cancelada
                 if not unit_stop.is_set():
-                    self.event_q.put(("resume_monitor", None))
+                    self.master.event_q.put(("resume_monitor", None))
 
         threading.Thread(target=worker, daemon=True).start()
 
@@ -613,78 +613,78 @@ class TesterView(ctk.CTkFrame):
         self._polling = False
         super().destroy()
 
-    def _poll_queue(self):
-        if not self._polling:
-            return
+    def on_event(self, kind, payload):
+        if kind == "log":
+            # ejemplo: mostrar en label/textbox
+            self.panel_pruebas.set_texto_superior(payload)
+            #self.lbl_texto_superior.configure(text = payload)
+        elif kind == "logSuper":
+            self.modelo_label.configure(text="Modelo: "+str(payload))
+            self.modelo_detectado = payload
+            self.panel_pruebas.modelo = payload  # Actualizar modelo en el panel
+        elif kind == "pruebas":
+            self.panel_pruebas.set_texto_inferior(payload)
+        elif kind == "con":
+            # Cuando se conecta hace una limpieza y establece que se ha conectado
+            payload_lower = str(payload).lower()
 
-        try:
-            while True:
-                kind, payload = self.event_q.get_nowait()
+            '''if "conectado" in payload_lower and "desconectado" not in payload_lower:
+                self.panel_pruebas.actualizar_estado_conexion(True)
+            else:
+                self.panel_pruebas.actualizar_estado_conexion(False)'''
+            
+            if "desconectado" in payload_lower:
+                self.panel_pruebas.actualizar_estado_conexion(False)
 
-                if kind == "log":
-                    # ejemplo: mostrar en label/textbox
-                    self.panel_pruebas.set_texto_superior(payload)
-                    #self.lbl_texto_superior.configure(text = payload)
-                elif kind == "logSuper":
-                    self.modelo_label.configure(text="Modelo: "+str(payload))
-                    self.modelo_detectado = payload
-                    self.panel_pruebas.modelo = payload  # Actualizar modelo en el panel
-                elif kind == "pruebas":
-                    self.panel_pruebas.set_texto_inferior(payload)
-                elif kind == "con":
-                    # Cuando se conecta hace una limpieza y establece que se ha conectado
-                    payload_lower = str(payload).lower()
+                # Si estamos en unitaria (o acaba de ocurrir), NO borres PASS/FAIL
+                # if (not self._unit_running) and (time.time() >= self._suppress_cleanup_until):
+                self._limpiezaElementos()
+            else:
+                self.panel_pruebas.actualizar_estado_conexion(True)
 
-                    '''if "conectado" in payload_lower and "desconectado" not in payload_lower:
-                        self.panel_pruebas.actualizar_estado_conexion(True)
-                    else:
-                        self.panel_pruebas.actualizar_estado_conexion(False)'''
-                    
-                    if "desconectado" in payload_lower:
-                        self.panel_pruebas.actualizar_estado_conexion(False)
+        elif kind == "resultados":
+            # ejemplo: pintar resultados en tu UI
+            self._render_resultados(payload)
+            # guardar en DB
+            from src.backend.sua_client.dao import insertar_operacion, extraer_by_id
+            modo = self.modo_var.get()
+            root = self.winfo_toplevel()
+            user_id = int(getattr(root, "current_user_id", None))
+            id = insertar_operacion(payload, modo, user_id)
+            payload_final = extraer_by_id(id, "operations")
+            # publicar a IOT
+            
+        elif kind == "test_individual":
+            # Actualiza el botón de una prueba individual al terminar
+            # payload = {"name": "TX_POWER", "status": "PASS"} o "FAIL"
+            test_name = payload.get("name", "").lower()
+            status = payload.get("status", "FAIL")
+            # Mapeo de nombres de test a keys de botones
+            name_to_key = {
+                "ping": "ping",
+                "ping_connectivity": "ping",
+                "factory_reset": "factory_reset",
+                "software_update": "software_update",
+                "usb_port": "usb_port",
+                "tx_power": "tx_power",
+                "rx_power": "rx_power",
+                "wifi_24ghz": "wifi_24ghz_signal",
+                "wifi_5ghz": "wifi_5ghz_signal",
+            }
+            btn_key = name_to_key.get(test_name, test_name)
+            self.panel_pruebas._set_button_status(btn_key, status)
 
-                        # Si estamos en unitaria (o acaba de ocurrir), NO borres PASS/FAIL
-                        if (not self._unit_running) and (time.time() >= self._suppress_cleanup_until):
-                            self._limpiezaElementos()
-                    else:
-                        self.panel_pruebas.actualizar_estado_conexion(True)
+        #elif kind == "test":
+            # ejemplo: actualizar un cuadrito por prueba || de momento no
+            # payload = {"nombre":"wifi_24ghz_signal","estado":"PASS","valor":"-14.6 dBm"}
+            #self._update_test(payload)
 
-                elif kind == "resultados":
-                    # ejemplo: pintar resultados en tu UI
-                    self._render_resultados(payload)
-                elif kind == "test_individual":
-                    # Actualiza el botón de una prueba individual al terminar
-                    # payload = {"name": "TX_POWER", "status": "PASS"} o "FAIL"
-                    test_name = payload.get("name", "").lower()
-                    status = payload.get("status", "FAIL")
-                    # Mapeo de nombres de test a keys de botones
-                    name_to_key = {
-                        "ping": "ping",
-                        "ping_connectivity": "ping",
-                        "factory_reset": "factory_reset",
-                        "software_update": "software_update",
-                        "usb_port": "usb_port",
-                        "tx_power": "tx_power",
-                        "rx_power": "rx_power",
-                        "wifi_24ghz": "wifi_24ghz_signal",
-                        "wifi_5ghz": "wifi_5ghz_signal",
-                    }
-                    btn_key = name_to_key.get(test_name, test_name)
-                    self.panel_pruebas._set_button_status(btn_key, status)
-
-                #elif kind == "test":
-                    # ejemplo: actualizar un cuadrito por prueba || de momento no
-                    # payload = {"nombre":"wifi_24ghz_signal","estado":"PASS","valor":"-14.6 dBm"}
-                    #self._update_test(payload)
-
-                elif kind == "resume_monitor":
-                    # Reanudar en MONITOR: vuelve a escaneo/pings pero NO dispara pruebas completas al detectar
-                    self._start_loop(auto_test_on_detect=False)
-
-        except queue.Empty:
-            pass
-
-        self.after(100, self._poll_queue)
+        elif kind == "resume_monitor":
+            # Reanudar en MONITOR: vuelve a escaneo/pings pero NO dispara pruebas completas al detectar
+            # self._start_loop(auto_test_on_detect=False)
+            modo = self.modo_var.get()
+            auto = (modo in ("Testeo", "Retesteo"))
+            self._start_loop(auto_test_on_detect=auto, start_in_monitor=True)
 
     def _limpiezaElementos(self):
         # Label

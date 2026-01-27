@@ -17,13 +17,14 @@ class ReporteGlobalView(ctk.CTkFrame):
     Vista de Reporte Global - Título, contenido central y panel de pruebas.
     """
 
-    def __init__(self, parent, modelo, q, viewmodel=None, **kwargs):
+    def __init__(self, parent, modelo, viewmodel=None, **kwargs):
         super().__init__(parent, fg_color="#E8F4F8", **kwargs)
 
         self.viewmodel = viewmodel
 
         self.modelo = modelo
-        self.q = q
+        app = self.winfo_toplevel()
+        self.q = app.event_q
         # Para almacenar los datos y referencias de las filas
         self.table_rows = []
         self.row_widgets = []
@@ -63,7 +64,7 @@ class ReporteGlobalView(ctk.CTkFrame):
         self._crear_contenido_central()
 
         # ---------- Panel de pruebas ----------
-        self.panel_pruebas = PanelPruebasConexion(self, self.modelo, self.q)
+        self.panel_pruebas = PanelPruebasConexion(self, self.modelo)
         self.panel_pruebas.grid(row=2, column=0, sticky="ew", padx=15, pady=(0, 10))
 
     # Helpers para la tabla
@@ -129,8 +130,11 @@ class ReporteGlobalView(ctk.CTkFrame):
         except Exception:
             pass
 
-        nueva = view_cls(parent, self.modelo, self.q)
+        nueva = view_cls(parent, self.modelo)
         nueva.pack(fill="both", expand=True)
+
+        # El dispatcher del parent ahora apunta a la nueva vista
+        parent.dispatcher.set_target(nueva)
 
     def ir_a_ont_tester(self):
         print("Navegando a ONT TESTER")

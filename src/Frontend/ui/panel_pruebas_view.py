@@ -57,7 +57,7 @@ class PanelPruebasConexion(ctk.CTkFrame):
     imprime un mensaje en consola).
     """
 
-    def __init__(self, parent, modelo, q, on_run_unit=None, **kwargs):
+    def __init__(self, parent, modelo, on_run_unit=None, **kwargs):
         """
         Constructor del panel.
 
@@ -75,7 +75,8 @@ class PanelPruebasConexion(ctk.CTkFrame):
 
         # Config
         self.modelo = modelo
-        self.q = q
+        app = self.winfo_toplevel()
+        self.q = app.event_q
         # -----------------------------------------------------------------
         # Apariencia general del marco contenedor
         # -----------------------------------------------------------------
@@ -297,7 +298,7 @@ class PanelPruebasConexion(ctk.CTkFrame):
         
         # Llamar a la función de pruebas unitarias
         '''from src.backend.endpoints.conexion import iniciar_pruebaUnitariaConexion
-        iniciar_pruebaUnitariaConexion(reset, soft, usb, fibra, wifi, model=self.modelo, out_q=self.q)
+        iniciar_pruebaUnitariaConexion(reset, soft, usb, fibra, wifi, model=self.modelo)
         print(f"[PanelPruebasConexion] Click en {nombre_prueba}")'''
 
         # Delegar la ejecución a TesterView (para que pueda parar el loop del modo antes)
@@ -311,7 +312,7 @@ class PanelPruebasConexion(ctk.CTkFrame):
             threading.Thread(
                 target=iniciar_pruebaUnitariaConexion,
                 args=(reset, soft, usb, fibra, wifi),
-                kwargs={"model": self.modelo, "out_q": self.q},
+                kwargs={"model": self.modelo, "out_q": self.master.event_q},
                 daemon=True
             ).start()
 

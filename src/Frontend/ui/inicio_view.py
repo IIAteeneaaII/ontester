@@ -6,6 +6,8 @@ from PIL import Image
 import queue
 #importar helper de conexion
 from src.backend.endpoints.conexion import *
+from src.Frontend.telemetry.dispatcher import EventDispatcher
+# from src.Frontend.telemetry.aws_bridge import AwsBridge  # en el futuro
 # Para poder usar imports absolutos
 root_path = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(root_path))
@@ -36,9 +38,7 @@ class InicioView(ctk.CTkFrame):
     #     "99": "Admin",
     # }
 
-    def __init__(self, parent, viewmodel=None, **kwargs):
-        # Crear el parámetro de la queue
-        self.bus_q = queue.Queue()
+    def __init__(self, parent, modelo = None, viewmodel=None, **kwargs):
         super().__init__(parent, fg_color="#E8F4F8", **kwargs)
         self.viewmodel = viewmodel
 
@@ -319,7 +319,7 @@ class InicioView(ctk.CTkFrame):
         """
         Devuelve (ok: bool, nombre: str|None)
         """
-        id_str = (id_str or "").strip()
+        id_str = int(id_str)
 
         # 1) Si tu viewmodel trae un método real:
         if self.viewmodel:
@@ -381,9 +381,11 @@ class InicioView(ctk.CTkFrame):
             self.destroy()
         except Exception:
             pass
-        nueva = view_cls(parent, mdebug=None, event_q=self.bus_q, **init_kwargs,)
+        nueva = view_cls(parent, mdebug=None, **init_kwargs,)
         nueva.pack(fill="both", expand=True)
 
+        # El dispatcher del parent ahora apunta a la nueva vista
+        parent.dispatcher.set_target(nueva)
     def _on_comenzar(self):
         if not self.usuario_id:
             return
@@ -394,6 +396,10 @@ class InicioView(ctk.CTkFrame):
         root = self.winfo_toplevel()
         root.current_user_id = str(self.usuario_id)
         root.current_user_name = str(self.usuario_nombre)
+
+        # Almacenar en user_station
+        from src.backend.endpoints.conexion import inicializaruserStation
+        inicializaruserStation(int(self.usuario_id))
 
         from src.Frontend.ui.tester_view import TesterView
         self._swap_view(TesterView, viewmodel=self.viewmodel)
@@ -409,6 +415,18 @@ def run_app():
     app.geometry("1200x650")
     app.minsize(900, 550)
 
+    # Crear el dispatcher, la q y aws_bridge
+    app.event_q = queue.Queue()
+    app.aws_bridge = None 
+    app.dispatcher = EventDispatcher(
+        root=app,
+        event_q=app.event_q,
+        aws_bridge=app.aws_bridge,
+        interval_ms=20,
+        max_per_tick=200
+    )
+    app.dispatcher.start()
+
     view = InicioView(app)
     view.pack(fill="both", expand=True)
     icon_path = (
@@ -421,6 +439,26 @@ def run_app():
             / "ont.ico"
         )
     app.iconbitmap(str(icon_path))
+
+    # Poner target en el dispatcher
+    app.dispatcher.set_target(view)
+    def on_close():
+        try:
+            app.dispatcher.stop()
+        except Exception:
+            pass
+        try:
+            if app.aws_bridge:
+                app.aws_bridge.stop()
+        except Exception:
+            pass
+        try:
+            from src.backend.sua_client.dao import clear_user_station
+            clear_user_station()
+        except Exception:
+            pass
+        app.destroy()
+    app.protocol("WM_DELETE_WINDOW", on_close)
     app.mainloop()
 
 if __name__ == "__main__":

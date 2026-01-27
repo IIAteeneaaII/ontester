@@ -67,3 +67,6 @@ Thumbs.db
 
 # Chrome driver
 /src/backend/drivers
+
+# Settings
+src/backend/sua_client/settings.py
