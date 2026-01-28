@@ -1532,14 +1532,33 @@ class FiberMixin:
                     # Extraer información post-reset para verificar estado
                     print("[TEST] Extrayendo información post-reset...")
                     try:
-                        # Intentar extraer info básica
-                        base_info = self._extract_base_info()
-                        if base_info:
-                            self.test_results['metadata']['base_info'] = base_info
-                            result["details"]["post_reset_info"] = "Extracted"
-                            print("[TEST] Información actualizada correctamente")
+                        # 1) Refrescar base_info solo con los campos que cambian
+                        meta = self.test_results.setdefault("metadata", {})
+                        base_prev = meta.get("base_info", {})
+                        base_new = self._extract_base_info() or {}
+
+                        merged = dict(base_prev)  # Copiar previos
+                        merged.update(base_new)  # Actualizar con nuevos
+
+                        # 2) Refrescar SSIDs
+                        wifi_info = self._extract_wifi_allwan() or self._extract_wifi_info()
+                        if wifi_info:
+                            merged["wifi_info"] = wifi_info
+                        
+                        meta["base_info"] = merged
+
+                        # 3) Refrescar password
+                        pw = self._extract_wifi_password_selenium() or {}
+                        if pw:
+                            extra = self.test_results.setdefault('additional_info', {})
+                            wifi_extra = extra.setdefault('wifi_info', {})
+                            wifi_extra['psw'] = pw
+
+                        result["details"]["post_reset_base_info"] = "WiFi refrescado"
+                        print("[TEST] Información post-reset refrescada correctamente.")
+
                     except Exception as e:
-                        print(f"[WARNING] No se pudo extraer info post-reset: {e}")
+                        print(f"[WARNING] No se pudo refrescar info post-reset: {e}")
                         
                 else:
                     result["status"] = "FAIL"
