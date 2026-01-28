@@ -16,7 +16,7 @@ class IoTClient:
     def connect(self):
         """Conecta a AWS IoT Core"""
         try:
-            self.client = mqtt.Client(client_id="iotconsole-cd4cc687-4f72-4563-a4ab-b968b716cb80")
+            self.client = mqtt.Client(client_id=self.station_id)
             
             # Configurar TLS
             self.client.tls_set(
