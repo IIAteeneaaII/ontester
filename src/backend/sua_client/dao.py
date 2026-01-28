@@ -267,5 +267,7 @@ def get_usuarios_activos() -> dict[int, str]:
 def get_baseDiaria_view(date):
     with get_conn() as con:
         cur = con.execute(
-            "SELECT sn, mac, wifi24, wifi5, passWifi, valido, tipo, modelo, fecha_test FROM operations;"
+            "SELECT sn, mac, wifi24, wifi5, passWifi, valido, tipo, modelo, fecha_test " \
+            "FROM operations" \
+            "WHERE date;"
         )
