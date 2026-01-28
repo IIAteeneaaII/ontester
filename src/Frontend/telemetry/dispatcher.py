@@ -38,7 +38,7 @@ class EventDispatcher:
                     self._target.on_event(kind, payload)
 
                 # 2) AWS: solo encolar (NO publicar aquí)
-                if self.aws_bridge and kind in {"con", "resultados", "logSuper", "pruebas"}:
+                if self.aws_bridge and kind in {"con", "resultados2", "logSuper", "pruebas"}:
                     self.aws_bridge.start()
                     self.aws_bridge.enqueue(kind, payload, ctx={
                         "pc_id": getattr(self.root, "pc_id", "UNKNOWN"),

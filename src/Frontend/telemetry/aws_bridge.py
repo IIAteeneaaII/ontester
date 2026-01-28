@@ -33,9 +33,10 @@ class AwsBridge:
 
     def enqueue(self, kind, payload, ctx=None):
         evt = {"kind": kind, "payload": payload, "ctx": ctx or {}, "ts": time.time()}
-        print("[AWS-ENQUEUE]", kind)
+        
         try:
             self.q.put_nowait(evt)  # nunca bloquea UI
+            print("[AWS-ENQUEUE]", kind)
         except queue.Full:
             # política: drop o spool (por ahora drop)
             pass
@@ -49,7 +50,7 @@ class AwsBridge:
 
             kind = evt["kind"]
             payload = evt["payload"]
-            print("[AWS-PUBLISH]", kind)
+            
             try:
                 # Mapea tus kinds a publish
                 if kind == "resultados":
@@ -61,8 +62,10 @@ class AwsBridge:
                         # formato nuevo (tu JSON plano completo)
                         ok = publisher.publish_event("resultados", payload)
                 else:
-                    publisher.publish_event(kind, payload)
+                     ok = publisher.publish_event(kind, payload)
 
+                if ok:
+                    print("[AWS-PUBLISH]", kind)
             except Exception:
                 # Si algo falla (red), desconecta y espera un poco.
                 # La siguiente iteración reconecta vía get_client()

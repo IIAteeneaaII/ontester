@@ -659,7 +659,7 @@ class TesterView(ctk.CTkFrame):
                 def emit(kind, payload):
                             if self.master.event_q:
                                 self.master.event_q.put((kind, payload))
-                emit("resultados", pay)
+                emit("resultados2", pay)
         elif kind == "test_individual":
             # Actualiza el botón de una prueba individual al terminar
             # payload = {"name": "TX_POWER", "status": "PASS"} o "FAIL"

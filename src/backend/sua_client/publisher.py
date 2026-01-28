@@ -2,31 +2,17 @@
 Módulo simplificado para publicar eventos desde cualquier parte de la aplicación
 """
 from .iot_client import IoTClient
-import threading
 
 # Cliente global
 _iot_client = None
-_lock = threading.Lock()
 
 def get_client():
     """Obtiene el cliente IoT (singleton)"""
     global _iot_client
-    with _lock:
-        if _iot_client is None:
-            _iot_client = IoTClient()
-            _iot_client.connect()
-            return _iot_client
-
-        # reconectar si se cayó
-        if (not _iot_client.client) or (not _iot_client.client.is_connected()):
-            try:
-                _iot_client.disconnect()
-            except Exception:
-                pass
-            _iot_client = IoTClient()
-            _iot_client.connect()
-
-        return _iot_client
+    if _iot_client is None:
+        _iot_client = IoTClient()
+        _iot_client.connect()
+    return _iot_client
 
 def publish_event(event_type, data=None):
     """Publica un evento"""
