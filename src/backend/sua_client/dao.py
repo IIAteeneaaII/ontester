@@ -100,6 +100,7 @@ def insertar_operacion(payload, modo, id_user):
     # Función para agregar datos del tester a la bd sqlite
     # Por el diseño de la bd cada prueba a la que no se le asigne valor tendrá por defecto SIN PRUEBA
     # Tratamiento de la payload
+    print(f"[DAO] La payload a insertar es: {payload}")
     info  = payload.get("info", {})
     tests = payload.get("tests", {})
     modo = modo.upper()

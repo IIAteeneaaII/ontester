@@ -7,6 +7,7 @@ import queue
 #importar helper de conexion
 from src.backend.endpoints.conexion import *
 from src.Frontend.telemetry.dispatcher import EventDispatcher
+from src.Frontend.telemetry.aws_bridge import AwsBridge
 # from src.Frontend.telemetry.aws_bridge import AwsBridge  # en el futuro
 # Para poder usar imports absolutos
 root_path = Path(__file__).parent.parent.parent.parent
@@ -405,7 +406,6 @@ class InicioView(ctk.CTkFrame):
         self._swap_view(TesterView, viewmodel=self.viewmodel)
 
 
-# Test rápido
 def run_app():
     ctk.set_appearance_mode("light")
     ctk.set_default_color_theme("blue")
@@ -417,7 +417,7 @@ def run_app():
 
     # Crear el dispatcher, la q y aws_bridge
     app.event_q = queue.Queue()
-    app.aws_bridge = None 
+    app.aws_bridge = AwsBridge()
     app.dispatcher = EventDispatcher(
         root=app,
         event_q=app.event_q,

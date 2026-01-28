@@ -1,6 +1,11 @@
 import sys
 from pathlib import Path
+import uuid
 
+def get_pc_id_from_mac_suffix(prefix="ONT") -> str:
+    mac = uuid.getnode()
+    mac_hex = f"{mac:012x}".upper()
+    return f"{prefix}-{mac_hex[-6:]}"  # ONT-3A9F2C
 
 def resource_path(*relative_parts: str) -> Path:
     """

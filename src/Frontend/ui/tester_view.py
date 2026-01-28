@@ -6,7 +6,7 @@ from datetime import datetime
 from PIL import Image
 # Para correr el back  y actualizar elementos
 import threading
-import queue
+import json
 import time
 from src.Frontend.ui.panel_pruebas_view import PanelPruebasConexion
 
@@ -651,9 +651,15 @@ class TesterView(ctk.CTkFrame):
             root = self.winfo_toplevel()
             user_id = int(getattr(root, "current_user_id", None))
             id = insertar_operacion(payload, modo, user_id)
-            payload_final = extraer_by_id(id, "operations")
             # publicar a IOT
-            
+            if id != -1: # -1 -> prueba unitaria, no mandar
+                payload_final = extraer_by_id(id, "operations")
+                pay = dict(payload_final)
+                print(f"[PRE AWS] La payload a enviar será: {pay}")
+                def emit(kind, payload):
+                            if self.master.event_q:
+                                self.master.event_q.put((kind, payload))
+                emit("resultados", pay)
         elif kind == "test_individual":
             # Actualiza el botón de una prueba individual al terminar
             # payload = {"name": "TX_POWER", "status": "PASS"} o "FAIL"
