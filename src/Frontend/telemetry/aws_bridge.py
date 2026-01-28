@@ -61,6 +61,8 @@ class AwsBridge:
                     else:
                         # formato nuevo (tu JSON plano completo)
                         ok = publisher.publish_event("resultados", payload)
+                elif kind == "resultados2":
+                        ok = publisher.publish_test_result(payload["test_type"], payload["data"])
                 else:
                      ok = publisher.publish_event(kind, payload)
 

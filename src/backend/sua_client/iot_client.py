@@ -45,7 +45,7 @@ class IoTClient:
             self._publish_presence("online")
             
             # Iniciar heartbeat
-            self._start_heartbeat()
+            # self._start_heartbeat()
             
             print(f"Conectado a AWS IoT como estación {self.station_id}")
             return True
