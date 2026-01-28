@@ -263,3 +263,9 @@ def get_usuarios_activos() -> dict[int, str]:
     with get_conn() as con:
         cur = con.execute("SELECT id, name FROM users WHERE activo = 1;")
         return {row["id"]: row["name"] for row in cur.fetchall()}
+    
+def get_baseDiaria_view(date):
+    with get_conn() as con:
+        cur = con.execute(
+            "SELECT sn, mac, wifi24, wifi5, passWifi, valido, tipo, modelo, fecha_test FROM operations;"
+        )
