@@ -718,7 +718,7 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
         # Traer los resultados de la prueba
         res = resultados
         # Versión del software
-        version_ont = "BETA"
+        version_ont = "1.4.3"
 
         # Encabezados
         HEADERS = [
