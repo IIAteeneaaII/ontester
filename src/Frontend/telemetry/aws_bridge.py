@@ -57,12 +57,12 @@ class AwsBridge:
                     # payload ideal: {"test_type": "...", "data": {...}}
                     if isinstance(payload, dict) and "test_type" in payload and "data" in payload:
                         # formato viejo
-                        ok = publisher.publish_test_result(payload["test_type"], payload["data"])
+                        ok = publisher.publish_test_result(payload["tipo"], payload["data"])
                     else:
                         # formato nuevo (tu JSON plano completo)
                         ok = publisher.publish_event("resultados", payload)
                 elif kind == "resultados2":
-                        ok = publisher.publish_test_result(payload["test_type"], payload["data"])
+                        ok = publisher.publish_test_result(payload["tipo"], payload)
                 else:
                      ok = publisher.publish_event(kind, payload)
 

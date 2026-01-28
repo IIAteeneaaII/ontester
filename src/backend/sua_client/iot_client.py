@@ -100,11 +100,11 @@ class IoTClient:
         """Publica resultado de prueba (testeo/retest/etiqueta)"""
         topic = TOPIC_TEST_RESULTS.format(station_id=self.station_id)
         payload = {
-            "test_type": test_type,  # ETIQUETA, TESTEO, RETEST
+            "event": test_type or "NaN",  # ETIQUETA, TESTEO, RETEST
             "station_id": self.station_id,
             "env": ENVIRONMENT,
             "timestamp": datetime.now().isoformat(),
-            "result": result_data
+            "data": result_data or {}
         }
         self._publish(topic, payload)
     
