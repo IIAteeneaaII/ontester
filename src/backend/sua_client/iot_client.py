@@ -4,7 +4,7 @@ import json
 import time
 import threading
 from datetime import datetime
-from .settings import *
+#from .settings import *
 
 class IoTClient:
     def __init__(self, station_id=None):
