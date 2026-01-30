@@ -253,6 +253,14 @@ def update_settings(id_wifi, id_fibra, id_settings):
         )
         con.commit()
 
+def insertar_version(version: str) -> None:
+    with get_conn() as con:
+        con.execute(
+            "INSERT INTO catalog_meta (version, updated_at) VALUES (?, ?);",
+            (version, now_local_iso())
+        )
+        con.commit()
+
 def existe_valor_en_campo(table_name: str, campo: str, valor) -> bool:
     with get_conn() as con:
         # 1) validar que la tabla exista
@@ -295,7 +303,7 @@ def get_usuarios_activos() -> dict[int, str]:
 def get_baseDiaria_view(date):
     with get_conn() as con:
         cur = con.execute("""
-            SELECT sn, mac, wifi24, wifi5, passWifi, valido, tipo, modelo, fecha_test
+            SELECT id, sn, mac, wifi24, wifi5, passWifi, valido, tipo, modelo, fecha_test
             FROM operations
             WHERE substr(fecha_test, 1, 10) = ?
             ORDER BY fecha_test ASC;
@@ -305,16 +313,53 @@ def get_baseDiaria_view(date):
 
 def get_baseGlobal_view():
     with get_conn() as con:
-        cur = con.execute("""
+        rows = con.execute("""
             SELECT
-              o.sn, o.mac, o.sftU, o.sftVer, o.modelo, o.fecha_test,
-              cm.version,
-              o.wifi24, o.wifi5, o.passWifi, o.valido
+                o.id,
+                o.sn,
+                o.mac,
+                o.sftVer  AS version_inicial,
+                o.sftU    AS version_final,
+                o.modelo,
+                o.fecha_test,
+                cm.version AS version_ont_tester,
+                o.wifi24  AS ssid_24,
+                o.wifi5   AS ssid_5,
+                o.passWifi AS password,
+                o.valido
             FROM operations o
             JOIN catalog_meta cm
               ON cm.id = o.id_catalog_meta
-            ORDER BY o.fecha_test ASC;
+            ORDER BY o.fecha_test ASC, o.id ASC;
         """).fetchall()
-        con.commit()
-        return cur
+        return rows
+
+
+def get_baseGlobal_por_dia(day: str):
+    """
+    day en formato 'YYYY-MM-DD'
+    """
+    with get_conn() as con:
+        rows = con.execute("""
+            SELECT
+                o.id,
+                o.sn,
+                o.mac,
+                o.sftVer  AS version_inicial,
+                o.sftU    AS version_final,
+                o.modelo,
+                o.fecha_test,
+                cm.version AS version_ont_tester,
+                o.wifi24  AS ssid_24,
+                o.wifi5   AS ssid_5,
+                o.passWifi AS password,
+                o.valido
+            FROM operations o
+            JOIN catalog_meta cm
+              ON cm.id = o.id_catalog_meta
+            WHERE substr(o.fecha_test, 1, 10) = ?
+            ORDER BY o.fecha_test ASC, o.id ASC;
+        """, (day,)).fetchall()
+        return rows
+
     

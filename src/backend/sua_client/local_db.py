@@ -29,6 +29,9 @@ def init_db() -> None:
         conn.executescript(sql)
         # verificar que no esté vacía la tabla de settings y cargar datos iniciales
         registros_iniciales(conn)
+        # Registrar version actual
+        from src.backend.sua_client.dao import insertar_version
+        insertar_version("1.4.3.1")
         conn.commit()
 
 def registros_iniciales(con: sqlite3.Connection):
