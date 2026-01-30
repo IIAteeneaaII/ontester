@@ -4,9 +4,9 @@ PRAGMA foreign_keys = ON;
 -- 1) Tabla catalog_meta
 -- ===========================
 CREATE TABLE IF NOT EXISTS catalog_meta (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    version     INTEGER NOT NULL,
-    updated_at  TEXT    NOT NULL
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  version    TEXT NOT NULL,
+  updated_at TEXT    NOT NULL
 );
 
 -- ===========================
@@ -95,7 +95,8 @@ CREATE TABLE IF NOT EXISTS operations (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
     id_station   INTEGER NOT NULL,
     id_user      INTEGER NOT NULL,
-    id_settings  INTEGER,
+    id_settings  INTEGER NOT NULL,
+    id_catalog_meta INTEGER NOT NULL,
 
     tipo         TEXT    NOT NULL,        -- enum tipo_operacion
     fecha_test   TEXT    NOT NULL,        -- 'YYYY-MM-DD HH:MM:SS'
@@ -121,6 +122,9 @@ CREATE TABLE IF NOT EXISTS operations (
     FOREIGN KEY (id_station)  REFERENCES stations(id),
     FOREIGN KEY (id_user)     REFERENCES users(id),
     FOREIGN KEY (id_settings) REFERENCES settings(id),
+    FOREIGN KEY (id_catalog_meta) REFERENCES catalog_meta(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
 
     CHECK (tipo IN ('ETIQUETA','TESTEO','RETEST')),
     CHECK (ping  IN ('PASS','FAIL','SIN_PRUEBA')),

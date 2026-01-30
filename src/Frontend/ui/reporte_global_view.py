@@ -448,40 +448,34 @@ class ReporteGlobalView(ctk.CTkFrame):
         mes = int(mes)
         anio = int(anio)
         d = date(anio, mes, dia)
-        from src.backend.endpoints.conexion import _get_report_path_for
-        ruta_csv = _get_report_path_for(d)
+        day = d.isoformat()  # 'YYYY-MM-DD'
+        from src.backend.sua_client.dao import get_baseGlobal_por_dia
+        data = get_baseGlobal_por_dia(day)
 
-        if not ruta_csv.exists():
-            print("No existe archivo para esa fecha.")
+        if not data:
             self._set_table_rows([])
             self.equipos_count_label.configure(text="0")
             return
 
         rows = []
-        with ruta_csv.open(newline="", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
+        for r in data:
+            status = "PASS" if int(r["valido"] or 0) == 1 else "FAIL"
 
-            for row in reader:
-                # HEADERS en tu CSV:
-                # "ID", "SN", "MAC", "SSID_24", "SSID_5", "PASSWORD",
-                # "MODELO", "STATUS", "VERSION_INICIAL", "VERSION_FINAL",
-                # "TIPO_PRUEBA", "FECHA", "VERSION_ONT_TESTER"
-
-                fila = [
-                    row.get("ID", ""),
-                    row.get("SN", ""),                 # SERIE
-                    row.get("MAC", ""),
-                    row.get("VERSION_INICIAL", ""),
-                    row.get("VERSION_FINAL", ""),
-                    row.get("MODELO", ""),
-                    row.get("FECHA", ""),              # FECHA_DE_PRUEBA
-                    row.get("VERSION_ONT_TESTER", ""), # VERSION_DE_ONT_TES
-                    row.get("SSID_24", ""),            # SSID
-                    row.get("SSID_5", ""),             # SSID5
-                    row.get("PASSWORD", ""),           # CONTRASEÑA
-                    row.get("STATUS", ""),
-                ]
-                rows.append(fila)
+            fila = [
+                r["id"],
+                r["sn"],
+                r["mac"],
+                r["version_inicial"] or "",
+                r["version_final"] or "",
+                r["modelo"] or "",
+                r["fecha_test"] or "",
+                r["version_ont_tester"] or "",
+                r["ssid_24"] or "",
+                r["ssid_5"] or "",
+                r["password"] or "",
+                status,
+            ]
+            rows.append(fila)
 
         self._set_table_rows(rows)
         self.equipos_count_label.configure(text=str(len(rows)))
@@ -489,54 +483,33 @@ class ReporteGlobalView(ctk.CTkFrame):
     def cargar_base_global(self):
         """Carga la base de datos global."""
         print("Cargando base global...")
-        base_dir = Path(r"C:\ONT")
-        reports_dir = base_dir / "Reportes diarios"
+        from src.backend.sua_client.dao import get_baseGlobal_view
+        data = get_baseGlobal_view()
 
-        if not reports_dir.exists():
-            print("No existe la carpeta de reportes.")
-            # Limpia tabla
-            self._set_table_rows([])
-            self.equipos_count_label.configure(text="0")
-            return
-
-        # Buscar todos los archivos reportes_YYYY-MM-DD.csv
-        files = sorted(reports_dir.glob("reportes_*.csv"))  # ordenados por nombre (fecha)
-        if not files:
-            print("No hay archivos CSV en la carpeta de reportes.")
+        if not data:
             self._set_table_rows([])
             self.equipos_count_label.configure(text="0")
             return
 
         rows = []
+        for r in data:
+            status = "PASS" if int(r["valido"] or 0) == 1 else "FAIL"
+            fila = [
+                r["id"],
+                r["sn"],
+                r["mac"],
+                r["version_inicial"] or "",
+                r["version_final"] or "",
+                r["modelo"] or "",
+                r["fecha_test"] or "",
+                r["version_ont_tester"] or "",
+                r["ssid_24"] or "",
+                r["ssid_5"] or "",
+                r["password"] or "",
+                status,
+            ]
+            rows.append(fila)
 
-        for fpath in files:
-            with fpath.open(newline="", encoding="utf-8") as f:
-                reader = csv.DictReader(f)
-
-                for row in reader:
-                    # Mapeo CSV -> columnas de la tabla:
-                    # headers = [
-                    #   "ID", "SERIE", "MAC", "VERSION_INICIAL", "VERSION_FINAL",
-                    #   "MODELO", "FECHA_DE_PRUEBA", "VERSION_DE_ONT_TES",
-                    #   "SSID", "SSID5", "CONTRASEÑA", "STATUS"
-                    # ]
-                    fila = [
-                        row.get("ID", ""),
-                        row.get("SN", ""),                 # SERIE
-                        row.get("MAC", ""),
-                        row.get("VERSION_INICIAL", ""),
-                        row.get("VERSION_FINAL", ""),
-                        row.get("MODELO", ""),
-                        row.get("FECHA", ""),              # FECHA_DE_PRUEBA
-                        row.get("VERSION_ONT_TESTER", ""), # VERSION_DE_ONT_TES
-                        row.get("SSID_24", ""),            # SSID
-                        row.get("SSID_5", ""),             # SSID5
-                        row.get("PASSWORD", ""),           # CONTRASEÑA
-                        row.get("STATUS", ""),
-                    ]
-                    rows.append(fila)
-
-        # Pintar todo en la tabla
         self._set_table_rows(rows)
         self.equipos_count_label.configure(text=str(len(rows)))
 

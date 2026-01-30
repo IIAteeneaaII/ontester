@@ -1,7 +1,11 @@
 # Metodos para la bd
 import sqlite3
 from src.backend.sua_client.local_db import get_conn
+from datetime import datetime
 
+def now_local_iso():
+    # ISO con zona local (ej: 2026-01-21T15:33:05-06:00)
+    return datetime.now().astimezone().isoformat(timespec="seconds")
 
 def obtenerTablas():
     # with hace que la conexion a la bd se cierre sola
@@ -103,17 +107,26 @@ def insertar_operacion(payload, modo, id_user):
     info  = payload.get("info", {})
     tests = payload.get("tests", {})
     modo = modo.upper()
+
+    # Obtener version
+    versRow = extraer_ultimo("catalog_meta")
+    vers = versRow["id"]
+
     # Comprobar que no viene de una unitaria
     if (modo not in  {"ETIQUETA", "TESTEO", "RETEST"}):
         return -1
-    id_station = 0
-    id_settings = 0
+    
+    ultimoStationUser = get_ultimo_user_station_por_usuario(id_user)
+    id_station =  ultimoStationUser["id_station"] # Extraer de tabla user_stations
+    ultima_setting = extraer_ultimo("settings") 
+    id_settings =  ultima_setting["id"] # Extraer el ultimo
     false_means = "FAIL"
     from src.backend.endpoints.conexion import norm_result, norm_power
     params = {
         "id_station":  id_station,  # Estos parametros (station, settings) deben leerse desde la bd (config)
         "id_user":     id_user,     # Se pasa desde la llamada
         "id_settings": id_settings, # Se lee desde bd
+        "id_catalog_meta": vers,
         "tipo":        modo,
 
         "fecha_test": info.get("fecha_test"),
@@ -141,12 +154,12 @@ def insertar_operacion(payload, modo, id_user):
 
     sql = """
     INSERT INTO operations (
-        id_station, id_user, id_settings, tipo,
+        id_station, id_user, id_settings, id_catalog_meta, tipo,
         fecha_test, modelo, sn, mac, sftVer, wifi24, wifi5, passWifi,
         ping, reset, usb, tx, rx, w24, w5, sftU,
         valido
     ) VALUES (
-        :id_station, :id_user, :id_settings, :tipo,
+        :id_station, :id_user, :id_settings, :id_catalog_meta, :tipo,
         :fecha_test, :modelo, :sn, :mac, :sftVer, :wifi24, :wifi5, :passWifi,
         :ping, :reset, :usb, :tx, :rx, :w24, :w5, :sftU,
         :valido
@@ -156,6 +169,21 @@ def insertar_operacion(payload, modo, id_user):
         cur = con.execute(sql, params)
         con.commit()
         return cur.lastrowid
+
+def get_ultimo_user_station_por_usuario(id_user: int):
+    """
+    Regresa el último registro (más reciente) de user_station para ese id_user,
+    o None si no existe.
+    """
+    with get_conn() as con:
+        row = con.execute("""
+            SELECT id, id_user, id_station
+            FROM user_station
+            WHERE id_user = ?
+            ORDER BY id DESC
+            LIMIT 1;
+        """, (id_user,)).fetchone()
+        return row
 
 def insertar_settings():
     # Función pensada para añadir una row en settings con valores default
@@ -225,6 +253,14 @@ def update_settings(id_wifi, id_fibra, id_settings):
         )
         con.commit()
 
+def insertar_version(version: str) -> None:
+    with get_conn() as con:
+        con.execute(
+            "INSERT INTO catalog_meta (version, updated_at) VALUES (?, ?);",
+            (version, now_local_iso())
+        )
+        con.commit()
+
 def existe_valor_en_campo(table_name: str, campo: str, valor) -> bool:
     with get_conn() as con:
         # 1) validar que la tabla exista
@@ -263,3 +299,67 @@ def get_usuarios_activos() -> dict[int, str]:
     with get_conn() as con:
         cur = con.execute("SELECT id, name FROM users WHERE activo = 1;")
         return {row["id"]: row["name"] for row in cur.fetchall()}
+    
+def get_baseDiaria_view(date):
+    with get_conn() as con:
+        cur = con.execute("""
+            SELECT id, sn, mac, wifi24, wifi5, passWifi, valido, tipo, modelo, fecha_test
+            FROM operations
+            WHERE substr(fecha_test, 1, 10) = ?
+            ORDER BY fecha_test ASC;
+        """, (date,)).fetchall()
+        con.commit()
+        return cur
+
+def get_baseGlobal_view():
+    with get_conn() as con:
+        rows = con.execute("""
+            SELECT
+                o.id,
+                o.sn,
+                o.mac,
+                o.sftVer  AS version_inicial,
+                o.sftU    AS version_final,
+                o.modelo,
+                o.fecha_test,
+                cm.version AS version_ont_tester,
+                o.wifi24  AS ssid_24,
+                o.wifi5   AS ssid_5,
+                o.passWifi AS password,
+                o.valido
+            FROM operations o
+            JOIN catalog_meta cm
+              ON cm.id = o.id_catalog_meta
+            ORDER BY o.fecha_test ASC, o.id ASC;
+        """).fetchall()
+        return rows
+
+
+def get_baseGlobal_por_dia(day: str):
+    """
+    day en formato 'YYYY-MM-DD'
+    """
+    with get_conn() as con:
+        rows = con.execute("""
+            SELECT
+                o.id,
+                o.sn,
+                o.mac,
+                o.sftVer  AS version_inicial,
+                o.sftU    AS version_final,
+                o.modelo,
+                o.fecha_test,
+                cm.version AS version_ont_tester,
+                o.wifi24  AS ssid_24,
+                o.wifi5   AS ssid_5,
+                o.passWifi AS password,
+                o.valido
+            FROM operations o
+            JOIN catalog_meta cm
+              ON cm.id = o.id_catalog_meta
+            WHERE substr(o.fecha_test, 1, 10) = ?
+            ORDER BY o.fecha_test ASC, o.id ASC;
+        """, (day,)).fetchall()
+        return rows
+
+    

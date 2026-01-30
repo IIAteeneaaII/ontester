@@ -92,7 +92,7 @@ class TesterView(ctk.CTkFrame):
         self.modo_menu = ctk.CTkOptionMenu(
             left_frame,
             variable=self.modo_var,
-            values=["Testeo", "Retesteo", "Etiqueta"],
+            values=["Testeo", "Retesteo", "Etiqueta", "Monitoreo"],
             command=self.cambiar_modo,
             font=ctk.CTkFont(size=16, weight="bold"),
             height=36,
@@ -418,13 +418,29 @@ class TesterView(ctk.CTkFrame):
             self._set_all_buttons_state("active")
         elif modo == "Etiqueta":
             self._set_all_buttons_state("inactive")
+        elif modo == "Monitoreo":
+            self._set_all_buttons_state("inactive")
         # Arrancar loop según modo:
         # - Testeo / Retesteo: sí corre pruebas completas al detectar
         # - Etiqueta: normalmente NO corre pruebas (monitor)
         if modo in ("Testeo", "Retesteo"):
             self.setOpcionesView(auto_test_on_detect=True)
+        elif modo == "Monitoreo":
+            self._start_monitor_loop()
+            return
         else:
             self.setOpcionesView(auto_test_on_detect=False)
+
+    def _start_monitor_loop(self):
+        self.stop_event = threading.Event()
+
+        from src.backend.endpoints.monitoreo import iniciar_monitoreo
+        self.tester_thread = threading.Thread(
+            target=iniciar_monitoreo,
+            args=(self.master.event_q, self.stop_event),  # pásalo también
+            daemon=True
+        )
+        self.tester_thread.start()
 
     def setOpcionesView(self, auto_test_on_detect: bool = True):
         # Arranca/reanuda el loop según el modo (auto-test o monitor)
