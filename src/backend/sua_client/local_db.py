@@ -31,7 +31,7 @@ def init_db() -> None:
         registros_iniciales(conn)
         # Registrar version actual
         from src.backend.sua_client.dao import insertar_version
-        insertar_version("1.4.3.1")
+        insertar_version("1.4.3.2")
         conn.commit()
 
 def registros_iniciales(con: sqlite3.Connection):
@@ -61,7 +61,7 @@ def registros_iniciales(con: sqlite3.Connection):
 
         # id || version || updated_at
         catalog = [
-            (0, "1.4.3-", now)
+            (0, "1.4.3.2", now)
         ]
 
         # id || descripcion || activo || update_at || id_settings || created_at
