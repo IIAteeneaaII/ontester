@@ -1,0 +1,45 @@
+# -*- mode: python ; coding: utf-8 -*-
+
+
+a = Analysis(
+    ['main.py'],
+    pathex=[],
+    binaries=[('src/backend/drivers/chromedriver.exe', 'backend/drivers')],
+    datas=[('src', 'src'), ('src/backend/drivers/chrome', 'backend/drivers/chrome')],
+    hiddenimports=[],
+    hookspath=[],
+    hooksconfig={},
+    runtime_hooks=[],
+    excludes=[],
+    noarchive=False,
+    optimize=0,
+)
+pyz = PYZ(a.pure)
+
+exe = EXE(
+    pyz,
+    a.scripts,
+    [],
+    exclude_binaries=True,
+    name='ONTTesterv1.4.3.2.1',
+    debug=False,
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=True,
+    console=False,
+    disable_windowed_traceback=False,
+    argv_emulation=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
+    icon=['src\\Frontend\\assets\\icons\\ont_tester.ico'],
+)
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.datas,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    name='ONTTesterv1.4.3.2.1',
+)
