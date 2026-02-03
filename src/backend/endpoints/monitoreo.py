@@ -41,4 +41,4 @@ def iniciar_monitoreo(out_q=None, stop_event=None):
             emit("con", "DESCONECTADO")
             emit("log", "[MON] Desconectado")
 
-        time.sleep(1)
+        time.sleep(0.5)
