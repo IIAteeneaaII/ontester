@@ -10,6 +10,7 @@ def get_conn() -> sqlite3.Connection:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON;")
     return conn
 
 def _schema_path() -> Path:
@@ -28,6 +29,9 @@ def init_db() -> None:
         conn.executescript(sql)
         # verificar que no esté vacía la tabla de settings y cargar datos iniciales
         registros_iniciales(conn)
+        # Registrar version actual
+        from src.backend.sua_client.dao import insertar_version
+        insertar_version("1.4.3.1")
         conn.commit()
 
 def registros_iniciales(con: sqlite3.Connection):
@@ -53,6 +57,11 @@ def registros_iniciales(con: sqlite3.Connection):
         # id || id_wifi || id_fibra || etiqueta
         settings = [
             (0, 0, 0, 2)
+        ]
+
+        # id || version || updated_at
+        catalog = [
+            (0, "1.4.3-", now)
         ]
 
         # id || descripcion || activo || update_at || id_settings || created_at
@@ -207,6 +216,11 @@ def registros_iniciales(con: sqlite3.Connection):
         con.executemany(
             "INSERT OR IGNORE INTO settings (id, id_wifi, id_fibra, etiqueta) VALUES (?, ?, ?, ?);",
             settings
+        )
+
+        con.executemany(
+            "INSERT OR IGNORE INTO catalog_meta (id, version, updated_at) VALUES (?, ?, ?);",
+            catalog
         )
 
         con.executemany(

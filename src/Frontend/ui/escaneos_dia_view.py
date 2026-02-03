@@ -326,38 +326,37 @@ class EscaneosDiaView(ctk.CTkFrame):
         self.load_daily_records()
 
     def load_daily_records(self):
-        from src.backend.endpoints.conexion import get_daily_report_path
-        ruta_csv = get_daily_report_path()
+        from datetime import datetime
+        from src.backend.sua_client.dao import get_baseDiaria_view
 
-        if not ruta_csv.exists():
-            # No hay archivo hoy → tabla vacía
+        # Día local en formato YYYY-MM-DD (compatible con substr(fecha_test,1,10))
+        day = datetime.now().astimezone().date().isoformat()
+
+        registros = get_baseDiaria_view(day)
+
+        if not registros:
             self.set_table_rows([])
             self.detail_status_var.set("No hay registros para el día de hoy.")
             return
 
         rows = []
-        with ruta_csv.open(newline="", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
+        for r in registros:
+            # Mapear BD -> columnas UI
+            status = "PASS" if int(r["valido"] or 0) == 1 else "FAIL"  # o deja r["valido"] si prefieres
 
-            for row in reader:
-                # HEADERS del CSV (los que usaste en saveBDiaria):
-                # "ID", "SN", "MAC", "SSID_24", "SSID_5", "PASSWORD",
-                # "MODELO", "STATUS", "VERSION_INICIAL", "VERSION_FINAL",
-                # "TIPO_PRUEBA", "FECHA", "VERSION_ONT_TESTER"
-
-                fila = [
-                    row.get("ID", ""),
-                    row.get("SN", ""),          # se mostrará como "SNN" en la tabla
-                    row.get("MAC", ""),
-                    row.get("SSID_24", ""),
-                    row.get("SSID_5", ""),
-                    row.get("PASSWORD", ""),
-                    row.get("STATUS", ""),
-                    row.get("TIPO_PRUEBA", ""),
-                    row.get("MODELO", ""),
-                    row.get("FECHA", ""),
-                ]
-                rows.append(fila)
+            fila = [
+                r["id"],                 # "ID"
+                r["sn"],                 # "SN"
+                r["mac"],                # "MAC"
+                r["wifi24"] or "",       # "SSID_24"
+                r["wifi5"] or "",        # "SSID_5"
+                r["passWifi"] or "",     # "PASSWORD"
+                status,                  # "STATUS"
+                r["tipo"] or "",         # "TIPO_PRUEBA"
+                r["modelo"] or "",       # "MODELO"
+                r["fecha_test"] or "",   # "FECHA"
+            ]
+            rows.append(fila)
 
         self.set_table_rows(rows)
         self.detail_status_var.set(f"{len(rows)} registros cargados.")

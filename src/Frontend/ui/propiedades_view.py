@@ -1,4 +1,5 @@
 import customtkinter as ctk
+import tkinter as tk
 import sys
 from pathlib import Path
 from tkinter import messagebox
@@ -788,14 +789,13 @@ class TesterMainView(ctk.CTkFrame):
             print("Sin permisos")
 
     def _generarBDVista(self):
-        # Ventana hija
         win = ctk.CTkToplevel(self)
         win.title("Consulta de base de datos")
         win.geometry("900x500")
         win.grab_set()
         win.focus_set()
 
-        # --------- PANEL SUPERIOR (combo de tablas + botón) ----------
+        # --------- PANEL SUPERIOR ----------
         top_frame = ctk.CTkFrame(win)
         top_frame.pack(side="top", fill="x", padx=10, pady=10)
 
@@ -805,42 +805,73 @@ class TesterMainView(ctk.CTkFrame):
         win.selected_table = ctk.StringVar()
 
         combo_tablas = ctk.CTkComboBox(
-            top_frame,
-            width=250,
-            state="readonly",
-            variable=win.selected_table,
-            values=[],
+            top_frame, width=250, state="readonly",
+            variable=win.selected_table, values=[]
         )
         combo_tablas.pack(side="left")
 
         btn_cargar = ctk.CTkButton(
-            top_frame,
-            text="Cargar",
+            top_frame, text="Cargar",
             command=lambda: self._cargar_tabla_en_vista(win),
         )
         btn_cargar.pack(side="left", padx=10)
 
         win.combo_tablas = combo_tablas
 
-        # --------- PANEL INFERIOR (encabezados + filas scrollables) ----------
+        # --------- PANEL TABLA (header + body con scroll H/V) ----------
         table_frame = ctk.CTkFrame(win)
         table_frame.pack(side="top", fill="both", expand=True, padx=10, pady=(0, 10))
 
-        # Encabezados (no scroll)
-        header_frame = ctk.CTkFrame(table_frame)
-        header_frame.pack(side="top", fill="x")
-        win.header_frame = header_frame
+        # Canvas header (solo scroll horizontal)
+        header_canvas = tk.Canvas(table_frame, height=32, highlightthickness=0)
+        header_canvas.pack(side="top", fill="x")
 
-        # Filas con scroll vertical
-        scroll_frame = ctk.CTkScrollableFrame(
-            table_frame,
-            orientation="vertical",
-            fg_color="transparent",   # opcional, para que se funda con el fondo
-        )
-        scroll_frame.pack(side="top", fill="both", expand=True)
-        win.table_scroll = scroll_frame
+        header_inner = ctk.CTkFrame(table_frame, fg_color="transparent")
+        header_canvas.create_window((0, 0), window=header_inner, anchor="nw")
 
-        # Cargar lista de tablas al abrir
+        # Contenedor body + scroll vertical
+        body_container = ctk.CTkFrame(table_frame, fg_color="transparent")
+        body_container.pack(side="top", fill="both", expand=True)
+
+        body_canvas = tk.Canvas(body_container, highlightthickness=0)
+        body_canvas.pack(side="left", fill="both", expand=True)
+
+        v_scroll = ctk.CTkScrollbar(body_container, orientation="vertical", command=body_canvas.yview)
+        v_scroll.pack(side="right", fill="y")
+
+        body_canvas.configure(yscrollcommand=v_scroll.set)
+
+        body_inner = ctk.CTkFrame(body_canvas, fg_color="transparent")
+        body_canvas.create_window((0, 0), window=body_inner, anchor="nw")
+
+        # Scroll horizontal (comparte ambos canvases)
+        def _xscroll(*args):
+            header_canvas.xview(*args)
+            body_canvas.xview(*args)
+
+        h_scroll = ctk.CTkScrollbar(table_frame, orientation="horizontal", command=_xscroll)
+        h_scroll.pack(side="bottom", fill="x")
+
+        header_canvas.configure(xscrollcommand=h_scroll.set)
+        body_canvas.configure(xscrollcommand=h_scroll.set)
+
+        # Actualizar regiones de scroll
+        def _on_header_config(_e=None):
+            header_canvas.configure(scrollregion=header_canvas.bbox("all"))
+
+        def _on_body_config(_e=None):
+            body_canvas.configure(scrollregion=body_canvas.bbox("all"))
+
+        header_inner.bind("<Configure>", _on_header_config)
+        body_inner.bind("<Configure>", _on_body_config)
+
+        # Guardar refs
+        win.header_canvas = header_canvas
+        win.body_canvas = body_canvas
+        win.header_inner = header_inner
+        win.body_inner = body_inner
+
+        # Cargar tablas
         self._cargar_lista_tablas(win)
     
     def _cargar_lista_tablas(self, win):
@@ -871,57 +902,61 @@ class TesterMainView(ctk.CTkFrame):
         try:
             from src.backend.sua_client.dao import fetch_table
             columnas, filas = fetch_table(tabla)
-            # columnas: list[str]
-            # filas: list[tuple] o list[dict]
         except Exception as e:
             print(f"[BD] Error obteniendo datos de '{tabla}': {e}")
             columnas, filas = [], []
 
-        header_frame = win.header_frame
-        scroll_frame = win.table_scroll
+        header_inner = win.header_inner
+        body_inner = win.body_inner
 
-        # ----- LIMPIAR CONTENIDO ANTERIOR -----
-        for w in header_frame.winfo_children():
+        # Limpiar
+        for w in header_inner.winfo_children():
             w.destroy()
-        for w in scroll_frame.winfo_children():
+        for w in body_inner.winfo_children():
             w.destroy()
 
-        # Si no hay columnas, no seguimos
         if not columnas:
-            lbl_empty = ctk.CTkLabel(scroll_frame, text="(Sin datos)")
-            lbl_empty.grid(row=0, column=0, padx=5, pady=5, sticky="w")
+            ctk.CTkLabel(body_inner, text="(Sin datos)").grid(row=0, column=0, padx=5, pady=5, sticky="w")
             return
 
-        # Configurar pesos de columnas para que se repartan el ancho
+        # ====== ANCHO FIJO PARA TODAS LAS COLUMNAS ======
+        FIXED_W = 300  # <- el ancho que pediste
+
+        # Configurar columnas con minsize fijo (NO weight=1)
         for i in range(len(columnas)):
-            header_frame.grid_columnconfigure(i, weight=1)
-            scroll_frame.grid_columnconfigure(i, weight=1)
+            header_inner.grid_columnconfigure(i, minsize=FIXED_W)
+            body_inner.grid_columnconfigure(i, minsize=FIXED_W)
 
         # ----- ENCABEZADOS -----
         for col_idx, col_name in enumerate(columnas):
             lbl = ctk.CTkLabel(
-                header_frame,
+                header_inner,
                 text=col_name,
                 font=ctk.CTkFont(weight="bold"),
                 anchor="w",
+                width=FIXED_W,
             )
-            lbl.grid(row=0, column=col_idx, padx=3, pady=3, sticky="ew")
+            lbl.grid(row=0, column=col_idx, padx=6, pady=4, sticky="w")
 
         # ----- FILAS -----
         for r_idx, row in enumerate(filas):
-            # Row como dict o tupla
-            if isinstance(row, dict):
-                valores = [row.get(c, "") for c in columnas]
-            else:
-                valores = list(row)
+            valores = [row.get(c, "") for c in columnas] if isinstance(row, dict) else list(row)
 
             for c_idx, value in enumerate(valores):
                 cell = ctk.CTkLabel(
-                    scroll_frame,
+                    body_inner,
                     text=str(value),
                     anchor="w",
+                    width=FIXED_W,
                 )
-                cell.grid(row=r_idx, column=c_idx, padx=3, pady=1, sticky="ew")
+                cell.grid(row=r_idx, column=c_idx, padx=6, pady=2, sticky="w")
+
+        # Forzar actualización de scrollregion (para que aparezca scroll horizontal)
+        win.header_canvas.update_idletasks()
+        win.body_canvas.update_idletasks()
+        win.header_canvas.configure(scrollregion=win.header_canvas.bbox("all"))
+        win.body_canvas.configure(scrollregion=win.body_canvas.bbox("all"))
+
 
 # Test de la vista
 if __name__ == "__main__":

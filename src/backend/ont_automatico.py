@@ -713,80 +713,81 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
         # 3) Cualquier otra combinación -> Inicial
         return "Inicial"
 
+    # Ya no necesito esta función c:
     def saveBDiaria(self, resultados):
         print("[BASE] Llegando a base diaria")
         # Traer los resultados de la prueba
-        res = resultados
-        # Versión del software
-        version_ont = "BETA"
+        # res = resultados
+        # # Versión del software
+        # version_ont = "BETA"
 
-        # Encabezados
-        HEADERS = [
-            "ID",
-            "SN",
-            "MAC",
-            "SSID_24",
-            "SSID_5",
-            "PASSWORD",
-            "MODELO",
-            "STATUS",
-            "VERSION_INICIAL",
-            "VERSION_FINAL",
-            "TIPO_PRUEBA",
-            "FECHA",
-            "VERSION_ONT_TESTER",
-        ]
+        # # Encabezados
+        # HEADERS = [
+        #     "ID",
+        #     "SN",
+        #     "MAC",
+        #     "SSID_24",
+        #     "SSID_5",
+        #     "PASSWORD",
+        #     "MODELO",
+        #     "STATUS",
+        #     "VERSION_INICIAL",
+        #     "VERSION_FINAL",
+        #     "TIPO_PRUEBA",
+        #     "FECHA",
+        #     "VERSION_ONT_TESTER",
+        # ]
 
-        ruta_csv = self.get_daily_report_path()
-        archivo_nuevo = not ruta_csv.exists()
+        # ruta_csv = self.get_daily_report_path()
+        # archivo_nuevo = not ruta_csv.exists()
 
-        # 4) Calcular el siguiente ID
-        if archivo_nuevo:
-            next_id = 1
-        else:
-            with ruta_csv.open(newline="", encoding="utf-8") as f:
-                reader = csv.reader(f)
-                # saltar encabezado si existe
-                next(reader, None)
-                last_id = 0
-                for row in reader:
-                    if row and row[0].isdigit():
-                        last_id = int(row[0])
-                next_id = last_id + 1
+        # # 4) Calcular el siguiente ID
+        # if archivo_nuevo:
+        #     next_id = 1
+        # else:
+        #     with ruta_csv.open(newline="", encoding="utf-8") as f:
+        #         reader = csv.reader(f)
+        #         # saltar encabezado si existe
+        #         next(reader, None)
+        #         last_id = 0
+        #         for row in reader:
+        #             if row and row[0].isdigit():
+        #                 last_id = int(row[0])
+        #         next_id = last_id + 1
 
-        #Creación de 
-        info  = res.get("info", {})
-        tests = res.get("tests", {})
-        valido = res.get("valido", False)
-        tipo_prueba = self.getTipoPrueba()
-        registro = [
-            next_id,              # ID
-            info.get("sn", ""),            # SN
-            info.get("mac", ""),           # MAC
-            info.get("wifi24", ""),        # SSID_24
-            info.get("wifi5", ""),         # SSID_5
-            info.get("passWifi", ""),      # PASSWORD
-            info.get("modelo", ""),        # MODELO
-            "OK" if valido else "FAIL",        # STATUS
-            "---",   # VERSION_INICIAL
-            info.get("sftVer", ""),     # VERSION_FINAL
-            tipo_prueba,   # TIPO_PRUEBA
-            date.today().strftime("%d-%m-%Y"),     # FECHA
-            version_ont,          # VERSION_ONT_TESTER
-        ]
+        # #Creación de 
+        # info  = res.get("info", {})
+        # tests = res.get("tests", {})
+        # valido = res.get("valido", False)
+        # tipo_prueba = self.getTipoPrueba()
+        # registro = [
+        #     next_id,              # ID
+        #     info.get("sn", ""),            # SN
+        #     info.get("mac", ""),           # MAC
+        #     info.get("wifi24", ""),        # SSID_24
+        #     info.get("wifi5", ""),         # SSID_5
+        #     info.get("passWifi", ""),      # PASSWORD
+        #     info.get("modelo", ""),        # MODELO
+        #     "OK" if valido else "FAIL",        # STATUS
+        #     "---",   # VERSION_INICIAL
+        #     info.get("sftVer", ""),     # VERSION_FINAL
+        #     tipo_prueba,   # TIPO_PRUEBA
+        #     date.today().strftime("%d-%m-%Y"),     # FECHA
+        #     version_ont,          # VERSION_ONT_TESTER
+        # ]
 
-        # Guardar del archivo
-        ruta_csv = self.get_daily_report_path()
-        archivo_nuevo = not ruta_csv.exists()
+        # # Guardar del archivo
+        # ruta_csv = self.get_daily_report_path()
+        # archivo_nuevo = not ruta_csv.exists()
 
-        with ruta_csv.open(mode="a", newline="", encoding="utf-8") as f:
-            writer = csv.writer(f)
+        # with ruta_csv.open(mode="a", newline="", encoding="utf-8") as f:
+        #     writer = csv.writer(f)
 
-            # Si es nuevo, escribimos los encabezados primero
-            if archivo_nuevo:
-                writer.writerow(HEADERS)
+        #     # Si es nuevo, escribimos los encabezados primero
+        #     if archivo_nuevo:
+        #         writer.writerow(HEADERS)
 
-            writer.writerow(registro)
+        #     writer.writerow(registro)
 
 def main():
     parser = argparse.ArgumentParser(description="ONT Automated Test Suite")
