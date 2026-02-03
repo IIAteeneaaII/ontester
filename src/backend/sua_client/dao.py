@@ -253,13 +253,11 @@ def update_settings(id_wifi, id_fibra, id_settings):
         )
         con.commit()
 
-def insertar_version(version: str) -> None:
-    with get_conn() as con:
-        con.execute(
-            "INSERT INTO catalog_meta (version, updated_at) VALUES (?, ?);",
-            (version, now_local_iso())
-        )
-        con.commit()
+def insertar_version(con, version: str) -> None:
+    con.execute(
+        "INSERT INTO catalog_meta (version, updated_at) VALUES (?, ?);",
+        (version, now_local_iso())
+    )
 
 def existe_valor_en_campo(table_name: str, campo: str, valor) -> bool:
     with get_conn() as con:
