@@ -1057,6 +1057,12 @@ class HuaweiMixin:
         if tests_opts.get("wifi_24ghz_signal", True) and tests_opts.get("wifi_5ghz_signal", True):
             emit("pruebas", "Ejecutanto Prueba de Señal WiFi")
             self.test_wifi_rssi_windows(wifi24, wifi5)
+
+        # Emitir resultado de factory_reset si se ejecutó (al final de todas las pruebas)
+        factory_result = self.test_results.get('tests', {}).get('factory_reset', {})
+        if factory_result:
+            status = "PASS" if factory_result.get('status') == True else "FAIL"
+            emit("test_individual", {"name": "factory_reset", "status": status})
     
         self.save_results2("test_mod003-mod005")
         #print(self.test_results)
@@ -1633,14 +1639,49 @@ class HuaweiMixin:
                             if self.out_q:
                                 self.out_q.put((kind, payload))
                         emit("pruebas", "Ejecutando Reinicio de Fabrica")
-                        reset = self._reset_factory_huawei(driver)
-                        time.sleep(100)
-                        if(reset):
-                            loginBool = self._login_huawei()
-                            return loginBool
+                        reset_ok = self._reset_factory_huawei(driver)
+                        time.sleep(110)
+
+                        if(reset_ok):
+                            # Guardar y emitir resultados
+                            self.test_results.setdefault("tests", {})["factory_reset"] = {
+                                "name": "factory_reset",
+                                "status": True,
+                                "data": {
+                                    "result": "PASS"
+                                }
+                            }
+                            #emit("test_individual", {"name": "factory_reset", "status": "PASS"})
+
+                            # 1. Limpiar WiFi previo a relogin
+                            try:
+                                tests_dict = self.test_results.get("tests", {})
+                                tests_dict.pop("hw_wifi24", None)
+                                tests_dict.pop("hw_wifi5", None)
+                                tests_dict.pop("hw_wifi24_pass", None)
+                            except Exception:
+                                pass
+
+                            # 2. Desactivar factory_reset para no entrar en loop
+                            try:
+                                self.opcionesTest.setdefault("tests", {})["factory_reset"] = False
+                            except Exception:
+                                pass
+
+                            # 3. Cerrar driver actual y hacer relogin
+                            driver.quit()
+                            return self._login_huawei()
                         else:
+                            # Guardar y emitir fallo
+                            self.test_results.setdefault("tests", {})["factory_reset"] = {
+                                "name": "factory_reset",
+                                "status": False,
+                                "data": {
+                                    "result": "FAIL"
+                                }
+                            }
+                            #emit("test_individual", {"name": "factory_reset", "status": "FAIL"})
                             print("[INFO] No se reseteo de fabrica")
-                # Peticiones desde aqui para no cerrar el driver
                 
                 self.huawei_info(driver)
 

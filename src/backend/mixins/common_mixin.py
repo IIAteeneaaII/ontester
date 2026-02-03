@@ -1312,7 +1312,7 @@ class CommonMixin:
                 try:
                     return float(v)
                 except (TypeError, ValueError):
-                    return None
+                    return -9999
             pon_optical = self.test_results.get('tests', {}).get('fibra', {}).get('details', {}).get('PON_OPTICALPARA', {})
             tx = pon_optical.get('RxPower') # valor negativo
             rx = pon_optical.get('TxPower') # valor negativo
