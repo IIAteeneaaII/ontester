@@ -1,0 +1,117 @@
+{
+  "metadata": {
+    "host": "192.168.100.1",
+    "model": "HG8145V5",
+    "timestamp": "2026-01-31T12:58:27.334213",
+    "serial_number": "485754431BB9A2A2",
+    "wifi_24ghz_ssid": "Totalplay-A2A2",
+    "wifi_5ghz_ssid": "Totalplay-A2A2-5G",
+    "wifi_password": "A2A20A754P2HZyPR",
+    "wifi24": "Totalplay-A2A2",
+    "wifi5": "Totalplay-A2A2-5G",
+    "passWifi": "A2A20A754P2HZyPR"
+  },
+  "tests": {
+    "hw_device": {
+      "name": "hw_device",
+      "data": {
+        "model": "HG8145V5",
+        "serial_number": "485754431BB9A2A2",
+        "serial_raw": "485754431BB9A2A2 (HWTC1BB9A2A2)",
+        "software_version": "V5R022C00S292"
+      }
+    },
+    "hw_lan": {
+      "name": "hw_lan",
+      "data": {
+        "ports": [
+          {
+            "port": "1",
+            "mode": "--",
+            "speed": "--",
+            "status": "Down"
+          },
+          {
+            "port": "2",
+            "mode": "--",
+            "speed": "--",
+            "status": "Down"
+          },
+          {
+            "port": "3",
+            "mode": "--",
+            "speed": "--",
+            "status": "Down"
+          },
+          {
+            "port": "4",
+            "mode": "Full-duplex",
+            "speed": "1000 Mbit/s",
+            "status": "Up"
+          }
+        ]
+      }
+    },
+    "hw_wifi24": {
+      "name": "hw_wifi24",
+      "data": {
+        "band": "2.4GHz",
+        "status": "Enabled",
+        "ssid": "Totalplay-A2A2"
+      }
+    },
+    "hw_wifi5": {
+      "name": "hw_wifi5",
+      "data": {
+        "band": "5GHz",
+        "status": "Enabled",
+        "ssid": "Totalplay-A2A2-5G"
+      }
+    },
+    "hw_mac": {
+      "name": "hw_mac",
+      "data": "8C:E5:EF:FE:0A:75"
+    },
+    "hw_wifi24_pass": {
+      "name": "hw_wifi24_pass",
+      "data": {
+        "band": "2.4GHz",
+        "password": "A2A20A754P2HZyPR"
+      }
+    },
+    "hw_wifi5_pass": {
+      "name": "hw_wifi5_pass",
+      "data": {
+        "band": "5GHz",
+        "password": "A2A20A754P2HZyPR"
+      }
+    },
+    "hw_optical": {
+      "name": "hw_optical",
+      "data": {
+        "tx_optical_power": "-- dBm",
+        "rx_optical_power": "-- dBm"
+      }
+    },
+    "hw_usb": {
+      "name": "hw_usb",
+      "data": {
+        "connected": false,
+        "status": "usb desconectado",
+        "value": "",
+        "label": "No USB Device"
+      }
+    },
+    "software_update": {
+      "name": "software_update",
+      "status": true,
+      "details": {
+        "previous_version": "V5R022C00S292",
+        "new_version": "Ya está actualizado",
+        "firmware_file": "C:\\BINS\\HG8145V5\\HG8145V5_V500R022C00SPC292.bin",
+        "update_completed": true,
+        "timestamp": "2026-01-31 13:03:31"
+      }
+    }
+  }
+}

@@ -1248,11 +1248,12 @@ class ZTEMixin:
                 print(f"[SELENIUM] Navegando a {base_url}...")
                 
                 try:
+                    driver.set_page_load_timeout(30)
                     driver.get(base_url)
                 except Exception as e:
-                    print(f"[ERROR] No se pudo cargar VAMOS A SEGUIR PARA ESTE MODELO {base_url}: {e} ")
-                    # driver.quit()
-                    # return False
+                    print(f"[ERROR] No se pudo cargar {base_url}: {e}")
+                    #driver.quit()
+                    #return False
                 
                 # Esperar breve a que cargue la página
                 time.sleep(2)
@@ -1391,12 +1392,21 @@ class ZTEMixin:
                         emit("pruebas", "Ejecutando: Reinicio De Fabrica")
                         resetZTE = self._reset_factory_zte(driver)
                         print("[INFO] Esperando a que el ZTE reinicie tras Factory Reset...")
-                        time.sleep(100)  # espera
+                        time.sleep(110)  # espera
                         if (resetZTE):
-                            reset = True
-                            self._login_zte(True) # Es necesario volver a loggearse después del reset
+                            # Limpiar resultados previos
+                            try:
+                                test_dict = self.test_results.get("tests", {})
+                                test_dict.pop("wifi", None)
+                                test_dict.pop("Contraseña", None)
+                            except Exception:
+                                pass
+
                             driver.quit()
-                            return True
+
+                            # Re login post-reset (zte_info(driver) -> repuebla wifi/Contraseña)
+                            return self._login_zte(True)
+                        
                         else:
                             print("[WARNING] No se pudo resetear, saltando pruebas")
                             driver.quit()
