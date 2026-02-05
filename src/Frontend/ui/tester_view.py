@@ -31,6 +31,8 @@ class TesterView(ctk.CTkFrame):
         super().__init__(parent, fg_color="#E9F5FF", **kwargs)
 
         self.viewmodel = viewmodel
+        # Los kwargs
+        self._init_kwargs = dict(kwargs)   
         # Para la queue
         self._polling = False # ya no se usará
         self.stop_event = threading.Event()  # Para cancelar hilos al cambiar de modo
@@ -166,6 +168,21 @@ class TesterView(ctk.CTkFrame):
             command=self.ir_salir,
         )
         self.btn_salir.pack(fill="x", pady=(4, 0))
+
+        # REINICIO
+        self.btn_reinicio = ctk.CTkButton(
+            self.user_block,
+            text="REINICIO",
+            fg_color="#9B59B6",      # morado
+            hover_color="#8E44AD",   # morado hover
+            text_color="white",
+            font=ctk.CTkFont(size=13, weight="bold"),
+            corner_radius=6,
+            height=32,
+            command=self.ir_reinicio,  
+        )
+        self.btn_reinicio.pack(fill="x", pady=(8, 0))
+
         # =============================================
 
         # Estado inicial de los botones
@@ -308,6 +325,36 @@ class TesterView(ctk.CTkFrame):
     def set_usuario(self, user_id: str, nombre: str):
         self.label_usuario_id.configure(text=f"ID: {user_id}")
         self.label_usuario_nombre.configure(text=f"HOLA: {nombre}")
+
+    # FUNCION DE REINICIO FORZOSO
+    def ir_reinicio(self):
+        parent = self.master
+        root = self.winfo_toplevel()
+
+        modo_actual = self.modo_var.get()
+        user_id = getattr(root, "current_user_id", None)
+        user_name = getattr(root, "current_user_name", None)
+        init_kwargs = getattr(self, "_init_kwargs", {}) or {}
+        VALIDOS = {"Testeo", "Retesteo", "Etiqueta", "Monitoreo"}
+        if modo_actual not in VALIDOS:
+            return
+        try:
+            self.destroy()
+        except Exception:
+            pass
+        nueva = TesterView(parent, mdebug=None, **init_kwargs)
+        setattr(root, "current_user_id", user_id)
+        setattr(root, "current_user_name", user_name)
+        # 6) Montar UI y actualizar dispatcher
+        nueva.pack(fill="both", expand=True)
+        parent.dispatcher.set_target(nueva)
+
+        # 7) Restaurar modo y arrancarlo (mejor con after para evitar race)
+        def _restore():
+            nueva.modo_var.set(modo_actual)
+            nueva.cambiar_modo(modo_actual)
+
+        nueva.after(0, _restore)
 
     # ===================== NAVEGACIÓN =====================
     def _swap_view(self, view_cls, **init_kwargs):
@@ -627,6 +674,19 @@ class TesterView(ctk.CTkFrame):
     # Funciones para la queue de los hilos
     def destroy(self):
         self._polling = False
+        # Destruccion de eventos
+        try:
+            if getattr(self, "stop_event", None) is not None:
+                self.stop_event.set()
+        except Exception:
+            pass
+
+        try:
+            if getattr(self, "_unit_stop_event", None) is not None:
+                self._unit_stop_event.set()
+                self._unit_stop_event = None
+        except Exception:
+            pass
         super().destroy()
 
     def on_event(self, kind, payload):
