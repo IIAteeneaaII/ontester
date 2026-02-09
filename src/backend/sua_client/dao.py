@@ -220,7 +220,7 @@ def insertar_userStation(id_user, id_station):
         )
         con.commit()
 
-def insertar_wifi(rssi_min, rssi_max, min_percent) -> int:
+def insertar_wifi(rssi_min, rssi_max, min_percent):
     with get_conn() as con:
         cur = con.execute(
             "INSERT INTO wifi_set (rssi_min, rssi_max, min_percent) VALUES (?, ?, ?);",
