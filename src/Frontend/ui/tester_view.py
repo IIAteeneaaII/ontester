@@ -462,7 +462,12 @@ class TesterView(ctk.CTkFrame):
             self._set_button_style(self.btn_ethernet, "inactive")
             self._set_button_style(self.btn_wifi, "inactive")
         elif modo == "Retesteo":
-            self._set_all_buttons_state("active")
+            # self._set_all_buttons_state("active")
+            self._set_button_style(self.btn_omitir, "inactive")
+            self._set_button_style(self.btn_conectividad, "active")
+            self._set_button_style(self.btn_otros_puertos, "active")
+            self._set_button_style(self.btn_ethernet, "active")
+            self._set_button_style(self.btn_wifi, "active")
         elif modo == "Etiqueta":
             self._set_all_buttons_state("inactive")
         elif modo == "Monitoreo":

@@ -708,9 +708,9 @@ class ZTEMixin:
                         elif 'error' in page_text or 'failed' in page_text:
                             print("[ERROR] Error detectado en la interfaz de actualización")
                             # Guardar evidencia del error
-                            driver.save_screenshot(f"error_firmware_{timestamp}.png")
-                            with open(f"error_firmware_{timestamp}.html", 'w', encoding='utf-8') as f:
-                                f.write(driver.page_source)
+                            # driver.save_screenshot(f"error_firmware_{timestamp}.png")
+                            # with open(f"error_firmware_{timestamp}.html", 'w', encoding='utf-8') as f:
+                            #     f.write(driver.page_source)
                             return False
                         
                         time.sleep(check_interval)
@@ -1114,6 +1114,7 @@ class ZTEMixin:
                 
                 # DEBUG: Ver qué contiene parsed
                 if name == "basic":
+                    print(f"[DEBUG] La respuesta raw es: {raw[:300]}")
                     print(f"[DEBUG] Prueba 'basic' - Contenido de parsed: {list(parsed.keys())}")
                     print(f"[DEBUG] DEVINFO presente: {'DEVINFO' in parsed}")
                     if 'DEVINFO' in parsed:
