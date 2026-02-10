@@ -71,3 +71,6 @@ Thumbs.db
 
 # Settings
 src/backend/sua_client/settings.py
+
+# Especificaciones de ejecutable
+*.spec
