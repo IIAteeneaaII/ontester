@@ -1173,6 +1173,29 @@ class CommonMixin:
 
         return resultado
     
+    # Función para extraer versión de sft actualizada en ZTE
+    def _get_sft_versionZTE(self) -> str:
+        # 1) Si hubo software_update y trae new_version
+        new_ver = (
+            self.test_results.get("tests", {})
+            .get("software_update", {})
+            .get("details", {})
+            .get("new_version")
+        )
+
+        # 1.5) Validar que no tenga el texto de YA ACTUALIZADO
+        if new_ver and (not "ACTUALIZAD" in new_ver.upper()):
+            return new_ver
+
+        # 2) Fallback: lo actual de basic->DEVINFO
+        return (
+            self.test_results.get("tests", {})
+            .get("basic", {})
+            .get("details", {})
+            .get("DEVINFO", {})
+            .get("SoftwareVer", "N/A")
+        )
+
     def _resultadosFiber(self):
         optTest = self.opcionesTest
         tests_opts = optTest.get("tests", {})
@@ -1281,7 +1304,7 @@ class CommonMixin:
             if cfg.get("ConnTrigger") == "AlwaysOn":
                 mac = cfg.get("WorkIFMac")  # aquí está la MAC
                 break
-        sftVer = self.test_results.get('tests', {}).get('basic', {}).get('details', {}).get('DEVINFO', {}).get('SoftwareVer', 'N/A') #sft version
+        sftVer = self._get_sft_versionZTE() #sft version
         ruta_wifi = self.test_results.get('tests', {}).get('wifi', {}).get('details', {}).get('WLANAP', [])
         essids_validos = [
             ap["ESSID"]
