@@ -726,13 +726,25 @@ class TesterView(ctk.CTkFrame):
         elif kind == "resultados":
             # ejemplo: pintar resultados en tu UI
             self._render_resultados(payload)
+            info  = payload.get("info", {})
             # guardar en DB
-            from src.backend.sua_client.dao import insertar_operacion, extraer_by_id
+            from src.backend.sua_client.dao import insertar_operacion, extraer_by_id, existe_operacion_dia, validar_por_modo
             modo = self.modo_var.get()
             root = self.winfo_toplevel()
             user_id = int(getattr(root, "current_user_id", None))
-            id = insertar_operacion(payload, modo, user_id)
-            payload_final = extraer_by_id(id, "operations")
+            # Antes de insertar hay que validar que el sn no esté ya registrado en ese MODO
+            registroAnterior = existe_operacion_dia(info.get("sn", "—"), modo)
+            if registroAnterior:
+                # No insertar, actualizar UI con: equipo ya registrado (emit lower maybe)
+                def emit(kind, payload):
+                    if self.master.event_q:
+                        self.master.event_q.put((kind, payload))
+                emit("log", "DISPOSITIVO YA REGISTRADO, NO SE CONTARÁ PARA LAS PRUEBAS")
+            else:
+                id = insertar_operacion(payload, modo, user_id)
+                # Actualizar el campo de valido
+                validar_por_modo(info.get("sn","-"), modo)
+                payload_final = extraer_by_id(id, "operations")
             # publicar a IOT
             
         elif kind == "test_individual":
@@ -740,21 +752,37 @@ class TesterView(ctk.CTkFrame):
             # payload = {"name": "TX_POWER", "status": "PASS"} o "FAIL"
             test_name = payload.get("name", "").lower()
             status = payload.get("status", "FAIL")
+            modo = self.modo_var.get()
             # Mapeo de nombres de test a keys de botones
             name_to_key = {
-                "ping": "ping",
+                "ping":              "ping",
                 "ping_connectivity": "ping",
-                "factory_reset": "factory_reset",
-                "software_update": "software_update",
-                "usb_port": "usb_port",
-                "tx_power": "tx_power",
-                "rx_power": "rx_power",
-                "wifi_24ghz": "wifi_24ghz_signal",
-                "wifi_5ghz": "wifi_5ghz_signal",
+                "factory_reset":     "factory_reset",
+                "software_update":   "software_update",
+                "usb_port":          "usb_port",
+                "tx_power":          "tx_power",
+                "rx_power":          "rx_power",
+                "wifi_24ghz":        "wifi_24ghz_signal",
+                "wifi_5ghz":         "wifi_5ghz_signal",
             }
             btn_key = name_to_key.get(test_name, test_name)
             self.panel_pruebas._set_button_status(btn_key, status)
-
+            raw = self.snInfo.cget("text")         
+            sn = raw.replace("SN:", "", 1).strip() # Leer el sn de la UI, Eliminar "SN: "
+            # Normalizar a BD
+            from src.backend.endpoints.conexion import normalizar_valor_bd
+            campo = normalizar_valor_bd(btn_key)
+            # Actualizar el registro de el modo seleccionado
+            from src.backend.sua_client.dao import validar_por_modo, update_operation_snmodo
+            # Primero hacer update
+            # Verificar que el campo no sea None
+            if campo != None:
+                update_operation_snmodo(sn, modo, campo, status)
+                # Update al campo de valido
+                valido = validar_por_modo(sn, modo)
+                if valido:
+                    #actualizar UI
+                    print()
         #elif kind == "test":
             # ejemplo: actualizar un cuadrito por prueba || de momento no
             # payload = {"nombre":"wifi_24ghz_signal","estado":"PASS","valor":"-14.6 dBm"}

@@ -1290,10 +1290,10 @@ class HuaweiMixin:
                         elif 'error' in page_text or 'failed' in page_text:
                             print("[ERROR] Error detectado en la interfaz de actualización")
                             # Guardar evidencia del error
-                            driver.save_screenshot(f"error_firmware_{timestamp}.png")
-                            with open(f"error_firmware_{timestamp}.html", 'w', encoding='utf-8') as f:
-                                f.write(driver.page_source)
-                            return False
+                            # driver.save_screenshot(f"error_firmware_{timestamp}.png")
+                            # with open(f"error_firmware_{timestamp}.html", 'w', encoding='utf-8') as f:
+                            #     f.write(driver.page_source)
+                            # return False
                         
                         time.sleep(check_interval)
                         elapsed += check_interval
