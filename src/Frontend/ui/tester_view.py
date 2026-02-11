@@ -725,7 +725,9 @@ class TesterView(ctk.CTkFrame):
 
         elif kind == "resultados":
             # ejemplo: pintar resultados en tu UI
-            self._render_resultados(payload)
+            # Detectar si viene de prueba unitaria usando el flag _unit_running
+            from_unit = getattr(self, '_unit_running', False)
+            self._render_resultados(payload, from_unit_test=from_unit)
             # guardar en DB
             from src.backend.sua_client.dao import insertar_operacion, extraer_by_id
             modo = self.modo_var.get()
@@ -795,13 +797,13 @@ class TesterView(ctk.CTkFrame):
         self.panel_pruebas._set_button_status("wifi_24ghz_signal", "reset")
         self.panel_pruebas._set_button_status("wifi_5ghz_signal", "reset")
 
-    def _render_resultados(self, payload):
+    def _render_resultados(self, payload, from_unit_test: bool = False):
         print("La payload recibida es: "+str(payload))
         info  = payload.get("info", {})
         tests = payload.get("tests", {})
 
-        #Archivo txt para modo etiqueta
-        if self.modo_var.get() == "Etiqueta":
+        #Archivo txt para modo etiqueta (solo si NO viene de prueba unitaria)
+        if self.modo_var.get() == "Etiqueta" and not from_unit_test:
             # Usar funcion en archivo conexion
             from src.backend.endpoints.conexion import generaEtiquetaTxt
             generaEtiquetaTxt(payload)
@@ -887,7 +889,7 @@ class TesterView(ctk.CTkFrame):
                 rxp = False
             self.panel_pruebas._set_button_status("rx_power", rxp)
 
-        # USB label solo si viene
+        # USB label solo si viene (no borrar si no está en el payload - prueba unitaria)
         if "usb" in tests:
             usb = tests.get("usb")
             if usb == "SIN PRUEBA":
@@ -897,8 +899,7 @@ class TesterView(ctk.CTkFrame):
             else:
                 usb_label = "USB no detectada"
             self.usbInfo.configure(text="Usb Port: " + str(usb_label))
-        else:
-            self.usbInfo.configure(text="Usb Port: —")
+        # else: No hacer nada - conservar el valor anterior
 
         # -------- INFO (lado izquierdo) --------
         self.snInfo.configure(text="SN: "+str(sn))
@@ -908,10 +909,8 @@ class TesterView(ctk.CTkFrame):
         self.w5Info.configure(text="WIFI 5 GHz: "+str(wifi5))
         self.pswInfo.configure(text="Password: "+str(passWi))
 
-        # -------- TESTS (lado derecho) --------
-        # Si tx/rx son números (dBm), los formateamos
-        self.txInfo.configure(text=("Fo TX: —" if tx in (False, None) else f"Fo TX: {tx} dBm"))
-        self.rxInfo.configure(text=("Fo RX: —" if rx in (False, None) else f"Fo RX: {rx} dBm"))
+        # Nota: TX/RX ya se actualizan arriba en el bloque condicional "if 'tx' in tests"
+        # No duplicar aquí para evitar sobrescribir con valores vacíos
 
         self.estado_prueba_label.configure(text="EJECUTADO")
         self.estado_prueba_label.configure(text_color="#6B9080")

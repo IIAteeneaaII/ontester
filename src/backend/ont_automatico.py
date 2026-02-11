@@ -569,12 +569,12 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
         # IMPORTANTE Las opciones modificadas aqui solo entran en vigor para el FIBERHOME
         # Tests comunes a todos los dispositivos
         common_tests = [
-            self.test_pwd_pass,
+            #self.test_pwd_pass,
             #self.test_factory_reset,
-            self.test_ping_connectivity,
-            self.test_http_connectivity,
-            self.test_port_scan,
-            self.test_dns_resolution,
+            #self.test_ping_connectivity,
+            # self.test_http_connectivity,
+            # self.test_port_scan,
+            # self.test_dns_resolution,
             self.test_software_version,
         ]
         
@@ -897,7 +897,7 @@ def main():
         tester._generarCertificado()
     
 
-def monitor_device_connection(ip: str, interval: int = 1, max_failures: int = 3, stop_event = None):
+def monitor_device_connection(ip: str, interval: int = 1, max_failures: int = 1, stop_event = None):
     """
     Monitorea continuamente la conexión con un dispositivo mediante ping.
     Retorna cuando se pierda la conexión o se reciba señal de stop.
@@ -1397,6 +1397,8 @@ def main_loop(opciones, out_q = None, stop_event = None, auto_test_on_detect = T
             print(f"\n[OK] {device_type} detectado: {ip} (Modelo: {detected_model})")
             # Decir que ya se hizo la conexión
             emit("con", "Dispositivo Conectado")
+            # Marcar PING como PASS automáticamente (conexión confirmada por _scan_for_device)
+            emit("test_individual", {"name": "ping", "status": "PASS"})
             last_tested_ip = ip
 
             # Mostrar modelo en UI
@@ -1491,8 +1493,8 @@ def main_loop(opciones, out_q = None, stop_event = None, auto_test_on_detect = T
             print(f"\n[FASE 3/3] MONITOREO DE CONEXIÓN")
             print("-" * 60)
 
-            # Monitoreo simple: 3 pings fallidos = desconexión = nuevo ciclo de escaneo
-            user_interrupted = monitor_device_connection(ip, interval=1, max_failures=3, stop_event=stop_event)
+            # Monitoreo simple: 1 ping fallido = desconexión = nuevo ciclo de escaneo
+            user_interrupted = monitor_device_connection(ip, interval=1, max_failures=1, stop_event=stop_event)
 
             if user_interrupted:
                 # stop_event o Ctrl+C: salir del main_loop

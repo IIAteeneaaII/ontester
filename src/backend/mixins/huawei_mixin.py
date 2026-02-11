@@ -44,9 +44,10 @@ class HuaweiMixin:
             
             # Definir los pasos a ejecutar en orden
             steps = [
-                {"id": "guidesyscfg", "desc": "Paso 1: Skip Network Config"},
-                {"id": "guideskip", "desc": "Paso 2: Skip User Config"},
-                {"id": "nextpage", "desc": "Paso 3: Return to Home Page"}
+                {"id": "guideinternet", "desc": "Exit wizard"},
+                # {"id": "guidesyscfg", "desc": "Paso 1: Skip Network Config"},
+                # {"id": "guideskip", "desc": "Paso 2: Skip User Config"},
+                # {"id": "nextpage", "desc": "Paso 3: Return to Home Page"}
             ]
             
             wizard_found = False
@@ -643,8 +644,8 @@ class HuaweiMixin:
             driver,
             [
                 (By.ID, "name_Systeminfo"),
-                (By.NAME, "m1div_deviceinfo"),
-                (By.XPATH, "//div[contains(@class,'menuContTitle') and normalize-space(.)='System Information']"),
+                # (By.NAME, "m1div_deviceinfo"),
+                # (By.XPATH, "//div[contains(@class,'menuContTitle') and normalize-space(.)='System Information']"),
             ],
             "Huawei System Information (menú principal)",
         )
@@ -654,8 +655,8 @@ class HuaweiMixin:
             driver,
             [
                 (By.ID, "name_deviceinfo"),
-                (By.XPATH, "//div[@id='name_deviceinfo']"),
-                (By.XPATH, "//div[contains(@class,'SecondMenuTitle') and normalize-space(.)='Device']"),
+                # (By.XPATH, "//div[@id='name_deviceinfo']"),
+                # (By.XPATH, "//div[contains(@class,'SecondMenuTitle') and normalize-space(.)='Device']"),
             ],
             "Huawei Device (System Information)",
         )
@@ -663,22 +664,22 @@ class HuaweiMixin:
     def nav_hw_optical(self, driver):
         """System Information -> Optical (fibra)"""
         driver.switch_to.default_content()
-        self.click_anywhere(
-            driver,
-            [
-                (By.ID, "Systeminfo"),
-                (By.NAME, "m1div_deviceinfo"),
-                (By.XPATH, "//div[contains(@class,'menuContTitle') and normalize-space(.)='System Information']"),
-            ],
-            "Huawei System Information (menú principal)",
-        )
+        # self.click_anywhere(
+        #     driver,
+        #     [
+        #         (By.ID, "name_Systeminfo"),
+        #         # (By.NAME, "m1div_deviceinfo"),
+        #         # (By.XPATH, "//div[contains(@class,'menuContTitle') and normalize-space(.)='System Information']"),
+        #     ],
+        #     "Huawei System Information (menú principal)",
+        # )
 
         self.click_anywhere(
             driver,
             [
                 (By.ID, "name_opticinfo"),
-                (By.XPATH, "//div[@id='name_opticinfo']"),
-                (By.XPATH, "//div[contains(@class,'SecondMenuTitle') and normalize-space(.)='Optical']"),
+                # (By.XPATH, "//div[@id='name_opticinfo']"),
+                # (By.XPATH, "//div[contains(@class,'SecondMenuTitle') and normalize-space(.)='Optical']"),
             ],
             "Huawei Optical",
         )
@@ -687,23 +688,23 @@ class HuaweiMixin:
         """System Information -> Eth Port (información de LAN / conexiones Ethernet)"""
 
         # 1) Navegar a "System Information"
-        self.click_anywhere(
-            driver,
-            [
-                (By.ID, "name_Systeminfo"),
-                (By.NAME, "m1div_deviceinfo"),
-                (By.XPATH, "//div[contains(@class,'menuContTitle') and normalize-space(.)='System Information']"),
-            ],
-            "Huawei System Information (menú principal)",
-        )
+        # self.click_anywhere(
+        #     driver,
+        #     [
+        #         (By.ID, "name_Systeminfo"),
+        #         (By.NAME, "m1div_deviceinfo"),
+        #         (By.XPATH, "//div[contains(@class,'menuContTitle') and normalize-space(.)='System Information']"),
+        #     ],
+        #     "Huawei System Information (menú principal)",
+        # )
 
         # 2) Submenú "Eth Port"
         self.click_anywhere(
             driver,
             [
                 (By.ID, "name_ethinfo"),
-                (By.XPATH, "//div[@id='name_ethinfo']"),
-                (By.XPATH, "//div[contains(@class,'SecondMenuTitle') and normalize-space(.)='Eth Port']"),
+                # (By.XPATH, "//div[@id='name_ethinfo']"),
+                # (By.XPATH, "//div[contains(@class,'SecondMenuTitle') and normalize-space(.)='Eth Port']"),
             ],
             "Huawei Eth Port",
         )
@@ -721,22 +722,22 @@ class HuaweiMixin:
         """System Information -> WLAN (2.4 GHz)"""
 
         # Ir a WLAN
-        self.click_anywhere(
-            driver,
-            [
-                (By.ID, "name_Systeminfo"),
-                (By.NAME, "m1div_deviceinfo"),
-                (By.XPATH, "//div[contains(@class,'menuContTitle') and normalize-space(.)='System Information']"),
-            ],
-            "Huawei System Information (menú principal)",
-        )
+        # self.click_anywhere(
+        #     driver,
+        #     [
+        #         (By.ID, "name_Systeminfo"),
+        #         (By.NAME, "m1div_deviceinfo"),
+        #         (By.XPATH, "//div[contains(@class,'menuContTitle') and normalize-space(.)='System Information']"),
+        #     ],
+        #     "Huawei System Information (menú principal)",
+        # )
 
         self.click_anywhere(
             driver,
             [
                 (By.ID, "name_wlaninfo"),
-                (By.XPATH, "//div[@id='name_wlaninfo']"),
-                (By.XPATH, "//div[contains(@class,'SecondMenuTitle') and normalize-space(.)='WLAN']"),
+                # (By.XPATH, "//div[@id='name_wlaninfo']"),
+                # (By.XPATH, "//div[contains(@class,'SecondMenuTitle') and normalize-space(.)='WLAN']"),
             ],
             "Huawei WLAN (menú WLAN)",
         )    
@@ -744,22 +745,22 @@ class HuaweiMixin:
     def nav_hw_wifi_5(self, driver):
         """System Information -> WLAN (5 GHz)"""
 
-        self.click_anywhere(
-            driver,
-            [
-                (By.ID, "name_Systeminfo"),
-                (By.NAME, "m1div_deviceinfo"),
-                (By.XPATH, "//div[contains(@class,'menuContTitle') and normalize-space(.)='System Information']"),
-            ],
-            "Huawei System Information (menú principal)",
-        )
+        # self.click_anywhere(
+        #     driver,
+        #     [
+        #         (By.ID, "name_Systeminfo"),
+        #         (By.NAME, "m1div_deviceinfo"),
+        #         (By.XPATH, "//div[contains(@class,'menuContTitle') and normalize-space(.)='System Information']"),
+        #     ],
+        #     "Huawei System Information (menú principal)",
+        # )
 
         self.click_anywhere(
             driver,
             [
                 (By.ID, "name_wlaninfo"),
-                (By.XPATH, "//div[@id='name_wlaninfo']"),
-                (By.XPATH, "//div[contains(@class,'SecondMenuTitle') and normalize-space(.)='WLAN']"),
+                # (By.XPATH, "//div[@id='name_wlaninfo']"),
+                # (By.XPATH, "//div[contains(@class,'SecondMenuTitle') and normalize-space(.)='WLAN']"),
             ],
             "Huawei WLAN (menú WLAN)",
         )
@@ -769,7 +770,7 @@ class HuaweiMixin:
             driver,
             [
                 (By.CSS_SELECTOR, "input[name='WlanMethod'][value='2']"),
-                (By.XPATH, "//input[@name='WlanMethod' and @value='2']"),
+                # (By.XPATH, "//input[@name='WlanMethod' and @value='2']"),
             ],
             "Huawei WLAN 5G (radio)",
         )
@@ -777,22 +778,22 @@ class HuaweiMixin:
     def nav_hw_mac(self, driver):
         """System Information -> Home Network (tabla de MAC / clientes)"""
 
-        self.click_anywhere(
-            driver,
-            [
-                (By.ID, "name_Systeminfo"),
-                (By.NAME, "m1div_deviceinfo"),
-                (By.XPATH, "//div[contains(@class,'menuContTitle') and normalize-space(.)='System Information']"),
-            ],
-            "Huawei System Information (menú principal)",
-        )
+        # self.click_anywhere(
+        #     driver,
+        #     [
+        #         (By.ID, "name_Systeminfo"),
+        #         (By.NAME, "m1div_deviceinfo"),
+        #         (By.XPATH, "//div[contains(@class,'menuContTitle') and normalize-space(.)='System Information']"),
+        #     ],
+        #     "Huawei System Information (menú principal)",
+        # )
 
         self.click_anywhere(
             driver,
             [
                 (By.ID, "name_wlancoverinfo"),
-                (By.XPATH, "//div[@id='name_wlancoverinfo']"),
-                (By.XPATH, "//div[contains(@class,'SecondMenuTitle') and normalize-space(.)='Home Network']"),
+                # (By.XPATH, "//div[@id='name_wlancoverinfo']"),
+                # (By.XPATH, "//div[contains(@class,'SecondMenuTitle') and normalize-space(.)='Home Network']"),
             ],
             "Huawei Home Network",
         )
@@ -1290,9 +1291,9 @@ class HuaweiMixin:
                         elif 'error' in page_text or 'failed' in page_text:
                             print("[ERROR] Error detectado en la interfaz de actualización")
                             # Guardar evidencia del error
-                            driver.save_screenshot(f"error_firmware_{timestamp}.png")
-                            with open(f"error_firmware_{timestamp}.html", 'w', encoding='utf-8') as f:
-                                f.write(driver.page_source)
+                            # driver.save_screenshot(f"error_firmware_{timestamp}.png")
+                            # with open(f"error_firmware_{timestamp}.html", 'w', encoding='utf-8') as f:
+                            #     f.write(driver.page_source)
                             return False
                         
                         time.sleep(check_interval)

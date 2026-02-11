@@ -33,6 +33,8 @@ def iniciar_monitoreo(out_q=None, stop_event=None):
             current_ip = found_ip
             last_state = "connected"
             emit("con", "Dispositivo Conectado")
+            # Marcar PING como PASS automáticamente al detectar conexión
+            emit("test_individual", {"name": "ping", "status": "PASS"})
             emit("log", f"[MON] Conectado: {current_ip}")
 
         if (not connected) and last_state != "disconnected":
