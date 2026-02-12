@@ -899,9 +899,9 @@ class HuaweiMixin:
             app_menu.click()
 
             # 3) Menú terciario: USB Application
-            usb_menu = wait.until(EC.element_to_be_clickable((By.ID, "usbapplication")))
-            print("[SELENIUM] Huawei USB Application encontrado en documento principal con id='usbapplication'")
-            usb_menu.click()
+            # usb_menu = wait.until(EC.element_to_be_clickable((By.ID, "usbapplication")))
+            # print("[SELENIUM] Huawei USB Application encontrado en documento principal con id='usbapplication'")
+            # usb_menu.click()
 
             # 4) Cambiar al iframe del contenido
             driver.switch_to.default_content()
@@ -1002,7 +1002,6 @@ class HuaweiMixin:
         #     raise
 
     def huawei_info(self, driver):
-
         # Descripcion || navegacion (clicks) || extracción
         tests = [
             # === System Information ===
@@ -1830,7 +1829,7 @@ class HuaweiMixin:
                 #     print("[DEBUG] Screenshot y HTML guardados")
                 # except:
                 #     pass
-                # return False
+                return False
             
         except TimeoutException:
             print(f"[ERROR] Timeout esperando formulario de login después de logout")
