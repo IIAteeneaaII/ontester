@@ -664,15 +664,15 @@ class HuaweiMixin:
     def nav_hw_optical(self, driver):
         """System Information -> Optical (fibra)"""
         driver.switch_to.default_content()
-        self.click_anywhere(
-            driver,
-            [
-                (By.ID, "pointer_Systeminfo"),
-                # (By.NAME, "m1div_deviceinfo"),
-                # (By.XPATH, "//div[contains(@class,'menuContTitle') and normalize-space(.)='System Information']"),
-            ],
-            "Huawei System Information (menú principal)",
-        )
+        # self.click_anywhere(
+        #     driver,
+        #     [
+        #         (By.ID, "pointer_Systeminfo"),
+        #         # (By.NAME, "m1div_deviceinfo"),
+        #         # (By.XPATH, "//div[contains(@class,'menuContTitle') and normalize-space(.)='System Information']"),
+        #     ],
+        #     "Huawei System Information (menú principal)",
+        # )
 
         # Esperar a que el submenú de System Information se expanda
         #time.sleep(2)
