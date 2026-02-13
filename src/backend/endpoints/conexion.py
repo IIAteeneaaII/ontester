@@ -391,13 +391,18 @@ def generaEtiquetaTxt(payload):
     # Crear directorio etiquetas si no existe
     directorio_etiquetas = Path(r"C:\ONT\etiquetas")
     directorio_etiquetas.mkdir(parents=True, exist_ok=True)
+    
+    # Crear directorio de históricos si no existe
+    directorio_historicos = directorio_etiquetas / "historicos"
+    directorio_historicos.mkdir(parents=True, exist_ok=True)
 
     # Fecha para histórico
     today = date.today().isoformat()
     
-    # Ruta del archivo por modelo
+    # Ruta del archivo actual (solo 1 registro, en carpeta principal)
     ruta_txt = directorio_etiquetas / f"etiqueta_{modelo_seguro}.txt"
-    ruta_historico = directorio_etiquetas / f"historico_etiqueta_{modelo_seguro}_{today}.txt"
+    # Ruta del histórico (en subcarpeta historicos)
+    ruta_historico = directorio_historicos / f"historico_etiqueta_{modelo_seguro}_{today}.txt"
 
     # Formato de cabecera para Bartender
     cabecera = "GPON SN,MAC,SSID,KEY,SSID5g,KEY5g\n"

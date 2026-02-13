@@ -554,8 +554,14 @@ class CommonMixin:
 
     # ==================== NETWORK CONNECTIVITY TESTS ==================== 
     def test_ping_connectivity(self) -> Dict[str, Any]:
-        """RF 002: Test de ping al ONT"""
-        print("[TEST] CONNECTIVITY - Ping")
+        """
+        RF 002: Test de ping al ONT
+        
+        DEPRECADO: La prueba de PING ahora se marca automáticamente como PASS
+        cuando main_loop detecta un dispositivo conectado via _scan_for_device.
+        Este método se mantiene solo por compatibilidad.
+        """
+        print("[TEST] CONNECTIVITY - Ping (DEPRECADO)")
         
         result = {
             "name": "PING_CONNECTIVITY",
@@ -1212,11 +1218,23 @@ class CommonMixin:
         # Tests
         ping = self.test_results['tests']['PING_CONNECTIVITY'].get('status') # pass
         if tests_opts.get("factory_reset", True):
-            reset = self.test_results['tests']['FACTORY_RESET_PASS'].get('status') # pass
+            # Verificar si el test de factory_reset realmente se ejecutó
+            factory_test = self.test_results.get('tests', {}).get('FACTORY_RESET_PASS')
+            if factory_test is not None:
+                reset = factory_test.get('status') # pass
+            else:
+                # El test de factory_reset no se ejecutó (prueba unitaria de otro test)
+                reset = "SIN PRUEBA"
         else:
             reset = "SIN PRUEBA"
         if tests_opts.get("usb_port", True):
-            usb = self.test_results['tests']['USB_PORT'].get('status') # pass
+            # Verificar si el test de USB realmente se ejecutó
+            usb_test = self.test_results.get('tests', {}).get('USB_PORT')
+            if usb_test is not None:
+                usb = usb_test.get('status') # pass
+            else:
+                # El test de USB no se ejecutó (prueba unitaria de otro test)
+                usb = "SIN PRUEBA"
         else:
             usb = "SIN PRUEBA"
         if tests_opts.get("tx_power", True) and tests_opts.get("rx_power", True):
@@ -1245,46 +1263,59 @@ class CommonMixin:
             rx = "SIN PRUEBA"
         
         if tests_opts.get("wifi_24ghz_signal", True) and tests_opts.get("wifi_5ghz_signal", True):
-            w24 = self.test_results['tests']['WIFI_24GHZ']['details'].get('enabled') # true
-            w5 = self.test_results['tests']['WIFI_5GHZ']['details'].get('enabled') # true
-            try:
-                rssi_2g = int(self.test_results['tests']["WIFI_24GHZ"]["details"]["data"]["wifi_status"][0]["rssi_2g"]) # valor negativo con la potencia del wifi
-                rssi_5g = int(self.test_results['tests']["WIFI_24GHZ"]["details"]["data"]["wifi_status"][0]["rssi_5g"]) # valor negativo con la potencia del wifi
-                
-                min_valor_wifi = self._getMinWifi24Signal()
-                min_valor_wifi5 = self._getMinWifi5Signal()
-                max_valor_wifi = self._getMaxWifi24Signal()
-                max_valor_wifi5 = self._getMaxWifi5Signal()
+            # Verificar si los tests de WiFi realmente se ejecutaron
+            wifi24_test = self.test_results.get('tests', {}).get('WIFI_24GHZ')
+            wifi5_test = self.test_results.get('tests', {}).get('WIFI_5GHZ')
+            
+            if wifi24_test is not None and wifi5_test is not None:
+                w24 = wifi24_test.get('details', {}).get('enabled') # true
+                w5 = wifi5_test.get('details', {}).get('enabled') # true
+                try:
+                    rssi_2g = int(wifi24_test["details"]["data"]["wifi_status"][0]["rssi_2g"]) # valor negativo con la potencia del wifi
+                    rssi_5g = int(wifi24_test["details"]["data"]["wifi_status"][0]["rssi_5g"]) # valor negativo con la potencia del wifi
+                    
+                    min_valor_wifi = self._getMinWifi24Signal()
+                    min_valor_wifi5 = self._getMinWifi5Signal()
+                    max_valor_wifi = self._getMaxWifi24Signal()
+                    max_valor_wifi5 = self._getMaxWifi5Signal()
 
-                if(rssi_2g >= min_valor_wifi and rssi_2g <= max_valor_wifi):
-                    w24 = True
-                else:
+                    if(rssi_2g >= min_valor_wifi and rssi_2g <= max_valor_wifi):
+                        w24 = True
+                    else:
+                        w24 = False
+
+                    if(rssi_5g >= min_valor_wifi5 and rssi_5g <= max_valor_wifi5):
+                        w5 = True
+                    else:
+                        w5 = False
+                except:
                     w24 = False
-
-                if(rssi_5g >= min_valor_wifi5 and rssi_5g <= max_valor_wifi5):
-                    w5 = True
-                else:
                     w5 = False
-            except:
-                w24 = False
-                w5 = False
+            else:
+                # Los tests de WiFi no se ejecutaron (prueba unitaria de otro test)
+                w24 = "SIN PRUEBA"
+                w5 = "SIN PRUEBA"
         else:
             w24 = "SIN PRUEBA"
             w5 = "SIN PRUEBA"
         sftU = "SIN PRUEBA"
         if tests_opts.get("software_update", True):
-            #Obtener resultado de actualización de sft
-            actN = self.test_results['tests']['software_update'].get('necesaria') # Bool
-            actC = self.test_results['tests']['software_update'].get('completada') # Bool
-            actNV = self.test_results['tests']['software_update'].get('version_nueva') # str
-            if (actN):
-                #Actualización necesaria
-                sftVer = sftVer+" !"
-                if actC:
-                    sftVer = actNV+" ACTUALIZADO"
+            # Verificar si el test de software_update realmente se ejecutó
+            sft_test = self.test_results.get('tests', {}).get('software_update')
+            if sft_test is not None:
+                #Obtener resultado de actualización de sft
+                actN = sft_test.get('necesaria') # Bool
+                actC = sft_test.get('completada') # Bool
+                actNV = sft_test.get('version_nueva') # str
+                if (actN):
+                    #Actualización necesaria
+                    sftVer = sftVer+" !"
+                    if actC:
+                        sftVer = actNV+" ACTUALIZADO"
+                        sftU = True
+                else:
                     sftU = True
-            else:
-                sftU = True
+            # else: sftU ya está inicializado como "SIN PRUEBA"
         
         # Obtener los resultados como json
         resultado = {}
@@ -1318,86 +1349,120 @@ class CommonMixin:
         # Tests
         ping = "PASS" # si llega hasta aqui es que se le puede hacer ping
         if tests_opts.get("factory_reset", True):
-            reset = "PASS" # ya está implementado y si no se resetea no hace nada
+            # Verificar si el test de factory_reset realmente se ejecutó
+            # ZTE guarda como FACTORY_RESET_PASS (igual que Fiberhome)
+            factory_test = self.test_results.get('tests', {}).get('FACTORY_RESET_PASS')
+            if factory_test is not None:
+                reset = "PASS" if factory_test.get('status') == True else "FAIL"
+            else:
+                # El test de factory_reset no se ejecutó (prueba unitaria de otro test)
+                reset = "SIN PRUEBA"
         else:
             reset = "SIN PRUEBA"
         if tests_opts.get("usb_port", True):
-            usb_ruta = self.test_results.get('tests', {}).get('usb', {}).get('details', {}) # ruta donde estará o no el valor buscado
-            usb = "USBDEV" in usb_ruta # True or False
-            if(usb):
-                usb_final=True
+            # Verificar si el test de USB realmente se ejecutó
+            usb_test = self.test_results.get('tests', {}).get('usb')
+            if usb_test is not None:
+                usb_ruta = usb_test.get('details', {}) # ruta donde estará o no el valor buscado
+                usb = "USBDEV" in usb_ruta # True or False
+                if(usb):
+                    usb_final=True
+                else:
+                    usb_final=False
             else:
-                usb_final=False
+                # El test de USB no se ejecutó (prueba unitaria de otro test)
+                usb_final="SIN PRUEBA"
         else:
             usb_final="SIN PRUEBA"
         if tests_opts.get("tx_power", True) and tests_opts.get("rx_power", True):
-            def _to_float_safe(v):
-                try:
-                    return float(v)
-                except (TypeError, ValueError):
-                    return -9999
-            pon_optical = self.test_results.get('tests', {}).get('fibra', {}).get('details', {}).get('PON_OPTICALPARA', {})
-            tx = pon_optical.get('RxPower') # valor negativo
-            rx = pon_optical.get('TxPower') # valor negativo
-            print("LOS valores de tx y rx son: "+str(tx)+" "+str(rx))
-            # Revisar si la fibra pasa las pruebas
-            if(_to_float_safe(tx) >= self._getMinFibraTx() and _to_float_safe(tx) <= self._getMaxFibraTx()):
-                tx = tx
+            # Verificar si el test de fibra realmente se ejecutó
+            fibra_test = self.test_results.get('tests', {}).get('fibra')
+            if fibra_test is not None:
+                def _to_float_safe(v):
+                    try:
+                        return float(v)
+                    except (TypeError, ValueError):
+                        return -9999
+                pon_optical = fibra_test.get('details', {}).get('PON_OPTICALPARA', {})
+                tx = pon_optical.get('RxPower') # valor negativo
+                rx = pon_optical.get('TxPower') # valor negativo
+                print("LOS valores de tx y rx son: "+str(tx)+" "+str(rx))
+                # Revisar si la fibra pasa las pruebas
+                if(_to_float_safe(tx) >= self._getMinFibraTx() and _to_float_safe(tx) <= self._getMaxFibraTx()):
+                    tx = tx
+                else:
+                    tx = False
+                
+                if(_to_float_safe(rx) >= self._getMinFibraRx() and _to_float_safe(rx) <= self._getMaxFibraRx()):
+                    rx = rx
+                else:
+                    rx = False
             else:
-                tx = False
-            
-            if(_to_float_safe(rx) >= self._getMinFibraRx() and _to_float_safe(rx) <= self._getMaxFibraRx()):
-                rx = rx
-            else:
-                rx = False
+                # El test de fibra no se ejecutó (prueba unitaria de otro test)
+                tx = "SIN PRUEBA"
+                rx = "SIN PRUEBA"
         else:
             tx = "SIN PRUEBA"
             rx = "SIN PRUEBA"
         if tests_opts.get("wifi_24ghz_signal", True) and tests_opts.get("wifi_5ghz_signal", True):
-            wlan_settings = self.test_results.get('tests', {}).get('wifi', {}).get('details', {}).get('WLANSETTING', [])
-            w24 = wlan_settings[0]["RadioStatus"] if len(wlan_settings) > 0 else "N/A" # valor 1 si activo
-            w5 = wlan_settings[1]["RadioStatus"] if len(wlan_settings) > 1 else "N/A" # valor 1 si activo
-            # validar la potencia del wifi
-            # verificar que el reporte no tenga errores
-            pot = self.test_results.get("tests", {}).get("potencia_wifi", {})
-            details = pot.get("details", {})
-            raw_24 = details.get("raw_24", [])
-            raw_5 = details.get("raw_5", [])
+            # Verificar si los tests de WiFi realmente se ejecutaron
+            wifi_test = self.test_results.get('tests', {}).get('wifi')
+            potencia_test = self.test_results.get("tests", {}).get("potencia_wifi")
             
-            # Obtener configuraciones de minimos en porcentajes
-            min_valor_wifi = self._getMinWifi24SignalPercent()
-            min_valor_wifi5 = self._getMinWifi5SignalPercent()
+            if wifi_test is not None and potencia_test is not None:
+                wlan_settings = wifi_test.get('details', {}).get('WLANSETTING', [])
+                w24 = wlan_settings[0]["RadioStatus"] if len(wlan_settings) > 0 else "N/A" # valor 1 si activo
+                w5 = wlan_settings[1]["RadioStatus"] if len(wlan_settings) > 1 else "N/A" # valor 1 si activo
+                # validar la potencia del wifi
+                # verificar que el reporte no tenga errores
+                details = potencia_test.get("details", {})
+                raw_24 = details.get("raw_24", [])
+                raw_5 = details.get("raw_5", [])
+                
+                # Obtener configuraciones de minimos en porcentajes
+                min_valor_wifi = self._getMinWifi24SignalPercent()
+                min_valor_wifi5 = self._getMinWifi5SignalPercent()
 
-            # Verificar que NO estén vacías
-            if details["raw_24"]:
-                # wifi 2.4 con valor || validar si la potencia es mayor a la esperada TODO cambiar por variable
-                net = next((n for n in raw_24 if n["ssid"] == wifi24), None)
-                if net and net["signal_percent"] >= min_valor_wifi:
-                    w24 = True
+                # Verificar que NO estén vacías
+                if raw_24:
+                    # wifi 2.4 con valor || validar si la potencia es mayor a la esperada TODO cambiar por variable
+                    net = next((n for n in raw_24 if n["ssid"] == wifi24), None)
+                    if net and net["signal_percent"] >= min_valor_wifi:
+                        w24 = True
+                    else:
+                        w24 = False
                 else:
                     w24 = False
-            else:
-                w24 = False
 
-            # Verificar que NO estén vacías
-            if details["raw_5"]:
-                # wifi 2.4 con valor || validar si la potencia es mayor a la esperada TODO cambiar por variable
-                net = next((n for n in raw_5 if n["ssid"] == wifi5), None)
-                if net and net["signal_percent"] >= min_valor_wifi5:
-                    w5 = True
+                # Verificar que NO estén vacías
+                if raw_5:
+                    # wifi 2.4 con valor || validar si la potencia es mayor a la esperada TODO cambiar por variable
+                    net = next((n for n in raw_5 if n["ssid"] == wifi5), None)
+                    if net and net["signal_percent"] >= min_valor_wifi5:
+                        w5 = True
+                    else:
+                        w5 = False
                 else:
                     w5 = False
             else:
-                w5 = False
+                # Los tests de WiFi no se ejecutaron (prueba unitaria de otro test)
+                w24 = "SIN PRUEBA"
+                w5 = "SIN PRUEBA"
         else:
             w24 = "SIN PRUEBA"
             w5 = "SIN PRUEBA"
 
         if tests_opts.get("software_update", True):
-            try:
-                sftU = self.test_results['tests']['software_update']['details'].get('update_completed')
-            except:
-                sftU = False
+            # Verificar si el test de software_update realmente se ejecutó
+            sft_test = self.test_results.get('tests', {}).get('software_update')
+            if sft_test is not None:
+                try:
+                    sftU = sft_test.get('details', {}).get('update_completed')
+                except:
+                    sftU = False
+            else:
+                # El test de software_update no se ejecutó (prueba unitaria de otro test)
+                sftU = "SIN PRUEBA"
         else:
             sftU = "SIN PRUEBA"
         # Obtener los resultados como json
@@ -1429,92 +1494,143 @@ class CommonMixin:
         # Tests
         ping = "PASS" # sin poder hacer ping no se podría avanzar tanto
         if tests_opts.get("factory_reset", True):
-            reset = "PASS" # ya se resetea
+            # Verificar si el test de factory_reset realmente se ejecutó
+            factory_test = self.test_results.get('tests', {}).get('factory_reset')
+            if factory_test is not None:
+                reset = "PASS" if factory_test.get('status') == True else "FAIL"
+            else:
+                # El test de factory_reset no se ejecutó (prueba unitaria de otro test)
+                reset = "SIN PRUEBA"
         else:
             reset= "SIN PRUEBA"
         if tests_opts.get("usb_port", True):
-            hw_usb_data = self.test_results.get('tests', {}).get('hw_usb', {}).get('data') or {}
-            usb = hw_usb_data.get('connected') # true or false
-            if(usb):
-                usb_final = True
+            # Verificar si el test de USB realmente se ejecutó
+            hw_usb_test = self.test_results.get('tests', {}).get('hw_usb')
+            if hw_usb_test is not None:
+                hw_usb_data = hw_usb_test.get('data') or {}
+                usb = hw_usb_data.get('connected') # true or false
+                if(usb):
+                    usb_final = True
+                else:
+                    usb_final = False
             else:
-                usb_final = False
+                # El test de USB no se ejecutó (prueba unitaria de otro test)
+                usb_final = "SIN PRUEBA"
         else:
             usb_final = "SIN PRUEBA"
         if tests_opts.get("tx_power", True) and tests_opts.get("rx_power", True):
-            # Verificar si el test de fibra detectó si hay fibra óptica conectada o no
-            hw_optical_data = self.test_results['tests'].get('hw_optical', {}).get('data')
-
-            if hw_optical_data: # Si se detectó fibra óptica
-                tx = self.test_results['tests']['hw_optical']['data'].get('tx_optical_power')
-                rx = self.test_results['tests']['hw_optical']['data'].get('rx_optical_power')
-            else: # Si no hay fibra, asignar valores por defecto para evitar errores
-                tx = "-- dBm"
-                rx = "-- dBm"
+            # Verificar si el test de fibra realmente se ejecutó
+            hw_optical_test = self.test_results.get('tests', {}).get('hw_optical')
+            if hw_optical_test is not None:
+                hw_optical_data = hw_optical_test.get('data')
+                if hw_optical_data: # Si se detectó fibra óptica
+                    tx = hw_optical_data.get('tx_optical_power')
+                    rx = hw_optical_data.get('rx_optical_power')
+                else: # Si no hay fibra, asignar valores por defecto para evitar errores
+                    tx = "-- dBm"
+                    rx = "-- dBm"
+            else:
+                # El test de fibra no se ejecutó (prueba unitaria de otro test)
+                tx = "SIN PRUEBA"
+                rx = "SIN PRUEBA"
         else:
             tx = "SIN PRUEBA"
             rx = "SIN PRUEBA"
         if tests_opts.get("wifi_24ghz_signal", True) and tests_opts.get("wifi_5ghz_signal", True):
-            w24 = hw_wifi24_data.get('status') # Enabled si true
-            w5 = hw_wifi5_data.get('status') # Enabled si true
-            # validar la potencia del wifi
-            # verificar que el reporte no tenga errores
-            pot = self.test_results.get("tests", {}).get("potencia_wifi") or {}
-            details = pot.get("details") or {}
-            raw_24 = details.get("raw_24") or []
-            raw_5 = details.get("raw_5") or []
+            # Verificar si los tests de WiFi realmente se ejecutaron
+            potencia_test = self.test_results.get("tests", {}).get("potencia_wifi")
+            hw_wifi24_test = self.test_results.get('tests', {}).get('hw_wifi24')
+            hw_wifi5_test = self.test_results.get('tests', {}).get('hw_wifi5')
             
-            # Obtener configuraciones de minimos en porcentajes
-            min_valor_wifi = self._getMinWifi24SignalPercent()
-            min_valor_wifi5 = self._getMinWifi5SignalPercent()
+            if potencia_test is not None and hw_wifi24_test is not None and hw_wifi5_test is not None:
+                w24 = hw_wifi24_data.get('status') # Enabled si true
+                w5 = hw_wifi5_data.get('status') # Enabled si true
+                # validar la potencia del wifi
+                # verificar que el reporte no tenga errores
+                pot = potencia_test or {}
+                details = pot.get("details") or {}
+                raw_24 = details.get("raw_24") or []
+                raw_5 = details.get("raw_5") or []
+                
+                # Obtener configuraciones de minimos en porcentajes
+                min_valor_wifi = self._getMinWifi24SignalPercent()
+                min_valor_wifi5 = self._getMinWifi5SignalPercent()
 
-            # Verificar que NO estén vacías
-            if details["raw_24"]:
-                # wifi 2.4 con valor || validar si la potencia es mayor a la esperada TODO cambiar por variable
-                net = next((n for n in raw_24 if n["ssid"] == wifi24), None)
-                if net and net["signal_percent"] >= min_valor_wifi:
-                    w24 = True
+                # Verificar que NO estén vacías
+                if raw_24:
+                    # wifi 2.4 con valor || validar si la potencia es mayor a la esperada TODO cambiar por variable
+                    net = next((n for n in raw_24 if n["ssid"] == wifi24), None)
+                    if net and net["signal_percent"] >= min_valor_wifi:
+                        w24 = True
+                    else:
+                        w24 = False
                 else:
                     w24 = False
-            else:
-                w24 = False
 
-            # Verificar que NO estén vacías
-            if details["raw_5"]:
-                # wifi 2.4 con valor || validar si la potencia es mayor a la esperada TODO cambiar por variable
-                net = next((n for n in raw_5 if n["ssid"] == wifi5), None)
-                if net and net["signal_percent"] >= min_valor_wifi5:
-                    w5 = True
+                # Verificar que NO estén vacías
+                if raw_5:
+                    # wifi 2.4 con valor || validar si la potencia es mayor a la esperada TODO cambiar por variable
+                    net = next((n for n in raw_5 if n["ssid"] == wifi5), None)
+                    if net and net["signal_percent"] >= min_valor_wifi5:
+                        w5 = True
+                    else:
+                        w5 = False
                 else:
                     w5 = False
             else:
-                w5 = False
+                # Los tests de WiFi no se ejecutaron (prueba unitaria de otro test)
+                w24 = "SIN PRUEBA"
+                w5 = "SIN PRUEBA"
         else:
             w24 = "SIN PRUEBA"
             w5 = "SIN PRUEBA"
 
         
-        # Valores por defecto para no mandar --
-        tx_final=-60.0
-        rx_final=-60.0
-        if(tx != "-- dBm"):
-            tx_final = tx
-        if(rx != "-- dBm"):
-            rx_final = rx
-
-        # Revisar si la fibra pasa las pruebas
-        if tests_opts.get("tx_power", True) and tests_opts.get("rx_power", True):
-            if(tx_final >= self._getMinFibraTx() and tx_final <= self._getMaxFibraTx()):
-                tx_final = tx
+        # Valores por defecto para cuando no hay fibra
+        tx_final = "SIN PRUEBA"
+        rx_final = "SIN PRUEBA"
+        
+        # Solo procesar fibra si realmente se ejecutó el test
+        if tx != "SIN PRUEBA" and rx != "SIN PRUEBA":
+            # Función para extraer valor numérico de strings como "-2.5 dBm" o "-2.5"
+            def _extract_dbm_value(v):
+                if v is None or v == "-- dBm":
+                    return None
+                try:
+                    # Intentar extraer número de strings como "-2.5 dBm"
+                    if isinstance(v, str):
+                        v = v.replace("dBm", "").replace("dB", "").strip()
+                    return float(v)
+                except (TypeError, ValueError):
+                    return None
+            
+            tx_value = _extract_dbm_value(tx)
+            rx_value = _extract_dbm_value(rx)
+            
+            # Revisar si la fibra pasa las pruebas
+            if tx_value is not None:
+                if tx_value >= self._getMinFibraTx() and tx_value <= self._getMaxFibraTx():
+                    tx_final = tx_value
+                else:
+                    tx_final = False
             else:
                 tx_final = False
             
-            if(rx_final >= self._getMinFibraRx() and rx_final <= self._getMaxFibraRx()):
-                rx_final = rx
+            if rx_value is not None:
+                if rx_value >= self._getMinFibraRx() and rx_value <= self._getMaxFibraRx():
+                    rx_final = rx_value
+                else:
+                    rx_final = False
             else:
                 rx_final = False
         if tests_opts.get("software_update", True):
-            sftU = self.test_results.get('tests', {}).get('software_update', {}).get('details', {}).get('update_completed')
+            # Verificar si el test de software_update realmente se ejecutó
+            sft_test = self.test_results.get('tests', {}).get('software_update')
+            if sft_test is not None:
+                sftU = sft_test.get('details', {}).get('update_completed')
+            else:
+                # El test de software_update no se ejecutó (prueba unitaria de otro test)
+                sftU = "SIN PRUEBA"
         else:
             sftU = "SIN PRUEBA"
         # Obtener los resultados como json
