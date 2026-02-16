@@ -725,6 +725,7 @@ class TesterView(ctk.CTkFrame):
 
         elif kind == "resultados":
             # ejemplo: pintar resultados en tu UI
+            info  = payload.get("info", {})
             # Detectar si viene de prueba unitaria usando el flag _unit_running
             from_unit = getattr(self, '_unit_running', False)
             self._render_resultados(payload, from_unit_test=from_unit)
@@ -768,22 +769,25 @@ class TesterView(ctk.CTkFrame):
             }
             btn_key = name_to_key.get(test_name, test_name)
             self.panel_pruebas._set_button_status(btn_key, status)
-            raw = self.snInfo.cget("text")         
-            sn = raw.replace("SN:", "", 1).strip() # Leer el sn de la UI, Eliminar "SN: "
-            # Normalizar a BD
-            from src.backend.endpoints.conexion import normalizar_valor_bd
-            campo = normalizar_valor_bd(btn_key)
-            # Actualizar el registro de el modo seleccionado
-            from src.backend.sua_client.dao import validar_por_modo, update_operation_snmodo
-            # Primero hacer update
-            # Verificar que el campo no sea None
-            if campo != None:
-                update_operation_snmodo(sn, modo, campo, status)
-                # Update al campo de valido
-                valido = validar_por_modo(sn, modo)
-                if valido:
-                    #actualizar UI
-                    print()
+
+            # Validar para que solo en pruebas unitarias haga registros
+            if getattr(self, "_unit_running", False):
+                raw = self.snInfo.cget("text")         
+                sn = raw.replace("SN:", "", 1).strip() # Leer el sn de la UI, Eliminar "SN: "
+                # Normalizar a BD
+                from src.backend.endpoints.conexion import normalizar_valor_bd
+                campo = normalizar_valor_bd(btn_key)
+                # Actualizar el registro de el modo seleccionado
+                from src.backend.sua_client.dao import validar_por_modo, update_operation_snmodo
+                # Primero hacer update
+                # Verificar que el campo no sea None
+                if campo != None:
+                    update_operation_snmodo(sn, modo, campo, status)
+                    # Update al campo de valido
+                    valido = validar_por_modo(sn, modo)
+                    if valido:
+                        #actualizar UI
+                        print()
         #elif kind == "test":
             # ejemplo: actualizar un cuadrito por prueba || de momento no
             # payload = {"nombre":"wifi_24ghz_signal","estado":"PASS","valor":"-14.6 dBm"}

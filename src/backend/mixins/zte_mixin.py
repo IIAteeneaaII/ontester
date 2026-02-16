@@ -426,19 +426,18 @@ class ZTEMixin:
         print("[SELENIUM] Navegando a Management & Diagnosis...")
         driver.get(self.base_url)  # http://192.168.1.1
         
-        # Entrar en Management & Diagnosis
-        ok = self.click_anywhere(
-            driver,
-            selectors=[
-                (By.ID, "mgrAndDiag"),
-                (By.CSS_SELECTOR, "a[menupage='mgrAndDiag']"),
-                (By.LINK_TEXT, "Management & Diagnosis"),
-            ],
-            desc="Management & Diagnosis",
-            timeout=10
+        mgmt = WebDriverWait(driver, 25).until(
+            #EC.element_to_be_clickable((By.LINK_TEXT, "Management & Diagnosis"))
+            EC.presence_of_element_located((By.XPATH, '//a[@title="Management & Diagnosis"]'))
         )
-        if not ok:
-            raise RuntimeError("No se pudo hacer click en Management & Diagnosis")
+        driver.execute_script("arguments[0].scrollIntoView({block:'center'});", mgmt)
+        driver.execute_script("arguments[0].focus();", mgmt)
+        driver.execute_script("arguments[0].click();", mgmt)
+        #mgmt.click()
+        # print("[DEBUG] URL:", driver.current_url)
+        # print("[DEBUG] readyState:", driver.execute_script("return document.readyState"))
+        # print("[DEBUG] page snippet:", driver.page_source[:200].lower())
+        print("[SELENIUM] Click en Management & Diagnosis")
         
         print("[SELENIUM] Management & Diagnosis debería ser accesible ahora")
 
@@ -749,10 +748,17 @@ class ZTEMixin:
                     time.sleep(5)
                     
                     # Navegar a Status para habilitar endpoint
-                    mgmt = WebDriverWait(driver, 10).until(
-                        EC.element_to_be_clickable((By.LINK_TEXT, "Management & Diagnosis"))
+                    mgmt = WebDriverWait(driver, 25).until(
+                        #EC.element_to_be_clickable((By.LINK_TEXT, "Management & Diagnosis"))
+                        EC.presence_of_element_located((By.XPATH, '//a[@title="Management & Diagnosis"]'))
                     )
-                    mgmt.click()
+                    driver.execute_script("arguments[0].scrollIntoView({block:'center'});", mgmt)
+                    driver.execute_script("arguments[0].focus();", mgmt)
+                    driver.execute_script("arguments[0].click();", mgmt)
+                    #mgmt.click()
+                    # print("[DEBUG] URL:", driver.current_url)
+                    # print("[DEBUG] readyState:", driver.execute_script("return document.readyState"))
+                    # print("[DEBUG] page snippet:", driver.page_source[:200].lower())
                     print("[SELENIUM] Click en Management & Diagnosis")
                     time.sleep(3)
                     
@@ -853,11 +859,18 @@ class ZTEMixin:
             driver.switch_to.default_content()
 
             # 1) Top menu
-            print("[SELENIUM] Top Menu 'Management & Diagnosis'...")
-            if not click_with_retry((By.ID, "mgrAndDiag"),
-                                    "Top menu 'Management & Diagnosis'"):
-                print("[ERROR] No se pudo clicar el menú superior 'Management & Diagnosis'")
-                return False
+            mgmt = WebDriverWait(driver, 25).until(
+                #EC.element_to_be_clickable((By.LINK_TEXT, "Management & Diagnosis"))
+                EC.presence_of_element_located((By.XPATH, '//a[@title="Management & Diagnosis"]'))
+            )
+            driver.execute_script("arguments[0].scrollIntoView({block:'center'});", mgmt)
+            driver.execute_script("arguments[0].focus();", mgmt)
+            driver.execute_script("arguments[0].click();", mgmt)
+            #mgmt.click()
+            # print("[DEBUG] URL:", driver.current_url)
+            # print("[DEBUG] readyState:", driver.execute_script("return document.readyState"))
+            # print("[DEBUG] page snippet:", driver.page_source[:200].lower())
+            print("[SELENIUM] Click en Management & Diagnosis")
 
             # 2) Menú lateral
             print("[SELENIUM] Buscando menú lateral 'System Management'...")
@@ -1210,6 +1223,7 @@ class ZTEMixin:
         # funcion de inicio de sesión zte (ip diferente -> 192.168.1.1)
         # Este login / peticiones no se hacen mediante ajax ya que el modelo no lo soporta
         print("[DEBUG] El valor de reset recibido es: "+str(reset))
+        print("[ZTE] Intentando login con ZTE normal_user")
         # Vereficar selenium (prob se usará siemr}pre, es sencillo de usar)
         if SELENIUM_AVAILABLE:
             #Login con selenium, pero sin acceder a cookies
@@ -1419,13 +1433,20 @@ class ZTEMixin:
                     (By.LINK_TEXT, "Management & Diagnosis")
                 ]
                 
-                mgmt = WebDriverWait(driver, 10).until(
-                    EC.element_to_be_clickable((By.LINK_TEXT, "Management & Diagnosis"))
+                mgmt = WebDriverWait(driver, 25).until(
+                    #EC.element_to_be_clickable((By.LINK_TEXT, "Management & Diagnosis"))
+                    EC.presence_of_element_located((By.XPATH, '//a[@title="Management & Diagnosis"]'))
                 )
-                mgmt.click()
+                driver.execute_script("arguments[0].scrollIntoView({block:'center'});", mgmt)
+                driver.execute_script("arguments[0].focus();", mgmt)
+                driver.execute_script("arguments[0].click();", mgmt)
+                #mgmt.click()
+                # print("[DEBUG] URL:", driver.current_url)
+                # print("[DEBUG] readyState:", driver.execute_script("return document.readyState"))
+                # print("[DEBUG] page snippet:", driver.page_source[:200].lower())
                 print("[SELENIUM] Click en Management & Diagnosis")
                 
-                time.sleep(3)
+                time.sleep(1.5)
 
                 # Debug EXTREMO
                 # with open("zte_after_mgmt.html", "w", encoding="utf-8") as f:
