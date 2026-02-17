@@ -11,8 +11,47 @@ sys.path.insert(0, str(root_path))
 from src.Frontend.ui.panel_pruebas_view import PanelPruebasConexion
 from src.Frontend.ui.menu_superior_view import MenuSuperiorDesplegable
 
+# =========================================================
+#                     HELPERS (RECURSOS)
+# =========================================================
 
-class CambiarEstacionDialog(ctk.CTkToplevel):
+def resource_path(relative_path: str) -> str:
+    """
+    Devuelve ruta absoluta a un recurso.
+    Funciona en dev y en PyInstaller (onefile/onedir).
+    """
+    if hasattr(sys, "_MEIPASS"):
+        return str(Path(sys._MEIPASS) / relative_path)
+    return str(root_path / relative_path)
+
+
+# Usado solo para el test al final del archivo
+APP_ICON_REL = "src/Frontend/assets/icons/ont.ico"
+
+
+class BaseDialog(ctk.CTkToplevel):
+    """
+    Base para TODOS los diálogos: aplica el mismo icono/logo que la app.
+    """
+    def __init__(self, parent, *args, **kwargs):
+        master = parent.winfo_toplevel() if hasattr(parent, "winfo_toplevel") else parent
+        super().__init__(master, *args, **kwargs)
+        self._icon_img = None
+        self._set_logo_icon()
+
+    def _set_logo_icon(self):
+        ico_path = resource_path(APP_ICON_REL)
+
+        def apply_icon():
+            try:
+                self.wm_iconbitmap(ico_path)
+            except Exception as e:
+                print(f"[ICON] wm_iconbitmap dialog falló: {e}")
+
+        self.after(0, apply_icon)
+
+
+class CambiarEstacionDialog(BaseDialog):
     """
     Ventana emergente para cambiar el número de estación.
     """
@@ -21,24 +60,20 @@ class CambiarEstacionDialog(ctk.CTkToplevel):
         super().__init__(parent)
         self.nuevo_numero = None
 
-        # Configuración de la ventana
         self.title("Cambiar Estación")
         self.geometry("400x200")
         self.resizable(False, False)
 
-        # Centrar la ventana
         self.transient(parent)
         self.grab_set()
 
-        # Configurar el grid
         self.grid_columnconfigure(0, weight=1)
 
-        # ---------- Contenido ----------
         titulo_label = ctk.CTkLabel(
             self,
             text="Ingrese el número de estación\na donde se hará el cambio",
             font=ctk.CTkFont(size=14, weight="bold"),
-            text_color="#2C3E50"
+            text_color="#2C3E50",
         )
         titulo_label.grid(row=0, column=0, pady=(20, 10), padx=20)
 
@@ -50,7 +85,7 @@ class CambiarEstacionDialog(ctk.CTkToplevel):
             justify="center",
             fg_color="white",
             border_color="#6B9080",
-            border_width=2
+            border_width=2,
         )
         self.entry_estacion.grid(row=1, column=0, pady=10)
         self.entry_estacion.insert(0, estacion_actual)
@@ -69,7 +104,7 @@ class CambiarEstacionDialog(ctk.CTkToplevel):
             fg_color="#6B9080",
             hover_color="#5A7A6A",
             width=120,
-            height=35
+            height=35,
         )
         btn_aceptar.pack(side="left", padx=5)
 
@@ -81,15 +116,16 @@ class CambiarEstacionDialog(ctk.CTkToplevel):
             fg_color="#C1666B",
             hover_color="#A4161A",
             width=120,
-            height=35
+            height=35,
         )
         btn_cancelar.pack(side="left", padx=5)
+
         self.userConsumible = userConsumible
         self.cargarEstacion()
-    
+
     def cargarEstacion(self):
-        # Modificar valor desde config
         from src.backend.endpoints.conexion import cargarConfig
+
         config = cargarConfig()
         general = config.get("general", {}) or {}
         estacion = general.get("estacion")
@@ -97,14 +133,13 @@ class CambiarEstacionDialog(ctk.CTkToplevel):
         self.entry_estacion.insert(0, estacion)
 
     def confirmar(self):
-        """Valida y guarda el nuevo número de estación."""
         valor = self.entry_estacion.get().strip()
 
         if not valor:
             messagebox.showwarning(
                 "Advertencia",
                 "Por favor ingrese un número de estación.",
-                parent=self
+                parent=self,
             )
             return
 
@@ -112,23 +147,24 @@ class CambiarEstacionDialog(ctk.CTkToplevel):
             messagebox.showerror(
                 "Error",
                 "El número de estación debe contener solo dígitos.",
-                parent=self
+                parent=self,
             )
             return
+
         from src.backend.endpoints.conexion import guardarConfig
+
         user_id = self.userConsumible
         guardarConfig(valor, "estacion", user_id)
 
-        self.nuevo_numero = valor.zfill(2)  # 01, 02, etc.
+        self.nuevo_numero = valor.zfill(2)
         self.destroy()
 
     def cancelar(self):
-        """Cancela el cambio."""
         self.nuevo_numero = None
         self.destroy()
 
 
-class ModificarEtiquetadoDialog(ctk.CTkToplevel):
+class ModificarEtiquetadoDialog(BaseDialog):
     """
     Ventana emergente para configurar el modo de etiqueta.
     """
@@ -146,24 +182,11 @@ class ModificarEtiquetadoDialog(ctk.CTkToplevel):
         self.transient(parent)
         self.grab_set()
 
-        close_btn = ctk.CTkButton(
-            self,
-            text="✕",
-            width=30,
-            height=30,
-            corner_radius=5,
-            fg_color="#C1666B",
-            hover_color="#A4161A",
-            font=ctk.CTkFont(size=16, weight="bold"),
-            command=self.cancelar
-        )
-        close_btn.place(x=410, y=10)
-
         titulo_label = ctk.CTkLabel(
             self,
             text="CONFIGURACIÓN DE ETIQUETA",
             font=ctk.CTkFont(size=16, weight="bold"),
-            text_color="#2C3E50"
+            text_color="#2C3E50",
         )
         titulo_label.pack(pady=(20, 30), padx=20)
 
@@ -171,7 +194,7 @@ class ModificarEtiquetadoDialog(ctk.CTkToplevel):
             self,
             text="MODO DE ETIQUETA DE FIBERHOME",
             font=ctk.CTkFont(size=13, weight="bold"),
-            text_color="#2C3E50"
+            text_color="#2C3E50",
         )
         opciones_label.pack(pady=(0, 15))
 
@@ -185,7 +208,7 @@ class ModificarEtiquetadoDialog(ctk.CTkToplevel):
             font=ctk.CTkFont(size=12, weight="bold"),
             text_color="#2C3E50",
             fg_color="#4EA5D9",
-            hover_color="#3B8CC2"
+            hover_color="#3B8CC2",
         )
         radio_unica.pack(pady=5, padx=40, anchor="w")
 
@@ -197,7 +220,7 @@ class ModificarEtiquetadoDialog(ctk.CTkToplevel):
             font=ctk.CTkFont(size=12, weight="bold"),
             text_color="#2C3E50",
             fg_color="#4EA5D9",
-            hover_color="#3B8CC2"
+            hover_color="#3B8CC2",
         )
         radio_doble.pack(pady=5, padx=40, anchor="w")
 
@@ -209,31 +232,30 @@ class ModificarEtiquetadoDialog(ctk.CTkToplevel):
             fg_color="#6B9080",
             hover_color="#5A7A6A",
             width=120,
-            height=35
+            height=35,
         )
         btn_aceptar.pack(pady=(20, 15))
+
         self.userConsumible = userConsumible
         self.cargarEtiqueta()
-    
+
     def cargarEtiqueta(self):
         from src.backend.endpoints.conexion import cargarConfig
+
         config = cargarConfig()
         general = config.get("general", {}) or {}
         etiqueta = general.get("etiqueta")
-        if etiqueta == 1:
-            etiqueta = "unica"
-        else:
-            etiqueta = "doble"
+        etiqueta = "unica" if etiqueta == 1 else "doble"
         self.etiqueta_var.set(etiqueta)
 
     def confirmar(self):
         self.resultado = self.etiqueta_var.get()
         print(f"Modo de etiqueta seleccionado: {self.resultado}")
-        if(self.resultado == "unica"):
-            etiq = 1
-        else:
-            etiq = 2
+
+        etiq = 1 if self.resultado == "unica" else 2
+
         from src.backend.endpoints.conexion import guardarConfig
+
         user_id = self.userConsumible
         guardarConfig(etiq, "etiqueta", user_id)
         self.destroy()
@@ -243,117 +265,173 @@ class ModificarEtiquetadoDialog(ctk.CTkToplevel):
         self.destroy()
 
 
-class ModificarParametrosDialog(ctk.CTkToplevel):
+class ModificarParametrosDialog(BaseDialog):
     """
     Ventana emergente para configurar los parámetros del ONT TESTER.
+    - Scroll siempre usable (Canvas + Scrollbar)
+    - El área scrollable tiene un MAX_HEIGHT, aunque la pantalla sea grande
+    - Los botones quedan dentro del scroll (al final)
     """
+
+    MAX_SCROLL_HEIGHT = 520   # <-- ajusta si quieres (500-580 suele quedar bien)
+    MIN_DIALOG_W = 560
+    MIN_DIALOG_H = 520
 
     def __init__(self, parent, userConsumible):
         super().__init__(parent)
 
         self.resultado = None
+        self.userConsumible = userConsumible
 
         self.title("Parámetros de ONT Tester")
-        self.geometry("550x700")
-        self.resizable(False, False)
+        self.geometry("600x700")
+        self.minsize(self.MIN_DIALOG_W, self.MIN_DIALOG_H)
+
+        # Puedes redimensionar, pero el scroll NO se vuelve infinito
+        self.resizable(True, True)
         self.configure(fg_color="#E8E8E8")
 
+        # Modal suave
         self.transient(parent)
-        self.grab_set()
+        self.after(50, lambda: (self.grab_set(), self.focus_force()))
 
-        close_btn = ctk.CTkButton(
-            self,
-            text="✕",
-            width=30,
-            height=30,
-            corner_radius=5,
-            fg_color="#C1666B",
-            hover_color="#A4161A",
-            font=ctk.CTkFont(size=16, weight="bold"),
-            command=self.cancelar
-        )
-        close_btn.place(x=510, y=10)
+        # ---------------- Layout principal ----------------
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(0, weight=0)  # título
+        self.grid_rowconfigure(1, weight=1)  # contenedor scroll
 
         titulo_label = ctk.CTkLabel(
             self,
             text="PARÁMETROS DE ONT TESTER",
             font=ctk.CTkFont(size=16, weight="bold"),
-            text_color="#2C3E50"
+            text_color="#2C3E50",
         )
-        titulo_label.pack(pady=(20, 25), padx=20)
+        titulo_label.grid(row=0, column=0, pady=(20, 12), padx=20, sticky="n")
 
-        main_scrollable = ctk.CTkScrollableFrame(
-            self,
-            fg_color="transparent",
-            width=500,
-            height=500
+        # Contenedor del scroll (su altura se controla)
+        self.scroll_host = ctk.CTkFrame(self, fg_color="transparent")
+        self.scroll_host.grid(row=1, column=0, sticky="nsew", padx=20, pady=(0, 18))
+        self.scroll_host.grid_columnconfigure(0, weight=1)
+        self.scroll_host.grid_columnconfigure(1, weight=0)
+        self.scroll_host.grid_rowconfigure(0, weight=1)
+
+        # Canvas (tk) + Scrollbar (ctk)
+        self._canvas = tk.Canvas(self.scroll_host, highlightthickness=0, bd=0)
+        self._canvas.grid(row=0, column=0, sticky="nsew")
+
+        self._vscroll = ctk.CTkScrollbar(
+            self.scroll_host, orientation="vertical", command=self._canvas.yview
         )
-        main_scrollable.pack(fill="both", expand=True, padx=20, pady=(0, 10))
+        self._vscroll.grid(row=0, column=1, sticky="ns", padx=(8, 0))
 
+        self._canvas.configure(yscrollcommand=self._vscroll.set)
+
+        # Frame interno real (contenido)
+        self.content = ctk.CTkFrame(self._canvas, fg_color="transparent")
+        self._content_window = self._canvas.create_window((0, 0), window=self.content, anchor="nw")
+
+        # Mantener el contenido al ancho del canvas
+        def _on_canvas_configure(event):
+            self._canvas.itemconfig(self._content_window, width=event.width)
+
+        self._canvas.bind("<Configure>", _on_canvas_configure)
+
+        # Actualizar scrollregion cuando el contenido cambie
+        def _on_content_configure(_event=None):
+            self._canvas.configure(scrollregion=self._canvas.bbox("all"))
+
+        self.content.bind("<Configure>", _on_content_configure)
+
+        # ✅ Limitar altura del área scrollable aunque la ventana sea grande
+        def _limit_scroll_area(_event=None):
+            try:
+                total_h = self.winfo_height()
+                top_used = 20 + 12 + 30  # aproximación del espacio del título/paddings
+                available = max(260, total_h - top_used)  # mínimo usable
+                target = min(self.MAX_SCROLL_HEIGHT, available)
+                self._canvas.configure(height=target)
+            except Exception:
+                pass
+
+        # Se recalcula al abrir y al redimensionar
+        self.bind("<Configure>", _limit_scroll_area)
+        self.after(80, _limit_scroll_area)
+
+        # Mousewheel (Windows)
+        self._bind_mousewheel()
+
+        # ---------------- CONTENIDO (dentro de self.content) ----------------
         self._crear_seccion_rango(
-            main_scrollable,
+            self.content,
             "RANGO DE VALORES EN TX",
-            "tx_min", "tx_max",
+            "tx_min",
+            "tx_max",
             valores_min=["1.00", "2.00", "3.00", "4.00", "5.00"],
             valores_max=["3.00", "4.00", "5.00", "6.00"],
             default_min="1.00",
-            default_max="5.00"
+            default_max="5.00",
         )
 
         self._crear_seccion_rango(
-            main_scrollable,
+            self.content,
             "RANGO DE VALORES EN RX",
-            "rx_min", "rx_max",
+            "rx_min",
+            "rx_max",
             valores_min=["-30.00", "-25.00", "-20.00", "-15.00", "-10.00"],
             valores_max=["-13.00", "-12.00", "-11.00", "-10.00"],
             default_min="-20.00",
-            default_max="-12.00"
+            default_max="-12.00",
         )
 
         self._crear_seccion_rango(
-            main_scrollable,
+            self.content,
             "RANGO DE VALORES RSSI 2.4 GHz",
-            "rssi24_min", "rssi24_max",
+            "rssi24_min",
+            "rssi24_max",
             valores_min=["-80", "-70", "-60", "-50"],
             valores_max=["-10", "-5", "0"],
             default_min="-80",
-            default_max="-5"
+            default_max="-5",
         )
 
         self._crear_seccion_rango(
-            main_scrollable,
+            self.content,
             "RANGO DE VALORES RSSI 5.0 GHz",
-            "rssi50_min", "rssi50_max",
+            "rssi50_min",
+            "rssi50_max",
             valores_min=["-80", "-70", "-60", "-50"],
             valores_max=["-10", "-5", "0"],
             default_min="-80",
-            default_max="-5"
+            default_max="-5",
         )
 
-        busquedas_frame = ctk.CTkFrame(main_scrollable, fg_color="transparent")
+        busquedas_frame = ctk.CTkFrame(self.content, fg_color="transparent")
         busquedas_frame.pack(fill="x", pady=(20, 10))
 
         busquedas_label = ctk.CTkLabel(
             busquedas_frame,
             text="PORCENTAJE DE POTENCIA DE SEÑALES WIFI",
             font=ctk.CTkFont(size=12, weight="bold"),
-            text_color="#2C3E50"
+            text_color="#2C3E50",
         )
         busquedas_label.pack(anchor="w", pady=(0, 10))
 
         self.busquedas_combo = ctk.CTkComboBox(
             busquedas_frame,
-            values=["60", "70", "80", "90", "100"],
-            width=200,
+            values=["50", "60", "70", "80", "90", "100"],
+            width=240,
             height=32,
             fg_color="white",
-            border_color="#8FA3B0"
+            border_color="#8FA3B0",
         )
         self.busquedas_combo.set("60")
         self.busquedas_combo.pack(anchor="w", pady=(0, 10))
 
-        botones_frame = ctk.CTkFrame(self, fg_color="transparent")
-        botones_frame.pack(pady=(5, 20))
+        # ---------------- BOTONES (al final, dentro del scroll) ----------------
+        botones_frame = ctk.CTkFrame(self.content, fg_color="transparent")
+        botones_frame.pack(fill="x", pady=(30, 10))
+
+        botones_frame.grid_columnconfigure((0, 1, 2), weight=1)
 
         btn_aceptar = ctk.CTkButton(
             botones_frame,
@@ -364,9 +442,9 @@ class ModificarParametrosDialog(ctk.CTkToplevel):
             hover_color="#C19B2B",
             text_color="#2C3E50",
             width=120,
-            height=35
+            height=35,
         )
-        btn_aceptar.pack(side="left", padx=5)
+        btn_aceptar.grid(row=0, column=0, padx=8, pady=(0, 10), sticky="e")
 
         btn_restaurar = ctk.CTkButton(
             botones_frame,
@@ -377,9 +455,9 @@ class ModificarParametrosDialog(ctk.CTkToplevel):
             hover_color="#8FC9CB",
             text_color="#2C3E50",
             width=120,
-            height=35
+            height=35,
         )
-        btn_restaurar.pack(side="left", padx=5)
+        btn_restaurar.grid(row=0, column=1, padx=8, pady=(0, 10))
 
         btn_cancelar = ctk.CTkButton(
             botones_frame,
@@ -390,25 +468,45 @@ class ModificarParametrosDialog(ctk.CTkToplevel):
             hover_color="#A4161A",
             text_color="white",
             width=120,
-            height=35
+            height=35,
         )
-        btn_cancelar.pack(side="left", padx=5)
+        btn_cancelar.grid(row=0, column=2, padx=8, pady=(0, 10), sticky="w")
 
-        # cargar config
-        self.userConsumible = userConsumible
+        # Spacer final para que se sienta bien al bajar
+        ctk.CTkFrame(self.content, height=40, fg_color="transparent").pack()
+
+        # Cargar config
         self.cargar_desdeJSON()
-    
+
+        # Forzar scrollregion al inicio
+        self.after(120, lambda: self._canvas.configure(scrollregion=self._canvas.bbox("all")))
+
+    # -------------------------
+    # Mouse wheel (Windows)
+    # -------------------------
+    def _bind_mousewheel(self):
+        def _on_mousewheel(event):
+            try:
+                self._canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+            except Exception:
+                pass
+
+        # bind solo a este dialog
+        self._canvas.bind("<MouseWheel>", _on_mousewheel)
+        self.bind("<MouseWheel>", _on_mousewheel)
+
+    # -------------------------
+    # Carga/guardado
+    # -------------------------
     def cargar_desdeJSON(self):
         from src.backend.endpoints.conexion import cargarConfig
-        config = cargarConfig()
 
+        config = cargarConfig()
         wifi = config.get("wifi", {}) or {}
         fibra = config.get("fibra", {}) or {}
 
-        # ---- Fibra: tx / rx ----
         mintx = fibra.get("mintx")
         if mintx is not None:
-            # formateo para que coincida con las opciones del ComboBox
             self.tx_min.set(f"{mintx:.2f}")
 
         maxtx = fibra.get("maxtx")
@@ -423,7 +521,6 @@ class ModificarParametrosDialog(ctk.CTkToplevel):
         if maxrx is not None:
             self.rx_max.set(f"{maxrx:.2f}")
 
-        # ---- WiFi: RSSI ----
         r24_min = wifi.get("rssi24_min")
         if r24_min is not None:
             self.rssi24_min.set(str(int(r24_min)))
@@ -440,13 +537,21 @@ class ModificarParametrosDialog(ctk.CTkToplevel):
         if r5_max is not None:
             self.rssi50_max.set(str(int(r5_max)))
 
-        # ---- Porcentaje de potencia ----
         min_pct = wifi.get("min24percent") or wifi.get("min5percent")
         if min_pct is not None:
             self.busquedas_combo.set(str(int(min_pct)))
 
-    def _crear_seccion_rango(self, parent, titulo, var_min_name, var_max_name,
-                            valores_min, valores_max, default_min, default_max):
+    def _crear_seccion_rango(
+        self,
+        parent,
+        titulo,
+        var_min_name,
+        var_max_name,
+        valores_min,
+        valores_max,
+        default_min,
+        default_max,
+    ):
         seccion_frame = ctk.CTkFrame(parent, fg_color="transparent")
         seccion_frame.pack(fill="x", pady=(15, 10))
 
@@ -454,7 +559,7 @@ class ModificarParametrosDialog(ctk.CTkToplevel):
             seccion_frame,
             text=titulo,
             font=ctk.CTkFont(size=12, weight="bold"),
-            text_color="#2C3E50"
+            text_color="#2C3E50",
         )
         label.pack(anchor="w", pady=(0, 10))
 
@@ -467,7 +572,7 @@ class ModificarParametrosDialog(ctk.CTkToplevel):
             width=140,
             height=32,
             fg_color="white",
-            border_color="#8FA3B0"
+            border_color="#8FA3B0",
         )
         combo_min.set(default_min)
         combo_min.pack(side="left", padx=(0, 10))
@@ -477,7 +582,7 @@ class ModificarParametrosDialog(ctk.CTkToplevel):
             combos_frame,
             text="a",
             font=ctk.CTkFont(size=12, weight="bold"),
-            text_color="#2C3E50"
+            text_color="#2C3E50",
         ).pack(side="left", padx=10)
 
         combo_max = ctk.CTkComboBox(
@@ -486,7 +591,7 @@ class ModificarParametrosDialog(ctk.CTkToplevel):
             width=140,
             height=32,
             fg_color="white",
-            border_color="#8FA3B0"
+            border_color="#8FA3B0",
         )
         combo_max.set(default_max)
         combo_max.pack(side="left", padx=(10, 0))
@@ -494,21 +599,19 @@ class ModificarParametrosDialog(ctk.CTkToplevel):
 
     def confirmar(self):
         self.resultado = {
-            'tx_min': float(self.tx_min.get()),
-            'tx_max': float(self.tx_max.get()),
-            'rx_min': float(self.rx_min.get()),
-            'rx_max': float(self.rx_max.get()),
-            'rssi24_min': float(self.rssi24_min.get()),
-            'rssi24_max': float(self.rssi24_max.get()),
-            'rssi50_min': float(self.rssi50_min.get()),
-            'rssi50_max': float(self.rssi50_max.get()),
-            'busquedas': int(self.busquedas_combo.get())
+            "tx_min": float(self.tx_min.get()),
+            "tx_max": float(self.tx_max.get()),
+            "rx_min": float(self.rx_min.get()),
+            "rx_max": float(self.rx_max.get()),
+            "rssi24_min": float(self.rssi24_min.get()),
+            "rssi24_max": float(self.rssi24_max.get()),
+            "rssi50_min": float(self.rssi50_min.get()),
+            "rssi50_max": float(self.rssi50_max.get()),
+            "busquedas": int(self.busquedas_combo.get()),
         }
-        print(f"Parámetros guardados: {self.resultado}")
-        # guardar en el archivo de configuraciones
+
         from src.backend.endpoints.conexion import guardarConfig
-        user_id = self.userConsumible
-        guardarConfig(self.resultado, "valores", user_id)
+        guardarConfig(self.resultado, "valores", self.userConsumible)
         self.destroy()
 
     def restaurar(self):
@@ -521,7 +624,6 @@ class ModificarParametrosDialog(ctk.CTkToplevel):
         self.rssi50_min.set("-80")
         self.rssi50_max.set("-5")
         self.busquedas_combo.set("60")
-        print("Valores restaurados a los valores por defecto")
 
     def cancelar(self):
         self.resultado = None
@@ -538,33 +640,33 @@ class TesterMainView(ctk.CTkFrame):
 
         self.viewmodel = viewmodel
         from src.backend.endpoints.conexion import cargarConfig
+
         config = cargarConfig()
         general = config.get("general", {}) or {}
         estacion = general.get("estacion")
-        self.numero_estacion = str(estacion) # Número de estación por defecto
+        self.numero_estacion = str(estacion)
         self.modelo = modelo
         app = self.winfo_toplevel()
-        self.q = app.event_q
-        # Layout principal
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(0, weight=0)  # título
-        self.grid_rowconfigure(1, weight=1)  # botones superiores
-        self.grid_rowconfigure(2, weight=0)  # panel de pruebas
+        self.q = getattr(app, "event_q", None)
 
-        # ---------- Título verde ----------
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(0, weight=0)
+        self.grid_rowconfigure(1, weight=1)
+        self.grid_rowconfigure(2, weight=0)
+
         title_frame = ctk.CTkFrame(self, fg_color="#6B9080", corner_radius=0)
         title_frame.grid(row=0, column=0, sticky="ew", padx=0, pady=0)
 
-        title_frame.grid_columnconfigure(0, weight=0)  # menú
-        title_frame.grid_columnconfigure(1, weight=1)  # título
+        title_frame.grid_columnconfigure(0, weight=0)
+        title_frame.grid_columnconfigure(1, weight=1)
 
-        # Menú desplegable (callbacks reales de navegación)
         self.menu_superior = MenuSuperiorDesplegable(
             title_frame,
             on_open_tester=self.ir_a_ont_tester,
             on_open_base_diaria=self.ir_a_base_diaria,
             on_open_base_global=self.ir_a_base_global,
             on_open_otros=self.ir_a_otros,
+            align_mode="corner",
         )
         self.menu_superior.grid(row=0, column=0, sticky="w", padx=20, pady=6)
 
@@ -576,7 +678,6 @@ class TesterMainView(ctk.CTkFrame):
         )
         self.titulo.grid(row=0, column=1, sticky="w", padx=20, pady=10)
 
-        # ---------- Contenedor de botones superiores ----------
         buttons_container = ctk.CTkFrame(self, fg_color="transparent")
         buttons_container.grid(row=1, column=0, sticky="nsew", padx=20, pady=20)
 
@@ -589,13 +690,8 @@ class TesterMainView(ctk.CTkFrame):
         for col in range(4):
             buttons_frame.grid_columnconfigure(col, weight=0, minsize=250)
 
-        # ---------- Botones superiores ----------
         btn1_frame = ctk.CTkFrame(
-            buttons_frame,
-            fg_color="#B8B8B8",
-            corner_radius=15,
-            width=250,
-            height=180
+            buttons_frame, fg_color="#B8B8B8", corner_radius=15, width=250, height=180
         )
         btn1_frame.grid(row=0, column=0, padx=15, pady=10, sticky="nsew")
         btn1_frame.grid_propagate(False)
@@ -610,16 +706,12 @@ class TesterMainView(ctk.CTkFrame):
             fg_color="transparent",
             hover_color="#A0A0A0",
             text_color="#2C3E50",
-            height=40
+            height=40,
         )
         btn1.pack(fill="x", padx=15, pady=(0, 20))
 
         btn2_frame = ctk.CTkFrame(
-            buttons_frame,
-            fg_color="#F1B4BB",
-            corner_radius=15,
-            width=250,
-            height=180
+            buttons_frame, fg_color="#F1B4BB", corner_radius=15, width=250, height=180
         )
         btn2_frame.grid(row=0, column=1, padx=15, pady=10, sticky="nsew")
         btn2_frame.grid_propagate(False)
@@ -634,16 +726,12 @@ class TesterMainView(ctk.CTkFrame):
             fg_color="transparent",
             hover_color="#E89BA3",
             text_color="#2C3E50",
-            height=40
+            height=40,
         )
         btn2.pack(fill="x", padx=15, pady=(0, 20))
 
         btn3_frame = ctk.CTkFrame(
-            buttons_frame,
-            fg_color="#A8DADC",
-            corner_radius=15,
-            width=250,
-            height=180
+            buttons_frame, fg_color="#A8DADC", corner_radius=15, width=250, height=180
         )
         btn3_frame.grid(row=0, column=2, padx=15, pady=10, sticky="nsew")
         btn3_frame.grid_propagate(False)
@@ -658,16 +746,12 @@ class TesterMainView(ctk.CTkFrame):
             fg_color="transparent",
             hover_color="#8FC9CB",
             text_color="#2C3E50",
-            height=40
+            height=40,
         )
         btn3.pack(fill="x", padx=15, pady=(0, 20))
 
         btn4_frame = ctk.CTkFrame(
-            buttons_frame,
-            fg_color="#F1B4BB",
-            corner_radius=15,
-            width=250,
-            height=180
+            buttons_frame, fg_color="#F1B4BB", corner_radius=15, width=250, height=180
         )
         btn4_frame.grid(row=0, column=3, padx=15, pady=10, sticky="nsew")
         btn4_frame.grid_propagate(False)
@@ -682,28 +766,18 @@ class TesterMainView(ctk.CTkFrame):
             fg_color="transparent",
             hover_color="#E89BA3",
             text_color="#2C3E50",
-            height=40
+            height=40,
         )
         btn4.pack(fill="x", padx=15, pady=(0, 20))
 
-        # ---------- Panel de pruebas ----------
         self.panel_pruebas = PanelPruebasConexion(self, self.modelo)
         self.panel_pruebas.grid(row=2, column=0, sticky="ew", padx=15, pady=(0, 10))
 
         root = self.winfo_toplevel()
-        user_id = int(getattr(root, "current_user_id", None))
+        user_id = int(getattr(root, "current_user_id", 0) or 0)
         self.userConsumible = user_id
 
-    # =========================================================
-    #                NAVEGACIÓN (REDIRECCIÓN)
-    # =========================================================
-
     def _swap_view(self, view_cls):
-        """
-        Redirige dentro del MISMO contenedor (self.master).
-        - Evita abrir nuevas ventanas.
-        - Evita depender del viewmodel.
-        """
         parent = self.master
         try:
             self.destroy()
@@ -713,41 +787,23 @@ class TesterMainView(ctk.CTkFrame):
         nueva = view_cls(parent, self.modelo)
         nueva.pack(fill="both", expand=True)
 
-        # El dispatcher del parent ahora apunta a la nueva vista
-        parent.dispatcher.set_target(nueva)
-
-    # ---------- Callbacks de navegación del menú superior ----------
+        if hasattr(parent, "dispatcher") and parent.dispatcher:
+            parent.dispatcher.set_target(nueva)
 
     def ir_a_ont_tester(self):
-        print("Navegando a ONT TESTER")
-        # Import local para evitar imports circulares
         from src.Frontend.ui.tester_view import TesterView
         self._swap_view(TesterView)
 
     def ir_a_base_diaria(self):
-        print("Navegando a BASE DIARIA")
-        # Soporta escaneos_dia_view.py o escaneos_dia__view.py
-        try:
-            from src.Frontend.ui.escaneos_dia_view import EscaneosDiaView
-        except ImportError:
-            from src.Frontend.ui.escaneos_dia_view import EscaneosDiaView
-
+        from src.Frontend.ui.escaneos_dia_view import EscaneosDiaView
         self._swap_view(EscaneosDiaView)
 
     def ir_a_base_global(self):
-        print("Navegando a BASE GLOBAL")
         from src.Frontend.ui.reporte_global_view import ReporteGlobalView
         self._swap_view(ReporteGlobalView)
 
     def ir_a_otros(self):
-        print("Navegando a OTROS")
-        # Ya estás aquí. Si quieres forzar "refresh", descomenta:
-        # self._swap_view(TesterMainView)
         pass
-
-    # =========================================================
-    #                ACCIONES DE BOTONES
-    # =========================================================
 
     def on_cambiar_estacion(self):
         dialog = CambiarEstacionDialog(self, self.numero_estacion, self.userConsumible)
@@ -777,13 +833,10 @@ class TesterMainView(ctk.CTkFrame):
             print(f"Parámetros guardados: {dialog.resultado}")
 
     def on_prueba(self):
-        # Aqui voy a habilitar la opción para leer la bd
-        # Validar si se tiene los permisos suficientes
         root = self.winfo_toplevel()
-        user_id = int(getattr(root, "current_user_id", None))
-        print("El usuario es: "+str(user_id))
-        if (user_id == 27 or user_id == 121):
-            # Permisos ok
+        user_id = int(getattr(root, "current_user_id", 0) or 0)
+        print("El usuario es: " + str(user_id))
+        if user_id in (27, 121):
             self._generarBDVista()
         else:
             print("Sin permisos")
@@ -795,170 +848,10 @@ class TesterMainView(ctk.CTkFrame):
         win.grab_set()
         win.focus_set()
 
-        # --------- PANEL SUPERIOR ----------
-        top_frame = ctk.CTkFrame(win)
-        top_frame.pack(side="top", fill="x", padx=10, pady=10)
 
-        lbl_tabla = ctk.CTkLabel(top_frame, text="Tabla:")
-        lbl_tabla.pack(side="left", padx=(0, 10))
-
-        win.selected_table = ctk.StringVar()
-
-        combo_tablas = ctk.CTkComboBox(
-            top_frame, width=250, state="readonly",
-            variable=win.selected_table, values=[]
-        )
-        combo_tablas.pack(side="left")
-
-        btn_cargar = ctk.CTkButton(
-            top_frame, text="Cargar",
-            command=lambda: self._cargar_tabla_en_vista(win),
-        )
-        btn_cargar.pack(side="left", padx=10)
-
-        win.combo_tablas = combo_tablas
-
-        # --------- PANEL TABLA (header + body con scroll H/V) ----------
-        table_frame = ctk.CTkFrame(win)
-        table_frame.pack(side="top", fill="both", expand=True, padx=10, pady=(0, 10))
-
-        # Canvas header (solo scroll horizontal)
-        header_canvas = tk.Canvas(table_frame, height=32, highlightthickness=0)
-        header_canvas.pack(side="top", fill="x")
-
-        header_inner = ctk.CTkFrame(table_frame, fg_color="transparent")
-        header_canvas.create_window((0, 0), window=header_inner, anchor="nw")
-
-        # Contenedor body + scroll vertical
-        body_container = ctk.CTkFrame(table_frame, fg_color="transparent")
-        body_container.pack(side="top", fill="both", expand=True)
-
-        body_canvas = tk.Canvas(body_container, highlightthickness=0)
-        body_canvas.pack(side="left", fill="both", expand=True)
-
-        v_scroll = ctk.CTkScrollbar(body_container, orientation="vertical", command=body_canvas.yview)
-        v_scroll.pack(side="right", fill="y")
-
-        body_canvas.configure(yscrollcommand=v_scroll.set)
-
-        body_inner = ctk.CTkFrame(body_canvas, fg_color="transparent")
-        body_canvas.create_window((0, 0), window=body_inner, anchor="nw")
-
-        # Scroll horizontal (comparte ambos canvases)
-        def _xscroll(*args):
-            header_canvas.xview(*args)
-            body_canvas.xview(*args)
-
-        h_scroll = ctk.CTkScrollbar(table_frame, orientation="horizontal", command=_xscroll)
-        h_scroll.pack(side="bottom", fill="x")
-
-        header_canvas.configure(xscrollcommand=h_scroll.set)
-        body_canvas.configure(xscrollcommand=h_scroll.set)
-
-        # Actualizar regiones de scroll
-        def _on_header_config(_e=None):
-            header_canvas.configure(scrollregion=header_canvas.bbox("all"))
-
-        def _on_body_config(_e=None):
-            body_canvas.configure(scrollregion=body_canvas.bbox("all"))
-
-        header_inner.bind("<Configure>", _on_header_config)
-        body_inner.bind("<Configure>", _on_body_config)
-
-        # Guardar refs
-        win.header_canvas = header_canvas
-        win.body_canvas = body_canvas
-        win.header_inner = header_inner
-        win.body_inner = body_inner
-
-        # Cargar tablas
-        self._cargar_lista_tablas(win)
-    
-    def _cargar_lista_tablas(self, win):
-        """Llena el combo con las tablas disponibles de la BD."""
-        try:
-            from src.backend.sua_client.dao import obtenerTablas
-            tablas = obtenerTablas()  # adapta el nombre de tu cliente
-        except Exception as e:
-            print(f"[BD] Error listando tablas: {e}")
-            tablas = []
-
-        if not tablas:
-            win.combo_tablas.configure(values=["<sin tablas>"])
-            win.combo_tablas.set("<sin tablas>")
-            return
-
-        win.combo_tablas.configure(values=tablas)
-        win.combo_tablas.set(tablas[0])  # seleccionar la primera por defecto
-
-        # Cargar la primera tabla de inmediato
-        self._cargar_tabla_en_vista(win)
-
-    def _cargar_tabla_en_vista(self, win):
-        tabla = win.combo_tablas.get()
-        if not tabla or tabla == "<sin tablas>":
-            return
-
-        try:
-            from src.backend.sua_client.dao import fetch_table
-            columnas, filas = fetch_table(tabla)
-        except Exception as e:
-            print(f"[BD] Error obteniendo datos de '{tabla}': {e}")
-            columnas, filas = [], []
-
-        header_inner = win.header_inner
-        body_inner = win.body_inner
-
-        # Limpiar
-        for w in header_inner.winfo_children():
-            w.destroy()
-        for w in body_inner.winfo_children():
-            w.destroy()
-
-        if not columnas:
-            ctk.CTkLabel(body_inner, text="(Sin datos)").grid(row=0, column=0, padx=5, pady=5, sticky="w")
-            return
-
-        # ====== ANCHO FIJO PARA TODAS LAS COLUMNAS ======
-        FIXED_W = 300  # <- el ancho que pediste
-
-        # Configurar columnas con minsize fijo (NO weight=1)
-        for i in range(len(columnas)):
-            header_inner.grid_columnconfigure(i, minsize=FIXED_W)
-            body_inner.grid_columnconfigure(i, minsize=FIXED_W)
-
-        # ----- ENCABEZADOS -----
-        for col_idx, col_name in enumerate(columnas):
-            lbl = ctk.CTkLabel(
-                header_inner,
-                text=col_name,
-                font=ctk.CTkFont(weight="bold"),
-                anchor="w",
-                width=FIXED_W,
-            )
-            lbl.grid(row=0, column=col_idx, padx=6, pady=4, sticky="w")
-
-        # ----- FILAS -----
-        for r_idx, row in enumerate(filas):
-            valores = [row.get(c, "") for c in columnas] if isinstance(row, dict) else list(row)
-
-            for c_idx, value in enumerate(valores):
-                cell = ctk.CTkLabel(
-                    body_inner,
-                    text=str(value),
-                    anchor="w",
-                    width=FIXED_W,
-                )
-                cell.grid(row=r_idx, column=c_idx, padx=6, pady=2, sticky="w")
-
-        # Forzar actualización de scrollregion (para que aparezca scroll horizontal)
-        win.header_canvas.update_idletasks()
-        win.body_canvas.update_idletasks()
-        win.header_canvas.configure(scrollregion=win.header_canvas.bbox("all"))
-        win.body_canvas.configure(scrollregion=win.body_canvas.bbox("all"))
-
-
-# Test de la vista
+# =========================================================
+#                         TEST
+# =========================================================
 if __name__ == "__main__":
     ctk.set_appearance_mode("light")
     ctk.set_default_color_theme("blue")
@@ -967,7 +860,13 @@ if __name__ == "__main__":
     app.title("ONT TESTER - Vista Principal")
     app.geometry("1400x700")
 
-    view = TesterMainView(app)
+    try:
+        app.iconbitmap(resource_path(APP_ICON_REL))
+    except Exception as e:
+        print(f"[ICON] No se pudo aplicar icono en app: {e}")
+
+    modelo_placeholder = "HG8145V5"
+    view = TesterMainView(app, modelo_placeholder)
     view.pack(fill="both", expand=True)
 
     app.mainloop()

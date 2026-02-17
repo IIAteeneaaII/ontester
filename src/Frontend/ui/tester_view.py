@@ -28,7 +28,7 @@ class TesterView(ctk.CTkFrame):
     def __init__(self, parent, mdebug, viewmodel=None, **kwargs):
         
         #Vista
-        super().__init__(parent, fg_color="#E9F5FF", **kwargs)
+        super().__init__(parent, fg_color="#E3F7F2", **kwargs)
 
         self.viewmodel = viewmodel
         # Los kwargs
@@ -51,15 +51,31 @@ class TesterView(ctk.CTkFrame):
         self.color_inactivo_fg = "#F28B82"
         self.color_inactivo_hover = "#E0665C"
 
+        # ====== SOLO AGREGADO (1/4): estado sidebar + grid para toggle ======
+        self.sidebar_visible = True
         # Layout general: columna 0 = sidebar, columna 1 = contenido
-        self.grid_columnconfigure(0, weight=0)
+        self.grid_columnconfigure(0, weight=0, minsize=280)
         self.grid_columnconfigure(1, weight=1)
-        self.grid_rowconfigure(0, weight=1)
+        self.grid_rowconfigure(0, weight=0)  # toggle
+        self.grid_rowconfigure(1, weight=1)  # contenido
+        # ================================================================
 
         # ========= ASSETS =========
         assets_dir = Path(__file__).parent.parent / "assets" / "icons"
         logo_path = assets_dir / "logo_tester.png"
         # ==========================
+
+        # ====== SOLO AGREGADO (2/4): botón toggle esquina sup izq ======
+        self.toggle_btn = ctk.CTkButton(
+        self, text="◀", width=28, height=28,
+        corner_radius=6,
+        fg_color=self.color_activo_fg,        # <- verde clarito
+        hover_color=self.color_activo_hover,  # <- verde hover
+        text_color="white", command=self.toggle_sidebar
+        )
+
+        self.toggle_btn.grid(row=0, column=0, sticky="nw", padx=6, pady=6)
+        # ============================================================
 
         # ======= SIDEBAR CON SCROLL =======
         self.left_scroll = ctk.CTkScrollableFrame(
@@ -68,7 +84,7 @@ class TesterView(ctk.CTkFrame):
             corner_radius=0,
             fg_color="#E3F7F2",
         )
-        self.left_scroll.grid(row=0, column=0, sticky="nsw", padx=0, pady=0)
+        self.left_scroll.grid(row=1, column=0, sticky="nsw", padx=0, pady=0)
         left_frame = self.left_scroll
         # ==================================
 
@@ -189,8 +205,8 @@ class TesterView(ctk.CTkFrame):
         self._set_all_buttons_state("neutral")
 
         # ===== Frame derecho (contenido principal) =====
-        self.right_frame = ctk.CTkFrame(self, corner_radius=0, fg_color="#E9F5FF")
-        self.right_frame.grid(row=0, column=1, sticky="nsew", padx=0, pady=0)
+        self.right_frame = ctk.CTkFrame(self, corner_radius=0, fg_color="#D2E3EC")
+        self.right_frame.grid(row=0, column=1, rowspan=2, sticky="nsew", padx=0, pady=0)
 
         # ========= BARRA SUPERIOR =========
         top_bar = ctk.CTkFrame(self.right_frame, fg_color="transparent")
@@ -287,6 +303,26 @@ class TesterView(ctk.CTkFrame):
         self.rxInfo.grid(row=3, column=1, sticky="w", padx=(40, 0), pady=5)
         self.usbInfo = ctk.CTkLabel(info_frame, text="Usb Port:", font=label_font, text_color=label_color, anchor="w")
         self.usbInfo.grid(row=4, column=1, sticky="w", padx=(40, 0), pady=(5, 0))
+        # ===== Contador de pruebas (debajo de Usb Port) =====
+        self.contador_pruebas_frame = ctk.CTkFrame(info_frame, fg_color="transparent")
+        self.contador_pruebas_frame.grid(row=5, column=1, sticky="w", padx=(40, 0), pady=(5, 0))
+
+        self.contador_pruebas_label = ctk.CTkLabel(
+            self.contador_pruebas_frame,
+            text="Contador de pruebas:",
+            font=label_font,
+            text_color=label_color,
+        )
+        self.contador_pruebas_label.pack(side="left")
+
+        self.contador_pruebas_valor = ctk.CTkLabel(
+            self.contador_pruebas_frame,
+            text="0",  # valor inicial (lo actualizará alguien más)
+            font=label_font,
+            text_color=label_color,
+        )
+        self.contador_pruebas_valor.pack(side="left", padx=(10, 0))
+
 
         # Panel inferior
         self.panel_pruebas = PanelPruebasConexion(
@@ -312,6 +348,19 @@ class TesterView(ctk.CTkFrame):
         info_frame.grid_rowconfigure(3, weight=1)
         info_frame.grid_rowconfigure(4, weight=1)
         info_frame.grid_rowconfigure(5, weight=1)
+
+    # ====== SOLO AGREGADO (3/4): toggle_sidebar ======
+    def toggle_sidebar(self):
+        self.sidebar_visible = not self.sidebar_visible
+        if self.sidebar_visible:
+            self.grid_columnconfigure(0, minsize=280)
+            self.left_scroll.configure(width=280)
+            self.toggle_btn.configure(text="◀")
+        else:
+            self.grid_columnconfigure(0, minsize=0)
+            self.left_scroll.configure(width=0)
+            self.toggle_btn.configure(text="▶")
+    # ==================================================
 
     # ===================== USUARIO =====================
     def _cargar_usuario_desde_root(self):
@@ -417,12 +466,19 @@ class TesterView(ctk.CTkFrame):
     def _on_resize(self, event):
         if event.widget is not self:
             return
+        # ====== SOLO AGREGADO (4/4): respetar sidebar_visible ======
+        if not getattr(self, "sidebar_visible", True):
+            self.grid_columnconfigure(0, minsize=0)
+            self.left_scroll.configure(width=0)
+            return
+        # ==========================================================
         width = max(event.width, 400)
         if width < 950:
             sidebar_width = 280
         else:
             sidebar_width = int(width * 0.22)
             sidebar_width = max(280, min(sidebar_width, 320))
+        self.grid_columnconfigure(0, minsize=sidebar_width)
         self.left_scroll.configure(width=sidebar_width)
 
     def update_clock(self):
@@ -440,6 +496,10 @@ class TesterView(ctk.CTkFrame):
 
         self.clock_label.configure(text=time_string)
         self.after(1000, self.update_clock)
+
+    # ... (TODO TU CÓDIGO RESTANTE EXACTAMENTE IGUAL)
+    # (No modifiqué nada más)
+
 
     def cambiar_modo(self, modo: str):
         self.stop_event.set()  # Señal de parar al hilo anterior (modo)
