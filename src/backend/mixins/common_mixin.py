@@ -999,7 +999,7 @@ class CommonMixin:
                 output = proc.stdout.decode(errors="ignore")
 
             nets = parse_output(output)
-
+            # debug = True# Añadir debug
             if debug:
                 print(f"[SCAN WIFI] Intento {attempt+1}, {len(nets)} redes:")
                 for n in nets:
@@ -1038,8 +1038,8 @@ class CommonMixin:
         # Asegurar estructura de umbrales (en %)
         if not hasattr(self, "wifi_rssi_thresholds"):
             self.wifi_rssi_thresholds = {
-                "2.4G": {"min_percent": 60}, # TODO cambiar valor por variable
-                "5G":   {"min_percent": 60},
+                "2.4G": {"min_percent": int(self._getMinWifi24SignalPercent())}, 
+                "5G":   {"min_percent": int(self._getMinWifi5SignalPercent())},
             }
 
         result = {
@@ -1426,7 +1426,12 @@ class CommonMixin:
                 # Verificar que NO estén vacías
                 if raw_24:
                     # wifi 2.4 con valor || validar si la potencia es mayor a la esperada TODO cambiar por variable
-                    net = next((n for n in raw_24 if n["ssid"] == wifi24), None)
+                    # net = next((n for n in raw_24 if n["ssid"] == wifi24), None)
+                    net = max(
+                        (n for n in raw_24 if n.get("ssid") == wifi24 and n.get("signal_percent") is not None),
+                        key=lambda n: n["signal_percent"],
+                        default=None
+                    )
                     if net and net["signal_percent"] >= min_valor_wifi:
                         w24 = True
                     else:
@@ -1437,7 +1442,12 @@ class CommonMixin:
                 # Verificar que NO estén vacías
                 if raw_5:
                     # wifi 2.4 con valor || validar si la potencia es mayor a la esperada TODO cambiar por variable
-                    net = next((n for n in raw_5 if n["ssid"] == wifi5), None)
+                    #net = next((n for n in raw_5 if n["ssid"] == wifi5), None)
+                    net = max(
+                        (n for n in raw_5 if n.get("ssid") == wifi5 and n.get("signal_percent") is not None),
+                        key=lambda n: n["signal_percent"],
+                        default=None
+                    )
                     if net and net["signal_percent"] >= min_valor_wifi5:
                         w5 = True
                     else:
@@ -1559,7 +1569,12 @@ class CommonMixin:
                 # Verificar que NO estén vacías
                 if raw_24:
                     # wifi 2.4 con valor || validar si la potencia es mayor a la esperada TODO cambiar por variable
-                    net = next((n for n in raw_24 if n["ssid"] == wifi24), None)
+                    # net = next((n for n in raw_24 if n["ssid"] == wifi24), None)
+                    net = max(
+                        (n for n in raw_24 if n.get("ssid") == wifi24 and n.get("signal_percent") is not None),
+                        key=lambda n: n["signal_percent"],
+                        default=None
+                    )
                     if net and net["signal_percent"] >= min_valor_wifi:
                         w24 = True
                     else:
@@ -1570,7 +1585,12 @@ class CommonMixin:
                 # Verificar que NO estén vacías
                 if raw_5:
                     # wifi 2.4 con valor || validar si la potencia es mayor a la esperada TODO cambiar por variable
-                    net = next((n for n in raw_5 if n["ssid"] == wifi5), None)
+                    # net = next((n for n in raw_5 if n["ssid"] == wifi5), None)
+                    net = max(
+                        (n for n in raw_5 if n.get("ssid") == wifi5 and n.get("signal_percent") is not None),
+                        key=lambda n: n["signal_percent"],
+                        default=None
+                    )
                     if net and net["signal_percent"] >= min_valor_wifi5:
                         w5 = True
                     else:

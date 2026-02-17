@@ -86,6 +86,7 @@ class EscaneosDiaView(ctk.CTkFrame):
             on_open_base_diaria=self.ir_a_base_diaria,
             on_open_base_global=self.ir_a_base_global,
             on_open_otros=self.ir_a_otros,
+            align_mode="corner",
         )
         self.menu_superior.grid(row=0, column=0, sticky="w", padx=20, pady=6)
 

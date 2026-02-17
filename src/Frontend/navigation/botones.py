@@ -22,8 +22,8 @@ PANEL_BTN_KWARGS = {
     "corner_radius": 6,
     "font": ("Segoe UI", 11, "bold"),
     # mismos colores que barra izquierda, para consistencia
-    "fg_color": "#4EA5D9",
-    "hover_color": "#3B8CC2",
+    "fg_color": "#7BBADF",
+    "hover_color": "#4085B3",
     "text_color": "white",
 }
 

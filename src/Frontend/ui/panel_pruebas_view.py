@@ -69,9 +69,9 @@ class PanelPruebasConexion(ctk.CTkFrame):
         self.on_run_unit = on_run_unit  # Callback para ejecutar pruebas unitarias
 
         # Paleta para estados
-        self.COL_IDLE  = "#4EA5D9"  # color base
-        self.COL_PASS  = "#6B9080"  # verde
-        self.COL_FAIL  = "#C1666B"  # rojo
+        self.COL_IDLE  = "#77B0D1"  # color base
+        self.COL_PASS  = "#48FF00"  # verde
+        self.COL_FAIL  = "#FF000D"  # rojo
 
         # Config
         self.modelo = modelo
