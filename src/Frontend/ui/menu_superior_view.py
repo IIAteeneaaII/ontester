@@ -4,14 +4,10 @@ class MenuSuperiorDesplegable(ctk.CTkFrame):
     """
     Menú desplegable superior VERTICAL.
 
-    Muestra un botón tipo hamburguesa (☰) y, al hacer clic,
-    despliega un panel VERTICALMENTE hacia abajo.
-
-    Rutas:
-    - ONT TESTER   -> tester_view.py (TesterView)
-    - BASE DIARIA  -> escaneos_dia_view.py (EscaneosDiaView)
-    - BASE GLOBAL  -> reporte_global_view.py (ReporteGlobalView)
-    - OTROS        -> propiedades_view.py (TesterMainView)
+    align_mode:
+      - "below"  -> (ONT TESTER) lo pones como tú ya lo tienes/quieres
+      - "corner" -> (Base diaria/global/propiedades) pegado a la izquierda,
+                    PERO siempre debajo de la hamburguesa (para que no se encime)
     """
 
     def __init__(
@@ -21,21 +17,19 @@ class MenuSuperiorDesplegable(ctk.CTkFrame):
         on_open_base_diaria=None,
         on_open_base_global=None,
         on_open_propiedades=None,
-        on_open_otros=None,   # alias de propiedades
+        on_open_otros=None,      # alias
+        align_mode="below",
     ):
-        # NO pasar kwargs con callbacks a CTkFrame
         super().__init__(parent, fg_color="transparent")
 
-        # Ventana raíz para poder abrir Toplevels y posicionar el menú
         self.root = self.winfo_toplevel()
 
-        # Callbacks externos (opcionales)
         self.on_open_tester = on_open_tester
         self.on_open_base_diaria = on_open_base_diaria
         self.on_open_base_global = on_open_base_global
-        # Aceptamos ambos nombres: on_open_propiedades / on_open_otros
         self.on_open_propiedades = on_open_propiedades or on_open_otros
 
+        self.align_mode = align_mode
         self.menu_abierto = False
 
         # ---------- Botón hamburguesa ----------
@@ -53,26 +47,30 @@ class MenuSuperiorDesplegable(ctk.CTkFrame):
         )
         self.boton_menu.pack(padx=4, pady=4)
 
-        # ---------- Frame del menú desplegable VERTICAL ----------
+        # ---------- Frame del menú desplegable ----------
+        # (cuadrado como pediste)
         self.menu_frame = ctk.CTkFrame(
             self.root,
             fg_color="#FFFFFF",
-            corner_radius=12,
+            corner_radius=0,          # <- cuadrado
             border_width=2,
             border_color="#6B9080",
-            width=200,
-            height=220,
+            width=220,
+            height=230,
         )
 
-        # Contenedor interno para los botones en VERTICAL
-        botones_container = ctk.CTkFrame(self.menu_frame, fg_color="transparent")
+        # Contenedor interno (para que no se vea “feo” el borde por dentro)
+        botones_container = ctk.CTkFrame(
+            self.menu_frame,
+            fg_color="transparent",
+            corner_radius=0
+        )
         botones_container.pack(padx=12, pady=12, fill="both", expand=True)
 
-        # Botón: ONT TESTER
         btn_tester = ctk.CTkButton(
             botones_container,
             text="ONT TESTER",
-            width=180,
+            width=190,
             height=40,
             corner_radius=8,
             fg_color="#6B9080",
@@ -83,11 +81,10 @@ class MenuSuperiorDesplegable(ctk.CTkFrame):
         )
         btn_tester.pack(pady=5)
 
-        # Botón: BASE DIARIA
         btn_base_diaria = ctk.CTkButton(
             botones_container,
             text="BASE DIARIA",
-            width=180,
+            width=190,
             height=40,
             corner_radius=8,
             fg_color="#A8DADC",
@@ -98,11 +95,10 @@ class MenuSuperiorDesplegable(ctk.CTkFrame):
         )
         btn_base_diaria.pack(pady=5)
 
-        # Botón: BASE GLOBAL
         btn_base_global = ctk.CTkButton(
             botones_container,
             text="BASE GLOBAL",
-            width=180,
+            width=190,
             height=40,
             corner_radius=8,
             fg_color="#F1B4BB",
@@ -113,11 +109,10 @@ class MenuSuperiorDesplegable(ctk.CTkFrame):
         )
         btn_base_global.pack(pady=5)
 
-        # Botón: OTROS (PROPIEDADES)
         btn_propiedades = ctk.CTkButton(
             botones_container,
             text="OTROS",
-            width=180,
+            width=190,
             height=40,
             corner_radius=8,
             fg_color="#4EA5D9",
@@ -128,9 +123,7 @@ class MenuSuperiorDesplegable(ctk.CTkFrame):
         )
         btn_propiedades.pack(pady=5)
 
-    # =========================================================
-    #               LÓGICA DE DESPLIEGUE DEL MENÚ
-    # =========================================================
+    # ================== Menú ==================
 
     def toggle_menu(self):
         if self.menu_abierto:
@@ -139,24 +132,28 @@ class MenuSuperiorDesplegable(ctk.CTkFrame):
             self.abrir_menu()
 
     def abrir_menu(self):
-        """Calcula posición del botón y muestra el menú VERTICALMENTE hacia abajo."""
-        # Forzar actualización de geometría
         self.root.update_idletasks()
         self.update_idletasks()
         self.boton_menu.update_idletasks()
 
-        # Coordenadas del botón en la pantalla
+        # Coordenadas del botón en pantalla
         bx = self.boton_menu.winfo_rootx()
         by = self.boton_menu.winfo_rooty()
         bh = self.boton_menu.winfo_height()
 
-        # Coordenadas de la ventana raíz
+        # Coordenadas del root en pantalla
         rx = self.root.winfo_rootx()
         ry = self.root.winfo_rooty()
 
-        # Coordenadas relativas a la ventana
-        x_rel = bx - rx          # alineado a la izquierda del botón
-        y_rel = by - ry + bh + 4 # justo debajo del botón
+        if self.align_mode == "below":
+            # (ONT TESTER) lo dejas como tú lo quieres
+            x_rel = bx - rx
+            y_rel = (by - ry)  # <- tu comportamiento actual
+
+        else:  # "corner" (Base diaria/global/propiedades)
+            # Pegado a la izquierda, PERO debajo de la hamburguesa
+            x_rel = 12
+            y_rel = (by - ry) + bh + 6
 
         self.menu_frame.place(x=x_rel, y=y_rel)
         self.menu_frame.lift()
@@ -166,14 +163,9 @@ class MenuSuperiorDesplegable(ctk.CTkFrame):
         self.menu_frame.place_forget()
         self.menu_abierto = False
 
-    # =========================================================
-    #     UTILIDAD: ABRIR UNA VISTA EN UNA NUEVA CTkToplevel
-    # =========================================================
+    # ================== Toplevel helper ==================
 
     def _abrir_en_toplevel(self, view_cls, titulo: str, geometry: str = "1400x800"):
-        """
-        Crea una nueva ventana CTkToplevel con la vista indicada.
-        """
         top = ctk.CTkToplevel(self.root)
         top.title(titulo)
         top.geometry(geometry)
@@ -183,12 +175,9 @@ class MenuSuperiorDesplegable(ctk.CTkFrame):
 
         top.focus()
 
-    # =========================================================
-    #          MÉTODOS "GO" (lo que pediste en la parte 2)
-    # =========================================================
+    # ================== GO methods ==================
 
     def _go_tester(self):
-        """ONT TESTER -> tester_view.py"""
         try:
             if callable(self.on_open_tester):
                 self.on_open_tester()
@@ -199,7 +188,6 @@ class MenuSuperiorDesplegable(ctk.CTkFrame):
             self.cerrar_menu()
 
     def _go_base_diaria(self):
-        """BASE DIARIA -> escaneos_dia_view.py"""
         try:
             if callable(self.on_open_base_diaria):
                 self.on_open_base_diaria()
@@ -210,7 +198,6 @@ class MenuSuperiorDesplegable(ctk.CTkFrame):
             self.cerrar_menu()
 
     def _go_base_global(self):
-        """BASE GLOBAL -> reporte_global_view.py"""
         try:
             if callable(self.on_open_base_global):
                 self.on_open_base_global()
@@ -221,7 +208,6 @@ class MenuSuperiorDesplegable(ctk.CTkFrame):
             self.cerrar_menu()
 
     def _go_propiedades(self):
-        """OTROS -> propiedades_view.py (TesterMainView)"""
         try:
             if callable(self.on_open_propiedades):
                 self.on_open_propiedades()
