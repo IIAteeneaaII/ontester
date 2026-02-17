@@ -845,7 +845,7 @@ class TesterView(ctk.CTkFrame):
         # INFO
         # modelo = info.get("modelo", "—") # se actualiza desde ont_automatico
         sn     = info.get("sn", "—")
-        mac    = info.get("mac", "—")
+        mac    = info.get("mac", "—").upper().replace(":", "-")
         sftver = info.get("sftVer", "—")
         wifi24 = info.get("wifi24", "—")
         wifi5  = info.get("wifi5", "—")
