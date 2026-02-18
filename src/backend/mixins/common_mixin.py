@@ -1689,7 +1689,7 @@ class CommonMixin:
         if (self.model == "MOD001" or self.model == "MOD008"):
             #Fiber | ont
             res = self._resultadosFiber()
-        elif (self.model == "MOD002"):
+        elif (self.model == "MOD002" or self.model == "MOD009"):
             #zte | ont
             res = self._resultadosZTE()
         elif (self.model == "MOD003" or self.model == "MOD004" or self.model == "MOD005" or self.model == "MOD007"):

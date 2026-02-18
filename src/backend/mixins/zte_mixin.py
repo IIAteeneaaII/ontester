@@ -444,19 +444,16 @@ class ZTEMixin:
     def nav_devMgr(self, driver):
         print("[SELENIUM] Navegando a System Management...")
         
-        # Entrar en System Management
-        ok = self.click_anywhere(
-            driver,
-            selectors=[
-                (By.ID, "devMgr"),
-                (By.CSS_SELECTOR, "p[menupage='devMgr']"),
-                (By.XPATH, "//p[contains(text(),'System Management')]"),
-            ],
-            desc="System Management",
-            timeout=10
-        )
-        if not ok:
-            raise RuntimeError("No se pudo hacer click en System Management")
+        # Usar WebDriverWait + JS click (mismo patrón que factory reset)
+        try:
+            sysMgmt = WebDriverWait(driver, 15).until(
+                EC.presence_of_element_located((By.ID, "devMgr"))
+            )
+            driver.execute_script("arguments[0].scrollIntoView({block:'center'});", sysMgmt)
+            driver.execute_script("arguments[0].click();", sysMgmt)
+            print("[SELENIUM] Click en System Management OK")
+        except Exception as e:
+            raise RuntimeError(f"No se pudo hacer click en System Management: {e}")
         
         print("[SELENIUM] System Management debería ser accesible ahora")
 
@@ -466,17 +463,16 @@ class ZTEMixin:
         # Esperar a que aparezca la pestaña después de hacer clic en System Management
         time.sleep(2)
         
-        # Usar directamente el ID que ya proporcionaste
-        ok = self.click_anywhere(
-            driver,
-            selectors=[
-                (By.ID, "firmwareUpgr"),
-            ],
-            desc="Software Upgrade (firmwareUpgr)",
-            timeout=10
-        )
-        if not ok:
-            raise RuntimeError("No se pudo hacer clic en Software Upgrade (id=firmwareUpgr)")
+        # Usar WebDriverWait + JS click (mismo patrón que factory reset)
+        try:
+            fwUpgr = WebDriverWait(driver, 15).until(
+                EC.presence_of_element_located((By.ID, "firmwareUpgr"))
+            )
+            driver.execute_script("arguments[0].scrollIntoView({block:'center'});", fwUpgr)
+            driver.execute_script("arguments[0].click();", fwUpgr)
+            print("[SELENIUM] Click en Software Upgrade OK")
+        except Exception as e:
+            raise RuntimeError(f"No se pudo hacer clic en Software Upgrade (id=firmwareUpgr): {e}")
         
         print("[SELENIUM] Software Upgrade abierto")
         time.sleep(1)
@@ -502,7 +498,7 @@ class ZTEMixin:
 
     def test_sft_updateCheckZTE(self):
         # Solo ejecutar para dispositivos ZTE (MOD002)
-        if self.model not in ["MOD002"]:
+        if self.model not in ["MOD002", "MOD009"]:
             # No es un dispositivo ZTE, dejar que otros mixins lo manejen
             return super().test_sft_updateCheck() if hasattr(super(), 'test_sft_updateCheck') else False
             
@@ -526,10 +522,13 @@ class ZTEMixin:
             print("[ERROR] No se pudo obtener la versión de software del dispositivo")
             return False
             
-        FIRMWARE_PATH = r"C:\BINS\F670L"
-        # Patrón para MOD002: [modelo]_[version]
-        # Ejemplo: F670L_V9.0.11P1N94.bin
-        patron = re.compile(r'^F670L_V[\d.PN]+$')
+        # Directorio y patrón según modelo
+        if self.model == "MOD009":
+            FIRMWARE_PATH = r"C:\BINS\F6600"
+            patron = re.compile(r'^F6600_V[\d.A-Z]+$', re.IGNORECASE)
+        else:
+            FIRMWARE_PATH = r"C:\BINS\F670L"
+            patron = re.compile(r'^F670L_V[\d.A-Z]+$', re.IGNORECASE)
         
         # Proceso de carga diferente dependiendo qué modelo de Fiber sea
         # Verificar si la versión de software está actualizada
@@ -549,7 +548,7 @@ class ZTEMixin:
                 stem = Path(archivo).stem
                 
                 # Extraer código según el formato
-                if modelo == "MOD002":
+                if modelo in ("MOD002", "MOD009"):
                     # Formato: totalplay_F670L_V9.0.11P1N94_UPGRADE_BOOTLDR
                     # Extraer la parte V9.0.11P1N94
                     match = re.search(r'V([\d.P\dN\d]+)', stem)
@@ -593,7 +592,7 @@ class ZTEMixin:
                     "status": True,
                     "details": {
                         "previous_version": self.test_results.get('metadata', {}).get('base_info', {}).get('raw_data', {}).get('SoftwareVer', 'N/A'),
-                        "new_version": "El archhivo bin no tiene buen nombre",
+                        "new_version": "El archivo bin no tiene buen nombre",
                         "firmware_file": "archivo",
                         "update_completed": False,
                         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -619,7 +618,7 @@ class ZTEMixin:
         ok = self.test_sft_updateCheckZTE()
         if ok:
             print("[INFO] Actualizando software...")
-            FIRMWARE_PATH = r"C:\BINS\F670L"
+            FIRMWARE_PATH = r"C:\BINS\F6600" if self.model == "MOD009" else r"C:\BINS\F670L"
             archivo = self.searchBins(FIRMWARE_PATH)
             
             try:
@@ -839,96 +838,120 @@ class ZTEMixin:
             return False
 
     def _reset_factory_zte(self, driver) -> bool:
+        """
+        Factory Reset para ZTE usando click_anywhere (robusto).
+        Espera activamente a que cada elemento aparezca antes de hacer clic.
+        Funciona independientemente de la velocidad de la máquina.
+        """
         print("[SELENIUM] Iniciando proceso de Factory Reset ZTE...")
-
-        wait = WebDriverWait(driver, 10)
-
-        def click_with_retry(locator, desc, retries=3, delay=1.0) -> bool:
-            for intento in range(1, retries + 1):
-                try:
-                    elem = wait.until(EC.element_to_be_clickable(locator))
-                    elem.click()
-                    return True
-                except StaleElementReferenceException:
-                    print(f"[SELENIUM] {desc}: StaleElementReference, reintentando "
-                        f"({intento}/{retries})...")
-                    time.sleep(delay)
-            return False
 
         try:
             driver.switch_to.default_content()
+            driver.get(self.base_url)  # http://192.168.1.1
+            time.sleep(2)
 
-            # 1) Top menu
-            mgmt = WebDriverWait(driver, 25).until(
-                #EC.element_to_be_clickable((By.LINK_TEXT, "Management & Diagnosis"))
-                EC.presence_of_element_located((By.XPATH, '//a[@title="Management & Diagnosis"]'))
-            )
-            driver.execute_script("arguments[0].scrollIntoView({block:'center'});", mgmt)
-            driver.execute_script("arguments[0].focus();", mgmt)
-            driver.execute_script("arguments[0].click();", mgmt)
-            #mgmt.click()
-            # print("[DEBUG] URL:", driver.current_url)
-            # print("[DEBUG] readyState:", driver.execute_script("return document.readyState"))
-            # print("[DEBUG] page snippet:", driver.page_source[:200].lower())
-            print("[SELENIUM] Click en Management & Diagnosis")
-
-            # 2) Menú lateral
-            print("[SELENIUM] Buscando menú lateral 'System Management'...")
-            if not click_with_retry((By.ID, "devMgr"),
-                                    "Menú lateral 'System Management'"):
-                print("[ERROR] No se pudo clicar el menú lateral 'System Management'")
-                return False
-
-            # 3) Pestaña Device Management
-            print("[SELENIUM] Pestaña 'Device Management' encontrada. Haciendo click...")
-            if not click_with_retry((By.ID, "rebootAndReset"),
-                                    "Pestaña 'Device Management'"):
-                print("[ERROR] No se pudo clicar la pestaña 'Device Management'")
-                return False
-
-            # 4) Expandir sección Factory Reset (sin guardar el WebElement)
-            print("[SELENIUM] Esperando sección 'Factory Reset Management'...")
-            header_loc = (By.ID, "ResetManagBar")
-            wait.until(EC.presence_of_element_located(header_loc))
-
-            print("[SELENIUM] Sección 'Factory Reset Management' colapsada. Expandiendo...")
-            for intento in range(1, 4):
-                try:
-                    driver.find_element(*header_loc).click()
-                    break
-                except StaleElementReferenceException:
-                    print(f"[SELENIUM] Encabezado 'Factory Reset' stale, reintentando "
-                        f"({intento}/3)...")
-                    time.sleep(0.8)
-
-            # 5) Ahora esperamos directamente el botón Btn_reset como señal de que ya está expandido
-            print("[SELENIUM] Buscando botón 'Factory Reset' (Btn_reset)...")
-            if not click_with_retry((By.ID, "Btn_reset"), "Botón 'Factory Reset'"):
-                print("[ERROR] No se pudo localizar un botón 'Factory Reset' cliqueable.")
-                return False
-
-            # 6) Diálogo de confirmación (OK)
-            print("[SELENIUM] Esperando diálogo de confirmación 'Are you sure to restore factory defaults?'...")
-            confirm_loc = (By.ID, "confirmOK")
+            # 1) Top menu - Management & Diagnosis
+            print("[SELENIUM] Paso 1: Click en Management & Diagnosis...")
             try:
-                confirm_btn = WebDriverWait(driver, 8).until(
-                    EC.element_to_be_clickable(confirm_loc)
+                mgmt = WebDriverWait(driver, 25).until(
+                    EC.presence_of_element_located((By.XPATH, '//a[@title="Management & Diagnosis"]'))
                 )
-                confirm_btn.click()
-                print("[SELENIUM] Botón 'OK' de confirmación clickeado.")
-            except TimeoutException:
-                print("[ERROR] No apareció el botón de confirmación 'OK' (id=confirmOK).")
+                driver.execute_script("arguments[0].scrollIntoView({block:'center'});", mgmt)
+                driver.execute_script("arguments[0].click();", mgmt)
+                print("[SELENIUM] Click en Management & Diagnosis OK")
+            except Exception as e:
+                print(f"[ERROR] No se pudo hacer click en Management & Diagnosis: {e}")
                 return False
-            except StaleElementReferenceException:
-                if not click_with_retry(confirm_loc, "Botón 'OK' de confirmación", retries=2):
-                    print("[ERROR] No se pudo hacer click en el botón 'OK' de confirmación (stale).")
-                    return False
 
-            print("[SELENIUM] Factory Reset enviado. El equipo empezará a reiniciarse.")
+            # 2) Menú lateral - System Management
+            print("[SELENIUM] Paso 2: Click en System Management...")
+            try:
+                sysMgmt = WebDriverWait(driver, 15).until(
+                    EC.presence_of_element_located((By.ID, "devMgr"))
+                )
+                driver.execute_script("arguments[0].scrollIntoView({block:'center'});", sysMgmt)
+                driver.execute_script("arguments[0].click();", sysMgmt)
+                print("[SELENIUM] Click en System Management OK")
+            except Exception as e:
+                print(f"[ERROR] No se pudo hacer click en System Management: {e}")
+                return False
+            
+            # Esperar a que cargue (Device Management se abre automáticamente)
+            time.sleep(2)
+
+            # # 3) Pestaña Device Management
+            # print("[SELENIUM] Paso 3: Click en Device Management...")
+            # ok = self.click_anywhere(
+            #     driver,
+            #     selectors=[
+            #         (By.ID, "rebootAndReset"),
+            #         (By.CSS_SELECTOR, "a#rebootAndReset"),
+            #         (By.CSS_SELECTOR, "a[id='rebootAndReset']"),
+            #         (By.CSS_SELECTOR, "a[menuclass='3'][id='rebootAndReset']"),
+            #         (By.CSS_SELECTOR, "a[title='Device Management']"),
+            #         (By.XPATH, "//a[@id='rebootAndReset']"),
+            #         (By.XPATH, "//a[@title='Device Management']"),
+            #         (By.LINK_TEXT, "Device Management"),
+            #     ],
+            #     desc="Device Management",
+            #     timeout=15
+            # )
+            # if not ok:
+            #     print("[ERROR] No se pudo hacer click en Device Management")
+            #     return False
+            
+            # # Esperar a que cargue el contenido (AJAX)
+            # time.sleep(2)
+
+            # 3) Expandir sección Factory Reset Management (es <h1 id="ResetManagBar">)
+            print("[SELENIUM] Paso 3: Expandiendo sección Factory Reset Management...")
+            try:
+                resetBar = WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.ID, "ResetManagBar"))
+                )
+                driver.execute_script("arguments[0].scrollIntoView({block:'center'});", resetBar)
+                driver.execute_script("arguments[0].click();", resetBar)
+                print("[SELENIUM] Click en Factory Reset Management Bar OK")
+            except Exception as e:
+                print(f"[WARN] No se encontró ResetManagBar, puede que ya esté expandido: {e}")
+            
+            # Esperar a que se expanda la sección
+            time.sleep(1.5)
+
+            # 4) Hacer click en botón Factory Reset (es <input id="Btn_reset" value="Factory Reset">)
+            print("[SELENIUM] Paso 4: Click en botón Factory Reset...")
+            try:
+                btnReset = WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.ID, "Btn_reset"))
+                )
+                driver.execute_script("arguments[0].scrollIntoView({block:'center'});", btnReset)
+                driver.execute_script("arguments[0].click();", btnReset)
+                print("[SELENIUM] Click en botón Factory Reset OK")
+            except Exception as e:
+                print(f"[ERROR] No se pudo hacer click en el botón Factory Reset: {e}")
+                return False
+
+            # 5) Diálogo de confirmación (OK)
+            print("[SELENIUM] Paso 5: Esperando diálogo de confirmación...")
+            time.sleep(1)
+            
+            try:
+                confirmOK = WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.ID, "confirmOK"))
+                )
+                driver.execute_script("arguments[0].click();", confirmOK)
+                print("[SELENIUM] Click en confirmación OK")
+            except Exception as e:
+                print(f"[ERROR] No se pudo hacer click en el botón de confirmación OK: {e}")
+                return False
+
+            print("[SELENIUM] Factory Reset enviado exitosamente. El equipo empezará a reiniciarse.")
             return True
 
         except Exception as e:
             print(f"[ERROR] Falló el proceso de Factory Reset ZTE: {e}")
+            import traceback
+            traceback.print_exc()
             return False
 
     def nav_zte_wifi_pass(self, driver):
@@ -1214,6 +1237,15 @@ class ZTEMixin:
 
             # all_nets = self.scan_wifi_windows(debug=True)  # debug
 
+            # Emitir resultado de factory_reset si se ejecutó
+            factory_result = self.test_results.get('tests', {}).get('factory_reset', {})
+            if factory_result:
+                def emit(kind, payload):
+                    if self.out_q:
+                        self.out_q.put((kind, payload))
+                status = "PASS" if factory_result.get('status') == True else "FAIL"
+                emit("test_individual", {"name": "factory_reset", "status": status})
+                
             #Guardar a archivo
             self.save_results2("test_mod002")
         except Exception as e:
@@ -1384,7 +1416,7 @@ class ZTEMixin:
                 
                 if login_button:
                     driver.execute_script("arguments[0].click();", login_button)
-                    login_button.click()
+                    #login_button.click()
                     print("[SELENIUM] Click en botón de login...")
                 else:
                     # Si no hay botón, enviar formulario con Enter
@@ -1409,11 +1441,24 @@ class ZTEMixin:
                         print("[INFO] Esperando a que el ZTE reinicie tras Factory Reset...")
                         time.sleep(110)  # espera
                         if (resetZTE):
+                            # Guardar resultado PASS
+                            self.test_results.setdefault("tests", {})["factory_reset"] = {
+                                "name": "factory_reset",
+                                "status": True,
+                                "data": {"result": "PASS"}
+                            }
+
                             # Limpiar resultados previos
                             try:
                                 test_dict = self.test_results.get("tests", {})
                                 test_dict.pop("wifi", None)
                                 test_dict.pop("Contraseña", None)
+                            except Exception:
+                                pass
+
+                            # Desactivar factory_reset para no entrar en loop
+                            try:
+                                self.opcionesTest.setdefault("tests", {})["factory_reset"] = False
                             except Exception:
                                 pass
 
@@ -1423,6 +1468,12 @@ class ZTEMixin:
                             return self._login_zte(True)
                         
                         else:
+                            # Guardar resultado FAIL
+                            self.test_results.setdefault("tests", {})["factory_reset"] = {
+                                "name": "factory_reset",
+                                "status": False,
+                                "data": {"result": "FAIL"}
+                            }
                             print("[WARNING] No se pudo resetear, saltando pruebas")
                             driver.quit()
                             return False

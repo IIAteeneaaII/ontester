@@ -13,6 +13,7 @@ import socket
 import subprocess
 import platform
 import re
+import html
 import threading
 import time
 import requests
@@ -183,6 +184,12 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
             "ZXHN F670L": "MOD002",
             "ZTE F670L": "MOD002",
             "F670L": "MOD002",
+
+            # # MOD009: ZTE F6600
+            "ZTE ZXHN F6600": "MOD009",
+            "ZXHN F6600": "MOD009",
+            "ZTE F6600": "MOD009",
+            "F6600": "MOD009",
             
             # MOD001: FIBERHOME HG6145F
             "FIBERHOME HG6145F": "MOD001",
@@ -369,7 +376,7 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
             return self._login_grandstream()
         elif device_type == "FIBERHOME" or self.model == "MOD001" or self.model == "MOD008":
             return self._login_fiberhome()  # Fiberhome usa Selenium
-        elif device_type == "ZTE" or self.model == "MOD002":
+        elif device_type == "ZTE" or self.model in ["MOD002", "MOD009"]:
             return self._login_zte(False) # False para indicar que aun no se ha reseteado
         elif device_type == "HUAWEI" or self.model in ["MOD003", "MOD004", "MOD005", "MOD007"]:
             return self._login_huawei()
@@ -452,11 +459,27 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
                 return "HUAWEI"
             
             # --- 4. DETECCIÓN ZTE ---
-            if any(k in html_lower for k in ['zte', 'zxhn', 'f670l', 'frm_username', 'frm_password']):
+            if any(k in html_lower for k in ['zte', 'zxhn', 'f670l', 'f6600', 'frm_username', 'frm_password']):
                 print("[AUTH] Dispositivo ZTE detectado automáticamente")
-                if not self.model:
+                
+                zte_model = ""
+
+                # Extraer modelo desde <title> (misma lógica que Huawei)
+                title_match = re.search(r"<title>(.*?)</title>", raw_html, re.IGNORECASE)
+                if title_match:
+                    zte_model = html.unescape(title_match.group(1)).upper().strip()
+
+                print(f"[AUTH] ZTE <title> extraído: '{zte_model}'")
+
+                # Asignación directa (mismo patrón que Huawei)
+                if "F6600" in zte_model:
+                    self.model = "MOD009"
+                elif "F670L" in zte_model:
                     self.model = "MOD002"
-                    print(f"[AUTH] Modelo asignado: {self.model}")
+                else:
+                    self.model = "MOD002"  # fallback
+
+                print(f"[AUTH] Modelo ZTE asignado: {self.model} ({zte_model if zte_model else 'Indeterminado'})")
                 return "ZTE"
             
             return "ONT"
@@ -497,6 +520,7 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
             "MOD001": "HG6145F",
             "MOD008": "HG6145F1",
             "MOD002": "F670L",
+            "MOD009": "F6600",
             "MOD004": "HG8145V5",
             "MOD005": "HG8145V5 SMALL",
             "MOD006": "HT818",
@@ -1191,6 +1215,8 @@ def pruebaUnitariaONT(opcionesTest, out_q=None, modelo=None, stop_event=None):
     '''# Obtener la IP del dispositivo según modelo
     if modelo == "F670L":
         ip = "192.168.1.1"
+    elif modelo == "F6600":
+        ip = "192.168.1.1"
     else:
         ip = "192.168.100.1"'''
     
@@ -1202,6 +1228,7 @@ def pruebaUnitariaONT(opcionesTest, out_q=None, modelo=None, stop_event=None):
         "HG6145F": "MOD001",
         "HG6145F1": "MOD008",
         "F670L": "MOD002",
+        "F6600": "MOD009",
         "HG8145X6-10": "MOD003",
         "HG8145X6": "MOD007",
         "HG8145V5": "MOD004",
@@ -1210,7 +1237,7 @@ def pruebaUnitariaONT(opcionesTest, out_q=None, modelo=None, stop_event=None):
     model_code = MODEL_UI_TO_CODE.get(modelo_ui, None)
 
     # IP por modelo
-    ip = "192.168.1.1" if modelo_ui == "F670L" else "192.168.100.1"
+    ip = "192.168.1.1" if model_code in ("MOD002", "MOD009") else "192.168.100.1"
 
     # Instancia de ONTAutomatedTester para esta ejecución puntual
     temp_tester = ONTAutomatedTester(host=ip, model=model_code)
