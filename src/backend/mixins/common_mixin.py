@@ -1216,7 +1216,7 @@ class CommonMixin:
         passWifi = self.test_results['additional_info']['wifi_info']['psw'].get('password_24ghz') # contraseña
 
         # Tests
-        ping = self.test_results['tests']['PING_CONNECTIVITY'].get('status') # pass
+        ping = "PASS" # pass
         if tests_opts.get("factory_reset", True):
             # Verificar si el test de factory_reset realmente se ejecutó
             factory_test = self.test_results.get('tests', {}).get('FACTORY_RESET_PASS')

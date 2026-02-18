@@ -385,6 +385,39 @@ def update_operation_snmodo(sn: str, modo: str, campo: str, valor: str):
         con.commit()
         return cur.rowcount == 1
 
+def delete_operation(sn: str, modo: str) -> bool:
+    tipo = (modo or "").strip().upper()
+    if tipo == "RETESTEO":
+        tipo = "RETEST"
+    if tipo not in ("ETIQUETA", "TESTEO", "RETEST"):
+        raise ValueError(f"Modo/tipo inválido: {modo}")
+
+    with get_conn() as con:
+        cur = con.execute("""
+            DELETE FROM operations
+            WHERE id = (
+              SELECT id
+              FROM operations
+              WHERE sn = ? AND tipo = ?
+              ORDER BY fecha_test DESC, id DESC
+              LIMIT 1
+            );
+        """, (sn, tipo))
+        con.commit()
+        return cur.rowcount == 1
+
+def get_pruebas_validas():
+    now = now_local_iso()[:10]
+    with get_conn() as con:
+        row = con.execute("""
+            SELECT COUNT(*)
+            FROM operations
+            WHERE substr(fecha_test, 1, 10) = ?
+            AND valido =1
+            ;
+        """, (now,)).fetchone()
+        return int(row[0]) if row else 0
+
 def clear_user_station() -> None:
     with get_conn() as con:
         con.execute("DELETE FROM user_station;")
