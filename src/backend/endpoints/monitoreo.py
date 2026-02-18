@@ -21,7 +21,7 @@ def iniciar_monitoreo(out_q=None, stop_event=None):
         # 1) detectar si hay equipo (ping a IPs)
         found_ip = None
         for ip in COMMON_IPS:
-            if _ping_once(ip, timeout_ms=1000):
+            if _ping_once(ip, timeout_ms=500):
                 found_ip = ip
                 break
 

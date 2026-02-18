@@ -317,7 +317,7 @@ class TesterView(ctk.CTkFrame):
 
         self.contador_pruebas_valor = ctk.CTkLabel(
             self.contador_pruebas_frame,
-            text="0",  # valor inicial (lo actualizará alguien más)
+            text="0",  # valor inicial 
             font=label_font,
             text_color=label_color,
         )
@@ -331,6 +331,9 @@ class TesterView(ctk.CTkFrame):
             on_run_unit=self._run_unit_from_panel  # Callback
         )
         self.panel_pruebas.pack(side="bottom", fill="x", padx=0, pady=(0, 10)) #, expand=False
+
+        # Inicializar contador
+        self.updatePruebas()
 
         # Iniciar reloj
         self.update_clock()
@@ -440,6 +443,12 @@ class TesterView(ctk.CTkFrame):
         from src.Frontend.ui.inicio_view import InicioView
         self._swap_view(InicioView)
 
+    # ===================== Actualizar contador de pruebas ========
+    def updatePruebas(self):
+        # Llamar a la dao que me trae la consulta con el numero
+        from src.backend.sua_client.dao import get_pruebas_validas
+        pruebas = get_pruebas_validas()
+        self.contador_pruebas_valor.configure(text=str(pruebas))
     # ===================== ESTILO / UI =====================
     def _set_button_style(self, button, state: str):
         if state == "active":
@@ -511,6 +520,8 @@ class TesterView(ctk.CTkFrame):
 
         # NO crear nuevo stop_event aquí - _start_loop lo hará después de verificar
         # que el hilo anterior murió
+        # Limpiar la UI
+        self._limpiezaElementos()
 
         print(f"     Modo seleccionado: {modo}")
         self._set_all_buttons_state("neutral")
@@ -807,6 +818,8 @@ class TesterView(ctk.CTkFrame):
                 # Actualizar el campo de valido
                 validar_por_modo(info.get("sn","-"), modo)
                 payload_final = extraer_by_id(id, "operations")
+            
+            self.updatePruebas()
             # publicar a IOT
             
         elif kind == "test_individual":
@@ -847,7 +860,7 @@ class TesterView(ctk.CTkFrame):
                     valido = validar_por_modo(sn, modo)
                     if valido:
                         #actualizar UI
-                        print()
+                        self.updatePruebas()
         #elif kind == "test":
             # ejemplo: actualizar un cuadrito por prueba || de momento no
             # payload = {"nombre":"wifi_24ghz_signal","estado":"PASS","valor":"-14.6 dBm"}
