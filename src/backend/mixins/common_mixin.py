@@ -1146,14 +1146,14 @@ class CommonMixin:
 
         resultado = {
             "info": {
-                "modelo": modelo,
+                "modelo": modelo or "DESCONOCIDO",
                 "fecha_test": fecha,
-                "sn": sn,
-                "mac": mac,
-                "sftVer": sftVer,
-                "wifi24": wifi24,
-                "wifi5": wifi5,
-                "passWifi": passWifi
+                "sn": sn or "N/A",
+                "mac": mac or "N/A",
+                "sftVer": sftVer or "N/A",
+                "wifi24": wifi24 or "N/A",
+                "wifi5": wifi5 or "N/A",
+                "passWifi": passWifi or "N/A"
             },
             "tests": {
                 "ping": ping
@@ -1328,7 +1328,7 @@ class CommonMixin:
         # Valores informativos
         fecha = self.test_results['metadata'].get('timestamp') # "2025-11-28T13:51:32.497520"
         modelo = self.test_results['metadata'].get('model', 'DESCONOCIDO') # modelo 
-        sn = self.test_results['metadata'].get('serial_number', 'N/A') #sn
+        sn = self.test_results['metadata'].get('serial_number') or 'N/A' #sn
         ruta_mac = self.test_results.get('tests', {}).get('mac', {}).get('details', {}).get('WAN_COMFIG', [])
         mac = None
         for cfg in ruta_mac:
