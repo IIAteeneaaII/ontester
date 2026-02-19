@@ -1002,25 +1002,70 @@ class HuaweiMixin:
         #     raise
 
     def huawei_info(self, driver):
-        # Descripcion || navegacion (clicks) || extracción
-        tests = [
-            # === System Information ===
-            ("hw_device",  self.nav_hw_info,       self.parse_hw_device),
-            ("hw_lan",     self.nav_hw_lan,        self.parse_hw_lan),
-            ("hw_wifi24",  self.nav_hw_wifi_24,    self.parse_hw_wifi24),
-            ("hw_wifi5",   self.nav_hw_wifi_5,     self.parse_hw_wifi5),
-            ("hw_mac",     self.nav_hw_mac,        self.parse_hw_mac),
-            #("hw_optical", self.nav_hw_optical,    self.parse_hw_optical),
-
-            # === Advanced ===
-            ("hw_wifi24_pass", self.nav_hw_show_pass_24, self.parse_hw_wifi24_pass),
-            ("hw_wifi5_pass",  self.nav_hw_show_pass_5,  self.parse_hw_wifi5_pass),
-            #("hw_usb",  self.nav_hw_usb, self.read_hw_usb_status)
-        ]
-
         # Verificar opciones a testear
         optTest = self.opcionesTest
         tests_opts = optTest.get("tests", {})
+
+        # Igual que ZTE: primero lista vacía (solo se agregan las que procedan)
+        tests = []
+
+        # Descripcion || navegacion (clicks) || extracción
+        if isinstance(optTest.get("info", False), dict):
+            if any(optTest.get("info", False).values()):
+                tests.extend([
+                    # === System Information ===
+                    ("hw_device",  self.nav_hw_info,       self.parse_hw_device),
+                    ("hw_lan",     self.nav_hw_lan,        self.parse_hw_lan),
+                    ("hw_wifi24",  self.nav_hw_wifi_24,    self.parse_hw_wifi24),
+                    ("hw_wifi5",   self.nav_hw_wifi_5,     self.parse_hw_wifi5),
+                    ("hw_mac",     self.nav_hw_mac,        self.parse_hw_mac),
+                    #("hw_optical", self.nav_hw_optical,    self.parse_hw_optical),
+
+                    # === Advanced ===
+                    ("hw_wifi24_pass", self.nav_hw_show_pass_24, self.parse_hw_wifi24_pass),
+                    ("hw_wifi5_pass",  self.nav_hw_show_pass_5,  self.parse_hw_wifi5_pass),
+                    #("hw_usb",  self.nav_hw_usb, self.read_hw_usb_status)
+                ])
+        elif optTest.get("info", False):
+            tests.extend([
+                # === System Information ===
+                ("hw_device",  self.nav_hw_info,       self.parse_hw_device),
+                ("hw_lan",     self.nav_hw_lan,        self.parse_hw_lan),
+                ("hw_wifi24",  self.nav_hw_wifi_24,    self.parse_hw_wifi24),
+                ("hw_wifi5",   self.nav_hw_wifi_5,     self.parse_hw_wifi5),
+                ("hw_mac",     self.nav_hw_mac,        self.parse_hw_mac),
+                #("hw_optical", self.nav_hw_optical,    self.parse_hw_optical),
+
+                # === Advanced ===
+                ("hw_wifi24_pass", self.nav_hw_show_pass_24, self.parse_hw_wifi24_pass),
+                ("hw_wifi5_pass",  self.nav_hw_show_pass_5,  self.parse_hw_wifi5_pass),
+                #("hw_usb",  self.nav_hw_usb, self.read_hw_usb_status)
+            ])
+
+        # MISMA IDEA QUE ZTE: si info es dict y NO se pide nada, no ejecutar INFO
+        if isinstance(optTest.get("info", False), dict):
+            if not any(optTest.get("info", {}).values()):
+                tests = []
+        elif not optTest.get("info", False):
+            tests = []
+
+        # MOD: FILTRO MINIMO (estilo ZTE) para que unitarias (ej. USB Port) NO extraigan LAN/WLAN/PASS si en conexion.py vienen en False
+        if isinstance(optTest.get("info", False), dict) and tests:
+            # LAN: en tu conexion.py NO existe "lan", así que por default NO debe ejecutarse.
+            if not optTest.get("info", {}).get("lan", False):
+                tests = [t for t in tests if t[0] != "hw_lan"]
+
+            # SSIDs: solo si fueron solicitados explícitamente
+            if not optTest.get("info", {}).get("ssid_24ghz", False):
+                tests = [t for t in tests if t[0] != "hw_wifi24"]
+            if not optTest.get("info", {}).get("ssid_5ghz", False):
+                tests = [t for t in tests if t[0] != "hw_wifi5"]
+
+            # Passwords: SOLO si fueron solicitados explícitamente
+            if not optTest.get("info", {}).get("wifi_password", False):
+                tests = [t for t in tests if t[0] not in ("hw_wifi24_pass", "hw_wifi5_pass")]
+
+        # Verificar opciones a testear (NO INFO)
         if tests_opts.get("tx_power", True) and tests_opts.get("rx_power", True):
             print("Se ejecutará prueba de TX y RX")
             #tests.append( ("hw_optical", self.nav_hw_optical,    self.parse_hw_optical) )
@@ -1036,6 +1081,7 @@ class HuaweiMixin:
                 self.out_q.put((kind, payload))
             else:
                 print("[INFO Q] NOOO Se detectó la queue")
+                
         for name, nav_func, parse_func in tests:
             try:
                 emit("pruebas", f"Ejecutando: {name}")
@@ -1053,8 +1099,10 @@ class HuaweiMixin:
                     "error": str(e)
                 }
 
-        wifi24 = self.test_results['tests']['hw_wifi24']['data'].get('ssid') # nombre wifi
-        wifi5 = self.test_results['tests']['hw_wifi5']['data'].get('ssid') # nombre wifi
+        # wifi24 = self.test_results['tests']['hw_wifi24']['data'].get('ssid') # nombre wifi
+        # wifi5 = self.test_results['tests']['hw_wifi5']['data'].get('ssid') # nombre wifi
+        wifi24 = (self.test_results.get("tests", {}).get("hw_wifi24", {}).get("data") or {}).get("ssid")
+        wifi5  = (self.test_results.get("tests", {}).get("hw_wifi5",  {}).get("data") or {}).get("ssid")
 
         if tests_opts.get("software_update", True):
             emit("pruebas", "Ejecutando Actualizacion de Software")
@@ -1062,8 +1110,9 @@ class HuaweiMixin:
 
         # Verificar si se tienen que probar las señales wifi
         if tests_opts.get("wifi_24ghz_signal", True) and tests_opts.get("wifi_5ghz_signal", True):
-            emit("pruebas", "Ejecutanto Prueba de Señal WiFi")
-            self.test_wifi_rssi_windows(wifi24, wifi5)
+                emit("pruebas", "Ejecutanto Prueba de Señal WiFi")
+                if wifi24 and wifi5:
+                    self.test_wifi_rssi_windows(wifi24, wifi5)
 
         # Emitir resultado de factory_reset si se ejecutó (al final de todas las pruebas)
         factory_result = self.test_results.get('tests', {}).get('factory_reset', {})

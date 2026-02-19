@@ -551,9 +551,10 @@ class ZTEMixin:
                 if modelo in ("MOD002", "MOD009"):
                     # Formato: totalplay_F670L_V9.0.11P1N94_UPGRADE_BOOTLDR
                     # Extraer la parte V9.0.11P1N94
-                    match = re.search(r'V([\d.P\dN\d]+)', stem)
+                    # Ahora se adapta al formato del MOD009, que es similar pero con una letra al final
+                    match = re.search(r'V([\d.A-Z]+$)', stem, re.IGNORECASE)
                     if match:
-                        codigo = match.group(1)  # "9.0.11P1N94"
+                        codigo = match.group(1)  # "9.0.11P1N94[letra dependiendo del modelo]"
                     else:
                         print("[ERROR] No se pudo extraer la versión del archivo")
                         return False
@@ -561,11 +562,18 @@ class ZTEMixin:
                     # Formato antiguo: HG6145F_RP4379
                     codigo = stem.split("_", 1)[1]  # "RP4379"
 
-                sft_num = "".join(ch for ch in codigo if ch.isdigit()) # Extraer solo dígitos
-                sftVerActual = "".join(ch for ch in sftVer if ch.isdigit())
+                if modelo == "MOD002":
+                    # Para el modelo antiguo, extraemos solo los dígitos del código
+                    sft_num = "".join(ch for ch in codigo if ch.isdigit()) # Extraer solo dígitos
+                    sftVerActual = "".join(ch for ch in sftVer if ch.isdigit())
+                else: # Si tenemos un MOD009
+                    sftVerActual = sftVer
+                    sft_num = "V" + codigo
+
+                print(f"[DEBUG] Comparando versiones: actual={sftVerActual}, nueva={sft_num}")
 
                 # Verificar que la actual no sea igual o mayor a la que se quiere instalar
-                if (sftVerActual < sft_num):
+                if (sftVerActual != sft_num):
                     print("[INFO] Se necesita actualizar software")
                     return True
                 else:
@@ -1114,19 +1122,24 @@ class ZTEMixin:
         #Update para generar reportes
         pruebas = [
             # VACIO para solo agregar las que se piden en opciones
-            ("basic", self.info_zte_basic, xml_url), # Esta es info, por lo que siempre se ejecuta
+            # ("basic", self.info_zte_basic, xml_url), # Esta es info, por lo que siempre se ejecuta
             # ("usb",   self.nav_usb,        xml_usb), # ok
             ("lan",   self.nav_lan,        xml_lan), # Lan forma parte de la info basica
             ("wifi",  self.nav_wifi,       xml_wifi), # Esta parte del wifi es para la info basica
             # ("fibra", self.nav_fibra,      xml_fibra), # ok
             ("mac",   self.nav_mac,        xml_mac), # Mac forma parte de la info basica
         ]
-        
+
+        info_opts = optTest.get("info", False)
+        if isinstance(info_opts, dict):
+            if any(info_opts.values()):
+                pruebas.insert(0, ("basic", self.info_zte_basic, xml_url))
+        elif info_opts:
+            pruebas.insert(0, ("basic", self.info_zte_basic, xml_url))
         if tests_opts.get("usb_port", True): # Ejecutando True por defecto
             pruebas.append( ("usb",   self.nav_usb,        xml_usb) )
         if tests_opts.get("tx_power", True) and tests_opts.get("rx_power", True):
             pruebas.append( ("fibra", self.nav_fibra,      xml_fibra) )
-
 
         try:
             print("Opcion 1:\n")
@@ -1173,10 +1186,44 @@ class ZTEMixin:
                     }
 
                 # 5) Armar el objeto resultado de esta prueba
+                # result = {
+                #     "name": name,
+                #     "status": parsed.get("error", {}).get("str") == "SUCC",
+                #     "details": parsed,          # aquí va el json parseado de ese XML
+                # }
+
+                # Filtrar detalles cuando las opciones de 'info' son un dict (unitarias)
+                info_opts = optTest.get("info", False)
+                # Por defecto guardamos todo el parsed
+                details = parsed
+
+                # Si 'info' viene como dict (unidades solicitadas explícitamente),
+                # respetar qué campos de DEVINFO se deben almacenar para 'basic'
+                if isinstance(info_opts, dict) and name == "basic":
+                    devinfo = parsed.get("DEVINFO") or {}
+                    keep = {}
+
+                    # model
+                    if info_opts.get("model", False) and devinfo.get("ModelName") is not None:
+                        keep["ModelName"] = devinfo.get("ModelName")
+                    # serial number
+                    if info_opts.get("sn", False) and devinfo.get("SerialNumber") is not None:
+                        keep["SerialNumber"] = devinfo.get("SerialNumber")
+                    # software version (campo en DEVINFO: SoftwareVer)
+                    if info_opts.get("software_version", False) and devinfo.get("SoftwareVer") is not None:
+                        keep["SoftwareVer"] = devinfo.get("SoftwareVer")
+
+                    # Si hay algo que guardar en DEVINFO → dejar sólo eso; si no, vaciar detalles
+                    if keep:
+                        details = {"DEVINFO": keep}
+                    else:
+                        details = {}
+
+                # (Caso por defecto: details = parsed)
                 result = {
                     "name": name,
                     "status": parsed.get("error", {}).get("str") == "SUCC",
-                    "details": parsed,          # aquí va el json parseado de ese XML
+                    "details": details,          # aquí va el json (o la versión filtrada) del XML
                 }
 
                 # 6) Guardarlo en self.test_results (igual que tu patrón test_func)
