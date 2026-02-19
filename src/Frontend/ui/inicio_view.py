@@ -1,48 +1,35 @@
+# src/Frontend/ui/inicio_view.py
 import customtkinter as ctk
 import sys
 from pathlib import Path
 from PIL import Image
-# Importar la queue
 import queue
-#importar helper de conexion
-from src.backend.endpoints.conexion import *
-from src.Frontend.telemetry.dispatcher import EventDispatcher
-# from src.Frontend.telemetry.aws_bridge import AwsBridge  # en el futuro
+
 # Para poder usar imports absolutos
 root_path = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(root_path))
+
+# importar helper de conexion
+from src.backend.endpoints.conexion import load_default_users
+from src.Frontend.telemetry.dispatcher import EventDispatcher
+from src.Frontend.theme_manager import ThemeManager  # ✅ Theme persistente
 
 
 class InicioView(ctk.CTkFrame):
     """
     Pantalla de inicio / login.
-    - Logo centrado
-    - Input ID
-    - Validación: Bienvenido + nombre / ID no válido
-    - Botón COMENZAR (se habilita solo con ID válido)
-
-    Hook opcional:
-    - Si pasas viewmodel con método:
-        * obtener_usuario_por_id(id_str) -> str|None
-      o
-        * validar_id(id_str) -> (bool, str|None)
-    - Si no, usa un diccionario local (USERS_MOCK).
+    - UI inicio + teclado numérico
+    - Botón toggle para cambiar claro/oscuro (persistente vía ThemeManager)
     """
-    # --- Mock local (cámbialo por tus IDs reales o conecta a tu viewmodel) ---
-    USERS_MOCK = load_default_users() # parte de conexion.py
-    # USERS_MOCK = {
-    #     "09": "Ram",
-    #     "10": "Alex",
-    #     "11": "Karen",
-    #     "12": "Luis",
-    #     "99": "Admin",
-    # }
 
-    def __init__(self, parent, modelo = None, viewmodel=None, **kwargs):
+    USERS_MOCK = load_default_users()  # parte de conexion.py
+
+    def __init__(self, parent, modelo=None, viewmodel=None, **kwargs):
         super().__init__(parent, fg_color="#E8F4F8", **kwargs)
         self.viewmodel = viewmodel
+        self.modelo = modelo
 
-        # Paleta (misma línea que has usado)
+        # Paleta (default = light, pero apply_theme() la reemplaza)
         self.COL_BG = "#E8F4F8"
         self.COL_VERDE = "#6B9080"
         self.COL_AZUL_SUAVE = "#A8DADC"
@@ -55,6 +42,9 @@ class InicioView(ctk.CTkFrame):
         self.usuario_id = None
         self.usuario_nombre = None
 
+        # Para recolorear botones del teclado
+        self.keypad_buttons = []
+
         # Layout base
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
@@ -62,79 +52,94 @@ class InicioView(ctk.CTkFrame):
         # ------------------------------
         # Fondo decorativo
         # ------------------------------
-        bg = ctk.CTkFrame(self, fg_color=self.COL_BG)
-        bg.grid(row=0, column=0, sticky="nsew")
+        self.bg = ctk.CTkFrame(self, fg_color=self.COL_BG, corner_radius=0)
+        self.bg.grid(row=0, column=0, sticky="nsew")
 
-        # "manchas" / formas con esquinas redondeadas
-        deco1 = ctk.CTkFrame(bg, fg_color=self.COL_AZUL_SUAVE, corner_radius=140, width=320, height=320)
-        deco1.place(x=-80, y=-70)
+        # "manchas" / formas
+        self.deco1 = ctk.CTkFrame(self.bg, fg_color=self.COL_AZUL_SUAVE, corner_radius=140, width=320, height=320)
+        self.deco1.place(x=-80, y=-70)
 
-        deco2 = ctk.CTkFrame(bg, fg_color=self.COL_VERDE, corner_radius=180, width=420, height=420)
-        deco2.place(relx=1.0, rely=1.0, x=-260, y=-240)
+        self.deco2 = ctk.CTkFrame(self.bg, fg_color=self.COL_VERDE, corner_radius=180, width=420, height=420)
+        self.deco2.place(relx=1.0, rely=1.0, x=-260, y=-240)
 
-        deco3 = ctk.CTkFrame(bg, fg_color="#DFF1F2", corner_radius=120, width=240, height=240)
-        deco3.place(relx=1.0, y=40, x=-180)
+        self.deco3 = ctk.CTkFrame(self.bg, fg_color="#DFF1F2", corner_radius=120, width=240, height=240)
+        self.deco3.place(relx=1.0, y=40, x=-180)
 
         # ------------------------------
         # Tarjeta central (con "sombra")
         # ------------------------------
-        card_shadow = ctk.CTkFrame(bg, fg_color="#BFD3DD", corner_radius=22, width=520, height=520)
-        card_shadow.place(relx=0.5, rely=0.45, anchor="center", x=6, y=8)
+        self.card_shadow = ctk.CTkFrame(self.bg, fg_color="#BFD3DD", corner_radius=22, width=520, height=520)
+        self.card_shadow.place(relx=0.5, rely=0.45, anchor="center", x=6, y=8)
 
-        card = ctk.CTkFrame(
-            bg,
+        self.card = ctk.CTkFrame(
+            self.bg,
             fg_color="white",
             corner_radius=22,
             border_width=2,
             border_color="#8FA3B0",
             width=520,
-            height=520
+            height=520,
         )
-        card.place(relx=0.5, rely=0.45, anchor="center")
+        self.card.place(relx=0.5, rely=0.45, anchor="center")
 
         # Encabezado superior simple sin esquinas redondeadas
-        header = ctk.CTkFrame(card, fg_color=self.COL_VERDE, corner_radius=0, width=520, height=70)
-        header.place(x=0, y=0, relwidth=1.0)
+        self.header = ctk.CTkFrame(self.card, fg_color=self.COL_VERDE, corner_radius=0, width=520, height=70)
+        self.header.place(x=0, y=0, relwidth=1.0)
 
-        ctk.CTkLabel(
-            header,
+        self.lbl_title = ctk.CTkLabel(
+            self.header,
             text="ONT TESTER",
             font=ctk.CTkFont(size=20, weight="bold"),
-            text_color="white"
-        ).place(relx=0.5, rely=0.5, anchor="center")
+            text_color="white",
+        )
+        self.lbl_title.place(relx=0.5, rely=0.5, anchor="center")
+
+        # ✅ Botón toggle tema
+        self.btn_theme = ctk.CTkButton(
+            self.header,
+            text="🌙",
+            width=44,
+            height=30,
+            corner_radius=8,
+            fg_color="#2C3E50",
+            hover_color="#1f2a36",
+            text_color="white",
+            command=self._toggle_theme,
+        )
+        self.btn_theme.place(relx=1.0, rely=0.5, x=-12, anchor="e")
 
         # ------------------------------
         # Logo centrado
         # ------------------------------
-        logo_frame = ctk.CTkFrame(
-            card,
+        self.logo_frame = ctk.CTkFrame(
+            self.card,
             fg_color="#F7FBFD",
             corner_radius=18,
             border_width=1,
             border_color="#D0DCE3",
             width=210,
-            height=210
+            height=210,
         )
-        logo_frame.place(relx=0.5, y=110, anchor="n")
+        self.logo_frame.place(relx=0.5, y=110, anchor="n")
 
-        self._logo_label = ctk.CTkLabel(logo_frame, text="")
+        self._logo_label = ctk.CTkLabel(self.logo_frame, text="")
         self._logo_label.place(relx=0.5, rely=0.5, anchor="center")
-
-        self._cargar_logo()  # intenta cargar el logo (no truena si no existe)
+        self._cargar_logo()
 
         # Texto "bienvenido"
-        ctk.CTkLabel(
-            card,
+        self.lbl_welcome = ctk.CTkLabel(
+            self.card,
             text="BIENVENIDO\nINGRESA TU ID",
             font=ctk.CTkFont(size=16, weight="bold"),
             text_color=self.COL_TEXTO,
-            justify="center"
-        ).place(relx=0.5, y=330, anchor="center")
+            justify="center",
+        )
+        self.lbl_welcome.place(relx=0.5, y=330, anchor="center")
 
         # Input ID
         self.id_var = ctk.StringVar(value="")
         self.id_entry = ctk.CTkEntry(
-            card,
+            self.card,
             textvariable=self.id_var,
             width=320,
             height=44,
@@ -147,21 +152,23 @@ class InicioView(ctk.CTkFrame):
         )
         self.id_entry.place(relx=0.5, y=390, anchor="center")
         self.id_entry.focus()
-        self._crear_teclado_numerico(bg) # Panel numérico
+
+        # Panel numérico
+        self._crear_teclado_numerico(self.bg)
 
         # Mensaje de validación
         self.status_var = ctk.StringVar(value="")
         self.status_label = ctk.CTkLabel(
-            card,
+            self.card,
             textvariable=self.status_var,
             font=ctk.CTkFont(size=14, weight="bold"),
-            text_color=self.COL_TEXTO
+            text_color=self.COL_TEXTO,
         )
         self.status_label.place(relx=0.5, y=435, anchor="center")
 
-        # Botón COMENZAR (inicia deshabilitado) - colocado sobre el card para evitar esquinas blancas
+        # Botón COMENZAR (inicia deshabilitado)
         self.btn_comenzar = ctk.CTkButton(
-            card,
+            self.card,
             text="COMENZAR",
             width=160,
             height=44,
@@ -178,6 +185,129 @@ class InicioView(ctk.CTkFrame):
         # Bindings para validar
         self.id_entry.bind("<KeyRelease>", lambda e: self._validar_id())
         self.id_entry.bind("<Return>", lambda e: self._enter_accion())
+
+        # ✅ Aplicar tema actual al arrancar
+        root = self.winfo_toplevel()
+        if hasattr(root, "theme"):
+            self.apply_theme(root.theme.palette())
+
+    # =========================================================
+    #                    THEME / TOGGLE
+    # =========================================================
+    def _toggle_theme(self):
+        root = self.winfo_toplevel()
+        if hasattr(root, "theme"):
+            root.theme.toggle()
+            if hasattr(root, "refresh_theme"):
+                root.refresh_theme()
+            else:
+                self.apply_theme(root.theme.palette())
+
+    def apply_theme(self, p: dict):
+        """Recolorea esta vista según paleta p (ThemeManager.palette())."""
+
+        mode = getattr(getattr(self.winfo_toplevel(), "theme", None), "mode", "light")
+
+        # Actualizar "constantes" internas
+        self.COL_BG = p.get("bg", "#E8F4F8")
+        self.COL_TEXTO = p.get("text", "#2C3E50")
+        self.COL_ERROR = p.get("danger", "#C1666B")
+        self.COL_OK = p.get("ok", "#2E7D32")
+        self.COL_AZUL = p.get("primary", "#4EA5D9")
+        self.COL_AZUL_HOVER = p.get("primary_hover", "#3B8CC2")
+        self.COL_VERDE = p.get("header", "#6B9080")
+        self.COL_AZUL_SUAVE = p.get("deco1", "#A8DADC")
+
+        # Fondo general
+        self.configure(fg_color=self.COL_BG)
+        self.bg.configure(fg_color=self.COL_BG)
+
+        # Decoraciones
+        self.deco1.configure(fg_color=p.get("deco1", self.COL_AZUL_SUAVE))
+        self.deco2.configure(fg_color=p.get("header", self.COL_VERDE))
+        self.deco3.configure(fg_color=p.get("deco3", "#DFF1F2"))
+
+        # Card y sombra
+        self.card_shadow.configure(fg_color=p.get("card_shadow", "#BFD3DD"))
+        self.card.configure(fg_color=p.get("card", "white"), border_color=p.get("border", "#8FA3B0"))
+
+        # Header
+        self.header.configure(fg_color=p.get("header", self.COL_VERDE))
+        self.lbl_title.configure(text_color="white")
+
+        # Botón toggle (color + icono)
+        self.btn_theme.configure(
+            text=("☀️" if mode == "dark" else "🌙"),
+            fg_color=("#111827" if mode == "dark" else "#2C3E50"),
+            hover_color=("#0B1220" if mode == "dark" else "#1f2a36"),
+            text_color="white",
+        )
+
+        # Logo frame
+        self.logo_frame.configure(fg_color=p.get("card", "white"), border_color=p.get("border", "#8FA3B0"))
+
+        # Textos
+        self.lbl_welcome.configure(text_color=p.get("text", self.COL_TEXTO))
+
+        # Entry
+        self.id_entry.configure(
+            fg_color=p.get("entry_bg", "white"),
+            border_color=p.get("entry_border", p.get("border", "#8FA3B0")),
+            text_color=p.get("text", self.COL_TEXTO),
+        )
+
+        # Status label: si está en verde/rojo por validación, no lo pisamos
+        cur_color = self.status_label.cget("text_color")
+        if cur_color in (None, "", self.COL_TEXTO, p.get("text", self.COL_TEXTO)):
+            self.status_label.configure(text_color=p.get("text", self.COL_TEXTO))
+
+        # Botón comenzar
+        self.btn_comenzar.configure(
+            fg_color=p.get("primary", self.COL_AZUL),
+            hover_color=p.get("primary_hover", self.COL_AZUL_HOVER),
+            text_color="white",
+        )
+
+        # Keypad contenedor
+        if hasattr(self, "keypad_shadow"):
+            self.keypad_shadow.configure(fg_color=p.get("card_shadow", "#BFD3DD"))
+        if hasattr(self, "keypad"):
+            self.keypad.configure(fg_color=p.get("card", "white"), border_color=p.get("border", "#8FA3B0"))
+        if hasattr(self, "keypad_title"):
+            self.keypad_title.configure(text_color=p.get("text", self.COL_TEXTO))
+
+        # Botones del teclado
+        for b, meta in getattr(self, "keypad_buttons", []):
+            kind = meta.get("kind", "num")
+            if kind == "num":
+                b.configure(
+                    fg_color=p.get("card", "white"),
+                    hover_color=p.get("deco3", "#DFF1F2"),
+                    text_color=p.get("text", self.COL_TEXTO),
+                    border_color=p.get("border", "#8FA3B0"),
+                )
+            elif kind == "ok":
+                b.configure(
+                    fg_color=p.get("primary", self.COL_AZUL),
+                    hover_color=p.get("primary_hover", self.COL_AZUL_HOVER),
+                    text_color="white",
+                    border_color=p.get("border", "#8FA3B0"),
+                )
+            elif kind == "clear":
+                b.configure(
+                    fg_color=("#3a1f22" if mode == "dark" else "#FCEDEE"),
+                    hover_color=("#512a2f" if mode == "dark" else "#F9D7DA"),
+                    text_color=p.get("danger", self.COL_ERROR),
+                    border_color=p.get("border", "#8FA3B0"),
+                )
+            elif kind == "back":
+                b.configure(
+                    fg_color=p.get("deco3", "#DFF1F2"),
+                    hover_color=p.get("deco1", self.COL_AZUL_SUAVE),
+                    text_color=p.get("text", self.COL_TEXTO),
+                    border_color=p.get("border", "#8FA3B0"),
+                )
+
     # =========================================================
     #                    PANEL NUMÉRICO
     # =========================================================
@@ -199,16 +329,17 @@ class InicioView(ctk.CTkFrame):
             border_width=2,
             border_color="#8FA3B0",
             width=220,
-            height=320
+            height=320,
         )
         self.keypad.place(relx=0.5, rely=0.45, anchor="w", x=280, y=0)
 
-        ctk.CTkLabel(
+        self.keypad_title = ctk.CTkLabel(
             self.keypad,
             text="TECLADO",
             font=ctk.CTkFont(size=14, weight="bold"),
-            text_color=self.COL_TEXTO
-        ).grid(row=0, column=0, columnspan=3, pady=(14, 10))
+            text_color=self.COL_TEXTO,
+        )
+        self.keypad_title.grid(row=0, column=0, columnspan=3, pady=(14, 10))
 
         # Grid uniforme
         for r in range(1, 6):
@@ -216,7 +347,7 @@ class InicioView(ctk.CTkFrame):
         for c in range(3):
             self.keypad.grid_columnconfigure(c, weight=1)
 
-        def mkbtn(txt, cmd, r, c, colspan=1, fg="#F7FBFD", hover="#EAF4FA", tc=None):
+        def mkbtn(txt, cmd, r, c, colspan=1, fg="#F7FBFD", hover="#EAF4FA", tc=None, kind="num"):
             b = ctk.CTkButton(
                 self.keypad,
                 text=txt,
@@ -232,28 +363,22 @@ class InicioView(ctk.CTkFrame):
                 border_color="#D0DCE3",
             )
             b.grid(row=r, column=c, columnspan=colspan, padx=8, pady=6, sticky="nsew")
+            self.keypad_buttons.append((b, {"kind": kind}))
             return b
 
-        # Layout:
-        # 7 8 9
-        # 4 5 6
-        # 1 2 3
-        # C 0 ⌫
         nums = [
             ("7", 1, 0), ("8", 1, 1), ("9", 1, 2),
             ("4", 2, 0), ("5", 2, 1), ("6", 2, 2),
             ("1", 3, 0), ("2", 3, 1), ("3", 3, 2),
         ]
         for d, r, c in nums:
-            mkbtn(d, lambda x=d: self._pad_append(x), r, c)
+            mkbtn(d, lambda x=d: self._pad_append(x), r, c, kind="num")
 
-        mkbtn("C", self._pad_clear, 4, 0, fg="#FCEDEE", hover="#F9D7DA", tc=self.COL_ERROR)
-        mkbtn("0", lambda: self._pad_append("0"), 4, 1)
-        mkbtn("⌫", self._pad_backspace, 4, 2, fg="#EAF4FA", hover="#DCECF8", tc=self.COL_TEXTO)
+        mkbtn("C", self._pad_clear, 4, 0, fg="#FCEDEE", hover="#F9D7DA", tc=self.COL_ERROR, kind="clear")
+        mkbtn("0", lambda: self._pad_append("0"), 4, 1, kind="num")
+        mkbtn("⌫", self._pad_backspace, 4, 2, fg="#EAF4FA", hover="#DCECF8", tc=self.COL_TEXTO, kind="back")
 
-        # OK (inicia como Enter)
-        mkbtn("OK", self._pad_ok, 5, 0, colspan=3, fg=self.COL_AZUL, hover=self.COL_AZUL_HOVER, tc="white")
-
+        mkbtn("OK", self._pad_ok, 5, 0, colspan=3, fg=self.COL_AZUL, hover=self.COL_AZUL_HOVER, tc="white", kind="ok")
 
     def _pad_append(self, ch: str):
         cur = self.id_var.get()
@@ -267,7 +392,6 @@ class InicioView(ctk.CTkFrame):
         except Exception:
             pass
 
-
     def _pad_backspace(self):
         cur = self.id_var.get()
         if not cur:
@@ -280,7 +404,6 @@ class InicioView(ctk.CTkFrame):
         except Exception:
             pass
 
-
     def _pad_clear(self):
         self.id_var.set("")
         self._validar_id()
@@ -290,23 +413,18 @@ class InicioView(ctk.CTkFrame):
         except Exception:
             pass
 
-
     def _pad_ok(self):
-        # Se comporta como presionar Enter
         self._enter_accion()
+
     # =========================================================
     #                    LOGO
     # =========================================================
     def _cargar_logo(self):
-        """
-        Intenta cargar logo desde assets/icons/logo_tester.png (como lo usas en tester_view).
-        Si no existe, no rompe la UI.
-        """
+        """Carga logo desde assets/icons/logo_tester.png (si existe)."""
         try:
             assets_dir = Path(__file__).parent.parent / "assets" / "icons"
             logo_path = assets_dir / "logo_tester.png"
             img = Image.open(logo_path)
-
             self.logo_image = ctk.CTkImage(light_image=img, dark_image=img, size=(150, 150))
             self._logo_label.configure(image=self.logo_image)
         except Exception:
@@ -316,29 +434,28 @@ class InicioView(ctk.CTkFrame):
     #                VALIDACIÓN DE ID
     # =========================================================
     def _lookup_user(self, id_str: str):
-        """
-        Devuelve (ok: bool, nombre: str|None)
-        """
-        id_str = int(id_str)
+        """Devuelve (ok: bool, nombre: str|None)"""
+        try:
+            id_int = int(id_str)
+        except Exception:
+            return (False, None)
 
-        # 1) Si tu viewmodel trae un método real:
         if self.viewmodel:
             if hasattr(self.viewmodel, "obtener_usuario_por_id"):
                 try:
-                    nombre = self.viewmodel.obtener_usuario_por_id(id_str)
+                    nombre = self.viewmodel.obtener_usuario_por_id(id_int)
                     return (bool(nombre), nombre)
                 except Exception:
                     pass
 
             if hasattr(self.viewmodel, "validar_id"):
                 try:
-                    ok, nombre = self.viewmodel.validar_id(id_str)
+                    ok, nombre = self.viewmodel.validar_id(id_int)
                     return (bool(ok), nombre)
                 except Exception:
                     pass
 
-        # 2) Fallback: diccionario local
-        nombre = self.USERS_MOCK.get(id_str)
+        nombre = self.USERS_MOCK.get(id_int)
         return (nombre is not None, nombre)
 
     def _validar_id(self):
@@ -377,22 +494,45 @@ class InicioView(ctk.CTkFrame):
     # =========================================================
     def _swap_view(self, view_cls, **init_kwargs):
         parent = self.master
+        # ✅ tomar root ANTES de destruir (self puede quedar inválido)
+        root = parent.winfo_toplevel()
+
         try:
             self.destroy()
         except Exception:
             pass
-        nueva = view_cls(parent, mdebug=None, **init_kwargs,)
+
+        # ✅ compatibilidad con constructores de otras vistas
+        nueva = None
+        try:
+            # patrón común de tus vistas: (parent, modelo, viewmodel=None)
+            nueva = view_cls(parent, self.modelo, **init_kwargs)
+        except TypeError:
+            try:
+                nueva = view_cls(parent, modelo=self.modelo, **init_kwargs)
+            except TypeError:
+                nueva = view_cls(parent, **init_kwargs)
+
         nueva.pack(fill="both", expand=True)
 
         # El dispatcher del parent ahora apunta a la nueva vista
-        parent.dispatcher.set_target(nueva)
+        if hasattr(parent, "dispatcher") and parent.dispatcher:
+            parent.dispatcher.set_target(nueva)
+
+        # ✅ si la nueva vista soporta tema, aplícalo (usa root, no self)
+        if hasattr(root, "theme") and hasattr(nueva, "apply_theme"):
+            try:
+                nueva.apply_theme(root.theme.palette())
+            except Exception:
+                pass
+
     def _on_comenzar(self):
         if not self.usuario_id:
             return
 
         print(f"[LOGIN] ID válido: {self.usuario_id} -> {self.usuario_nombre}")
 
-        # ✅ GUARDAR SESIÓN EN LA VENTANA ROOT (para que TesterView la lea)
+        # Guardar sesión en la ventana root
         root = self.winfo_toplevel()
         root.current_user_id = str(self.usuario_id)
         root.current_user_name = str(self.usuario_nombre)
@@ -405,43 +545,68 @@ class InicioView(ctk.CTkFrame):
         self._swap_view(TesterView, viewmodel=self.viewmodel)
 
 
-# Test rápido
+# =========================================================
+#                      RUN APP
+# =========================================================
 def run_app():
-    ctk.set_appearance_mode("light")
-    ctk.set_default_color_theme("blue")
+    # ✅ Theme manager global + persistencia
+    theme = ThemeManager(config_path="config_ui.json")
+    theme.apply()
 
     app = ctk.CTk()
+    app.theme = theme
+
+    def refresh_theme():
+        p = app.theme.palette()
+        try:
+            app.configure(fg_color=p["bg"])
+        except Exception:
+            pass
+
+        # refrescar vista activa (dispatcher target)
+        view = getattr(app.dispatcher, "_target", None)
+        if view and hasattr(view, "apply_theme"):
+            try:
+                view.apply_theme(p)
+            except Exception:
+                pass
+
+    app.refresh_theme = refresh_theme
+
     app.title("ONT TESTER - Inicio")
     app.geometry("1200x650")
     app.minsize(900, 550)
 
-    # Crear el dispatcher, la q y aws_bridge
+    # Crear dispatcher + queue
     app.event_q = queue.Queue()
-    app.aws_bridge = None 
+    app.aws_bridge = None
     app.dispatcher = EventDispatcher(
         root=app,
         event_q=app.event_q,
         aws_bridge=app.aws_bridge,
         interval_ms=20,
-        max_per_tick=200
+        max_per_tick=200,
     )
     app.dispatcher.start()
 
     view = InicioView(app)
     view.pack(fill="both", expand=True)
-    icon_path = (
-            Path(__file__)
-            .resolve()
-            .parent              # ui
-            .parent              # Frontend
-            / "assets"
-            / "icons"
-            / "ont.ico"
-        )
-    app.iconbitmap(str(icon_path))
+
+    # ✅ aplicar tema al primer render
+    try:
+        view.apply_theme(app.theme.palette())
+    except Exception:
+        pass
+
+    icon_path = Path(__file__).resolve().parent.parent / "assets" / "icons" / "ont.ico"
+    try:
+        app.iconbitmap(str(icon_path))
+    except Exception:
+        pass
 
     # Poner target en el dispatcher
     app.dispatcher.set_target(view)
+
     def on_close():
         try:
             app.dispatcher.stop()
@@ -458,8 +623,10 @@ def run_app():
         except Exception:
             pass
         app.destroy()
+
     app.protocol("WM_DELETE_WINDOW", on_close)
     app.mainloop()
+
 
 if __name__ == "__main__":
     run_app()

@@ -1,3 +1,4 @@
+# src/Frontend/ui/propiedades_view.py
 import customtkinter as ctk
 import tkinter as tk
 import sys
@@ -25,19 +26,102 @@ def resource_path(relative_path: str) -> str:
     return str(root_path / relative_path)
 
 
-# Usado solo para el test al final del archivo
 APP_ICON_REL = "src/Frontend/assets/icons/ont.ico"
 
 
+# =========================================================
+#                     THEME HELPERS
+# =========================================================
+def _get_app_root(widget):
+    # Si el widget ya guardó app_root, úsalo
+    if hasattr(widget, "app_root") and widget.app_root is not None:
+        return widget.app_root
+
+    # Si no, intenta subir por master
+    r = getattr(widget, "master", None)
+    while r is not None:
+        if hasattr(r, "theme"):
+            return r
+        r = getattr(r, "master", None)
+
+    # fallback final
+    return widget
+
+
+def _palette(widget) -> dict:
+    app_root = _get_app_root(widget)
+
+    if hasattr(app_root, "theme"):
+        try:
+            return app_root.theme.palette()
+        except Exception:
+            pass
+
+    # fallback claro
+    return {
+        "bg": "#E8F4F8",
+        "panel": "#C8D8E4",
+        "header": "#6B9080",
+        "text": "#2C3E50",
+        "muted": "#37474F",
+        "border": "#8FA3B0",
+        "entry_bg": "white",
+        "primary": "#6B9080",
+        "primary_hover": "#5A7A6A",
+        "danger": "#A5343A",
+        "danger_hover": "#A4161A",
+        "primary2": "#457B9D",
+        "primary2_hover": "#1D3557",
+    }
+
+
+def _mode(widget) -> str:
+    app_root = _get_app_root(widget)
+    return getattr(getattr(app_root, "theme", None), "mode", "light")
+
+
+
+def _center_window(win: ctk.CTkToplevel, w: int, h: int):
+    """Centra el Toplevel en la pantalla."""
+    try:
+        win.update_idletasks()
+        sw = win.winfo_screenwidth()
+        sh = win.winfo_screenheight()
+        x = int((sw - w) / 2)
+        y = int((sh - h) / 2)
+        win.geometry(f"{w}x{h}+{x}+{y}")
+    except Exception:
+        pass
+
+
+# =========================================================
+#                         DIALOG BASE
+# =========================================================
 class BaseDialog(ctk.CTkToplevel):
     """
-    Base para TODOS los diálogos: aplica el mismo icono/logo que la app.
+    Base para TODOS los diálogos:
+    - icono
+    - modal seguro
+    - guarda app_root real (ventana principal)
+    - aplica theme real al abrir
     """
+
     def __init__(self, parent, *args, **kwargs):
+        # master REAL (tu ventana principal CTk)
         master = parent.winfo_toplevel() if hasattr(parent, "winfo_toplevel") else parent
         super().__init__(master, *args, **kwargs)
-        self._icon_img = None
+
+        # ✅ guarda referencia al root real
+        self.app_root = master
+
         self._set_logo_icon()
+
+        try:
+            self.transient(master)
+        except Exception:
+            pass
+
+        self.after(10, self._make_modal_safe)
 
     def _set_logo_icon(self):
         ico_path = resource_path(APP_ICON_REL)
@@ -50,7 +134,38 @@ class BaseDialog(ctk.CTkToplevel):
 
         self.after(0, apply_icon)
 
+    def _make_modal_safe(self):
+        try: self.lift()
+        except Exception: pass
+        try: self.focus_force()
+        except Exception: pass
+        try: self.grab_set()
+        except Exception: pass
 
+        # ✅ aplicar tema usando app_root REAL (NO winfo_toplevel())
+        try:
+            p = _palette(self)
+            if hasattr(self, "apply_theme"):
+                self.apply_theme(p)
+        except Exception:
+            pass
+
+        # ✅ aplicar tema actual al abrir
+        try:
+            root = self.winfo_toplevel()
+            if hasattr(root, "theme") and hasattr(self, "apply_theme"):
+                self.apply_theme(root.theme.palette())
+            else:
+                # fallback
+                if hasattr(self, "apply_theme"):
+                    self.apply_theme(_palette(self))
+        except Exception:
+            pass
+
+
+# =========================================================
+#                         DIALOGS
+# =========================================================
 class CambiarEstacionDialog(BaseDialog):
     """
     Ventana emergente para cambiar el número de estación.
@@ -59,23 +174,20 @@ class CambiarEstacionDialog(BaseDialog):
     def __init__(self, parent, estacion_actual, userConsumible):
         super().__init__(parent)
         self.nuevo_numero = None
+        self.userConsumible = userConsumible
 
         self.title("Cambiar Estación")
-        self.geometry("400x200")
         self.resizable(False, False)
-
-        self.transient(parent)
-        self.grab_set()
+        _center_window(self, 420, 220)
 
         self.grid_columnconfigure(0, weight=1)
 
-        titulo_label = ctk.CTkLabel(
+        self.titulo_label = ctk.CTkLabel(
             self,
             text="Ingrese el número de estación\na donde se hará el cambio",
             font=ctk.CTkFont(size=14, weight="bold"),
-            text_color="#2C3E50",
         )
-        titulo_label.grid(row=0, column=0, pady=(20, 10), padx=20)
+        self.titulo_label.grid(row=0, column=0, pady=(20, 10), padx=20)
 
         self.entry_estacion = ctk.CTkEntry(
             self,
@@ -83,45 +195,76 @@ class CambiarEstacionDialog(BaseDialog):
             height=40,
             font=ctk.CTkFont(size=16),
             justify="center",
-            fg_color="white",
-            border_color="#6B9080",
-            border_width=2,
         )
         self.entry_estacion.grid(row=1, column=0, pady=10)
         self.entry_estacion.insert(0, estacion_actual)
         self.entry_estacion.focus()
-
         self.entry_estacion.bind("<Return>", lambda e: self.confirmar())
 
-        botones_frame = ctk.CTkFrame(self, fg_color="transparent")
-        botones_frame.grid(row=2, column=0, pady=20, padx=20)
+        self.botones_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.botones_frame.grid(row=2, column=0, pady=20, padx=20)
 
-        btn_aceptar = ctk.CTkButton(
-            botones_frame,
+        self.btn_aceptar = ctk.CTkButton(
+            self.botones_frame,
             text="ACEPTAR",
             command=self.confirmar,
             font=ctk.CTkFont(size=12, weight="bold"),
-            fg_color="#6B9080",
-            hover_color="#5A7A6A",
-            width=120,
-            height=35,
+            width=140,
+            height=38,
         )
-        btn_aceptar.pack(side="left", padx=5)
+        self.btn_aceptar.pack(side="left", padx=8)
 
-        btn_cancelar = ctk.CTkButton(
-            botones_frame,
+        self.btn_cancelar = ctk.CTkButton(
+            self.botones_frame,
             text="CANCELAR",
             command=self.cancelar,
             font=ctk.CTkFont(size=12, weight="bold"),
-            fg_color="#C1666B",
-            hover_color="#A4161A",
-            width=120,
-            height=35,
+            width=140,
+            height=38,
         )
-        btn_cancelar.pack(side="left", padx=5)
+        self.btn_cancelar.pack(side="left", padx=8)
 
-        self.userConsumible = userConsumible
         self.cargarEstacion()
+        self.apply_theme(_palette(self))
+
+    def apply_theme(self, p: dict):
+        mode = _mode(self)
+
+        bg = p.get("bg", "#E8F4F8")
+        text = p.get("text", "#2C3E50")
+        muted = p.get("muted", "#37474F")
+        border = p.get("border", "#8FA3B0")
+        entry_bg = p.get("entry_bg", "white")
+        primary = p.get("primary", "#6B9080")
+        primary_hover = p.get("primary_hover", "#5A7A6A")
+        danger = p.get("danger", "#C1666B")
+        danger_hover = p.get("danger_hover", "#A4161A")
+
+        if mode == "dark":
+            bg = p.get("panel", "#111827")
+            entry_bg = "#0F172A"
+            text = "#E5E7EB"
+            muted = "#9CA3AF"
+            border = "#243244"
+
+        self.configure(fg_color=bg)
+        
+        self.titulo_label.configure(text_color=text)
+
+        self.entry_estacion.configure(
+            fg_color=entry_bg,
+            border_color=border,
+            text_color=text,
+            placeholder_text_color=muted,
+        )
+
+        self.botones_frame.configure(fg_color=bg)
+        self.btn_aceptar.configure(
+            fg_color=primary, hover_color=primary_hover, text_color="white"
+        )
+        self.btn_cancelar.configure(
+            fg_color=danger, hover_color=danger_hover, text_color="white"
+        )
 
     def cargarEstacion(self):
         from src.backend.endpoints.conexion import cargarConfig
@@ -153,8 +296,7 @@ class CambiarEstacionDialog(BaseDialog):
 
         from src.backend.endpoints.conexion import guardarConfig
 
-        user_id = self.userConsumible
-        guardarConfig(valor, "estacion", user_id)
+        guardarConfig(valor, "estacion", self.userConsumible)
 
         self.nuevo_numero = valor.zfill(2)
         self.destroy()
@@ -173,71 +315,94 @@ class ModificarEtiquetadoDialog(BaseDialog):
         super().__init__(parent)
 
         self.resultado = None
+        self.userConsumible = userConsumible
 
         self.title("Configuración de Etiqueta")
-        self.geometry("450x250")
         self.resizable(False, False)
-        self.configure(fg_color="#E8E8E8")
+        _center_window(self, 520, 280)
 
-        self.transient(parent)
-        self.grab_set()
-
-        titulo_label = ctk.CTkLabel(
+        self.titulo_label = ctk.CTkLabel(
             self,
             text="CONFIGURACIÓN DE ETIQUETA",
             font=ctk.CTkFont(size=16, weight="bold"),
-            text_color="#2C3E50",
         )
-        titulo_label.pack(pady=(20, 30), padx=20)
+        self.titulo_label.pack(pady=(20, 20), padx=20)
 
-        opciones_label = ctk.CTkLabel(
+        self.opciones_label = ctk.CTkLabel(
             self,
             text="MODO DE ETIQUETA DE FIBERHOME",
             font=ctk.CTkFont(size=13, weight="bold"),
-            text_color="#2C3E50",
         )
-        opciones_label.pack(pady=(0, 15))
+        self.opciones_label.pack(pady=(0, 15))
 
         self.etiqueta_var = ctk.StringVar(value="unica")
 
-        radio_unica = ctk.CTkRadioButton(
+        self.radio_unica = ctk.CTkRadioButton(
             self,
             text="ETIQUETA ÚNICA",
             variable=self.etiqueta_var,
             value="unica",
             font=ctk.CTkFont(size=12, weight="bold"),
-            text_color="#2C3E50",
-            fg_color="#4EA5D9",
-            hover_color="#3B8CC2",
         )
-        radio_unica.pack(pady=5, padx=40, anchor="w")
+        self.radio_unica.pack(pady=6, padx=40, anchor="w")
 
-        radio_doble = ctk.CTkRadioButton(
+        self.radio_doble = ctk.CTkRadioButton(
             self,
             text="ETIQUETA DOBLE",
             variable=self.etiqueta_var,
             value="doble",
             font=ctk.CTkFont(size=12, weight="bold"),
-            text_color="#2C3E50",
-            fg_color="#4EA5D9",
-            hover_color="#3B8CC2",
         )
-        radio_doble.pack(pady=5, padx=40, anchor="w")
+        self.radio_doble.pack(pady=6, padx=40, anchor="w")
 
-        btn_aceptar = ctk.CTkButton(
+        self.btn_aceptar = ctk.CTkButton(
             self,
             text="Aceptar",
             command=self.confirmar,
             font=ctk.CTkFont(size=12, weight="bold"),
-            fg_color="#6B9080",
-            hover_color="#5A7A6A",
-            width=120,
-            height=35,
+            width=160,
+            height=38,
         )
-        btn_aceptar.pack(pady=(20, 15))
+        self.btn_aceptar.pack(pady=(18, 15))
 
-        self.userConsumible = userConsumible
         self.cargarEtiqueta()
+        self.apply_theme(_palette(self))
+
+    def apply_theme(self, p: dict):
+        mode = _mode(self)
+
+        bg = p.get("bg", "#E8F4F8")
+        text = p.get("text", "#2C3E50")
+        border = p.get("border", "#8FA3B0")
+        primary = p.get("primary", "#6B9080")
+        primary_hover = p.get("primary_hover", "#5A7A6A")
+        radio_on = p.get("primary_hover", "#3B8CC2")
+
+        if mode == "dark":
+            bg = p.get("panel", "#111827")
+            text = "#E5E7EB"
+            border = "#243244"
+
+        self.configure(fg_color=bg)
+        self.titulo_label.configure(text_color=text)
+        self.opciones_label.configure(text_color=text)
+
+        self.radio_unica.configure(
+            text_color=text,
+            border_color=border,
+            fg_color=radio_on,
+            hover_color=radio_on,
+        )
+        self.radio_doble.configure(
+            text_color=text,
+            border_color=border,
+            fg_color=radio_on,
+            hover_color=radio_on,
+        )
+
+        self.btn_aceptar.configure(
+            fg_color=primary, hover_color=primary_hover, text_color="white"
+        )
 
     def cargarEtiqueta(self):
         from src.backend.endpoints.conexion import cargarConfig
@@ -250,14 +415,10 @@ class ModificarEtiquetadoDialog(BaseDialog):
 
     def confirmar(self):
         self.resultado = self.etiqueta_var.get()
-        print(f"Modo de etiqueta seleccionado: {self.resultado}")
-
         etiq = 1 if self.resultado == "unica" else 2
 
         from src.backend.endpoints.conexion import guardarConfig
-
-        user_id = self.userConsumible
-        guardarConfig(etiq, "etiqueta", user_id)
+        guardarConfig(etiq, "etiqueta", self.userConsumible)
         self.destroy()
 
     def cancelar(self):
@@ -268,12 +429,11 @@ class ModificarEtiquetadoDialog(BaseDialog):
 class ModificarParametrosDialog(BaseDialog):
     """
     Ventana emergente para configurar los parámetros del ONT TESTER.
-    - Scroll siempre usable (Canvas + Scrollbar)
-    - El área scrollable tiene un MAX_HEIGHT, aunque la pantalla sea grande
-    - Los botones quedan dentro del scroll (al final)
+    - Canvas + Scrollbar
+    - área scrollable limitada (MAX_SCROLL_HEIGHT)
     """
 
-    MAX_SCROLL_HEIGHT = 520   # <-- ajusta si quieres (500-580 suele quedar bien)
+    MAX_SCROLL_HEIGHT = 520
     MIN_DIALOG_W = 560
     MIN_DIALOG_H = 520
 
@@ -282,40 +442,32 @@ class ModificarParametrosDialog(BaseDialog):
 
         self.resultado = None
         self.userConsumible = userConsumible
+        self._range_labels = []  # (titulo_label, a_label)
 
         self.title("Parámetros de ONT Tester")
-        self.geometry("600x700")
         self.minsize(self.MIN_DIALOG_W, self.MIN_DIALOG_H)
-
-        # Puedes redimensionar, pero el scroll NO se vuelve infinito
         self.resizable(True, True)
-        self.configure(fg_color="#E8E8E8")
+        _center_window(self, 650, 760)
 
-        # Modal suave
-        self.transient(parent)
-        self.after(50, lambda: (self.grab_set(), self.focus_force()))
-
-        # ---------------- Layout principal ----------------
+        # layout
         self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(0, weight=0)  # título
-        self.grid_rowconfigure(1, weight=1)  # contenedor scroll
+        self.grid_rowconfigure(0, weight=0)
+        self.grid_rowconfigure(1, weight=1)
 
-        titulo_label = ctk.CTkLabel(
+        self.titulo_label = ctk.CTkLabel(
             self,
             text="PARÁMETROS DE ONT TESTER",
             font=ctk.CTkFont(size=16, weight="bold"),
-            text_color="#2C3E50",
         )
-        titulo_label.grid(row=0, column=0, pady=(20, 12), padx=20, sticky="n")
+        self.titulo_label.grid(row=0, column=0, pady=(20, 12), padx=20, sticky="n")
 
-        # Contenedor del scroll (su altura se controla)
-        self.scroll_host = ctk.CTkFrame(self, fg_color="transparent")
+        self.scroll_host = ctk.CTkFrame(self, fg_color="transparent", corner_radius=0)
         self.scroll_host.grid(row=1, column=0, sticky="nsew", padx=20, pady=(0, 18))
         self.scroll_host.grid_columnconfigure(0, weight=1)
         self.scroll_host.grid_columnconfigure(1, weight=0)
         self.scroll_host.grid_rowconfigure(0, weight=1)
 
-        # Canvas (tk) + Scrollbar (ctk)
+        # Canvas tk + Scrollbar
         self._canvas = tk.Canvas(self.scroll_host, highlightthickness=0, bd=0)
         self._canvas.grid(row=0, column=0, sticky="nsew")
 
@@ -323,44 +475,38 @@ class ModificarParametrosDialog(BaseDialog):
             self.scroll_host, orientation="vertical", command=self._canvas.yview
         )
         self._vscroll.grid(row=0, column=1, sticky="ns", padx=(8, 0))
-
         self._canvas.configure(yscrollcommand=self._vscroll.set)
 
-        # Frame interno real (contenido)
-        self.content = ctk.CTkFrame(self._canvas, fg_color="transparent")
+        # contenido
+        self.content = ctk.CTkFrame(self._canvas, fg_color="transparent", corner_radius=0)
         self._content_window = self._canvas.create_window((0, 0), window=self.content, anchor="nw")
 
-        # Mantener el contenido al ancho del canvas
         def _on_canvas_configure(event):
             self._canvas.itemconfig(self._content_window, width=event.width)
 
         self._canvas.bind("<Configure>", _on_canvas_configure)
 
-        # Actualizar scrollregion cuando el contenido cambie
         def _on_content_configure(_event=None):
             self._canvas.configure(scrollregion=self._canvas.bbox("all"))
 
         self.content.bind("<Configure>", _on_content_configure)
 
-        # ✅ Limitar altura del área scrollable aunque la ventana sea grande
         def _limit_scroll_area(_event=None):
             try:
                 total_h = self.winfo_height()
-                top_used = 20 + 12 + 30  # aproximación del espacio del título/paddings
-                available = max(260, total_h - top_used)  # mínimo usable
+                top_used = 20 + 12 + 30
+                available = max(260, total_h - top_used)
                 target = min(self.MAX_SCROLL_HEIGHT, available)
                 self._canvas.configure(height=target)
             except Exception:
                 pass
 
-        # Se recalcula al abrir y al redimensionar
         self.bind("<Configure>", _limit_scroll_area)
         self.after(80, _limit_scroll_area)
 
-        # Mousewheel (Windows)
         self._bind_mousewheel()
 
-        # ---------------- CONTENIDO (dentro de self.content) ----------------
+        # ---------------- CONTENIDO ----------------
         self._crear_seccion_rango(
             self.content,
             "RANGO DE VALORES EN TX",
@@ -379,8 +525,8 @@ class ModificarParametrosDialog(BaseDialog):
             "rx_max",
             valores_min=["-30.00", "-25.00", "-20.00", "-15.00", "-10.00"],
             valores_max=["-13.00", "-12.00", "-11.00", "-10.00"],
-            default_min="-20.00",
-            default_max="-12.00",
+            default_min="-19.00",
+            default_max="-13.00",
         )
 
         self._crear_seccion_rango(
@@ -405,85 +551,158 @@ class ModificarParametrosDialog(BaseDialog):
             default_max="-5",
         )
 
-        busquedas_frame = ctk.CTkFrame(self.content, fg_color="transparent")
-        busquedas_frame.pack(fill="x", pady=(20, 10))
+        self.busquedas_frame = ctk.CTkFrame(self.content, fg_color="transparent", corner_radius=0)
+        self.busquedas_frame.pack(fill="x", pady=(20, 10))
 
-        busquedas_label = ctk.CTkLabel(
-            busquedas_frame,
+        self.busquedas_label = ctk.CTkLabel(
+            self.busquedas_frame,
             text="PORCENTAJE DE POTENCIA DE SEÑALES WIFI",
             font=ctk.CTkFont(size=12, weight="bold"),
-            text_color="#2C3E50",
         )
-        busquedas_label.pack(anchor="w", pady=(0, 10))
+        self.busquedas_label.pack(anchor="w", pady=(0, 10))
 
         self.busquedas_combo = ctk.CTkComboBox(
-            busquedas_frame,
+            self.busquedas_frame,
             values=["50", "60", "70", "80", "90", "100"],
             width=240,
             height=32,
-            fg_color="white",
-            border_color="#8FA3B0",
         )
         self.busquedas_combo.set("60")
         self.busquedas_combo.pack(anchor="w", pady=(0, 10))
 
-        # ---------------- BOTONES (al final, dentro del scroll) ----------------
-        botones_frame = ctk.CTkFrame(self.content, fg_color="transparent")
-        botones_frame.pack(fill="x", pady=(30, 10))
+        self.botones_frame = ctk.CTkFrame(self.content, fg_color="transparent", corner_radius=0)
+        self.botones_frame.pack(fill="x", pady=(30, 10))
+        self.botones_frame.grid_columnconfigure((0, 1, 2), weight=1)
 
-        botones_frame.grid_columnconfigure((0, 1, 2), weight=1)
-
-        btn_aceptar = ctk.CTkButton(
-            botones_frame,
+        self.btn_aceptar = ctk.CTkButton(
+            self.botones_frame,
             text="Aceptar",
             command=self.confirmar,
             font=ctk.CTkFont(size=12, weight="bold"),
-            fg_color="#D4AF37",
-            hover_color="#C19B2B",
-            text_color="#2C3E50",
             width=120,
             height=35,
         )
-        btn_aceptar.grid(row=0, column=0, padx=8, pady=(0, 10), sticky="e")
+        self.btn_aceptar.grid(row=0, column=0, padx=8, pady=(0, 10), sticky="e")
 
-        btn_restaurar = ctk.CTkButton(
-            botones_frame,
+        self.btn_restaurar = ctk.CTkButton(
+            self.botones_frame,
             text="Restaurar",
             command=self.restaurar,
             font=ctk.CTkFont(size=12, weight="bold"),
-            fg_color="#A8DADC",
-            hover_color="#8FC9CB",
-            text_color="#2C3E50",
             width=120,
             height=35,
         )
-        btn_restaurar.grid(row=0, column=1, padx=8, pady=(0, 10))
+        self.btn_restaurar.grid(row=0, column=1, padx=8, pady=(0, 10))
 
-        btn_cancelar = ctk.CTkButton(
-            botones_frame,
+        self.btn_cancelar = ctk.CTkButton(
+            self.botones_frame,
             text="Cancelar",
             command=self.cancelar,
             font=ctk.CTkFont(size=12, weight="bold"),
-            fg_color="#C1666B",
-            hover_color="#A4161A",
-            text_color="white",
             width=120,
             height=35,
         )
-        btn_cancelar.grid(row=0, column=2, padx=8, pady=(0, 10), sticky="w")
+        self.btn_cancelar.grid(row=0, column=2, padx=8, pady=(0, 10), sticky="w")
 
-        # Spacer final para que se sienta bien al bajar
-        ctk.CTkFrame(self.content, height=40, fg_color="transparent").pack()
+        self._bottom_spacer = ctk.CTkFrame(self.content, height=60, fg_color="transparent")
+        self._bottom_spacer.pack(fill="x")
 
-        # Cargar config
+
         self.cargar_desdeJSON()
-
-        # Forzar scrollregion al inicio
         self.after(120, lambda: self._canvas.configure(scrollregion=self._canvas.bbox("all")))
 
-    # -------------------------
-    # Mouse wheel (Windows)
-    # -------------------------
+        self.apply_theme(_palette(self))
+
+    def apply_theme(self, p: dict):
+        mode = _mode(self)
+
+        bg = p.get("bg", "#E8F4F8")
+        text = p.get("text", "#2C3E50")
+        muted = p.get("muted", "#37474F")
+        border = p.get("border", "#8FA3B0")
+        entry_bg = p.get("entry_bg", "white")
+        primary = p.get("primary", "#6B9080")
+        primary_hover = p.get("primary_hover", "#5A7A6A")
+        danger = p.get("danger", "#C1666B")
+        danger_hover = p.get("danger_hover", "#A4161A")
+        primary2 = p.get("primary2", "#457B9D")
+        primary2_hover = p.get("primary2_hover", "#1D3557")
+
+        if mode == "dark":
+            bg = p.get("panel", "#111827")
+            text = "#E5E7EB"
+            muted = "#9CA3AF"
+            border = "#243244"
+            entry_bg = "#0F172A"
+
+        self.configure(fg_color=bg)
+        self.titulo_label.configure(text_color=text)
+
+        for fr in (self.scroll_host, self.content, self.busquedas_frame, self.botones_frame):
+            try:
+                fr.configure(fg_color=bg)
+            except Exception:
+                pass
+            
+        # ✅ tk.Canvas background (cubrir TODO, incluyendo bordes)
+            try:
+                self._canvas.configure(
+                    background=bg,
+                    bg=bg,
+                    highlightthickness=0,
+                    bd=0,
+                    relief="flat"
+                )
+                # a veces Tk deja el "highlightbackground" en blanco:
+                self._canvas.config(highlightbackground=bg)
+            except Exception:
+                pass
+
+            # ✅ pintar el spacer final para que NO asome blanco
+            try:
+                if hasattr(self, "_bottom_spacer"):
+                    self._bottom_spacer.configure(fg_color=bg)
+            except Exception:
+                pass
+
+
+        self.busquedas_label.configure(text_color=text)
+
+        combos = []
+        for name in (
+            "tx_min", "tx_max",
+            "rx_min", "rx_max",
+            "rssi24_min", "rssi24_max",
+            "rssi50_min", "rssi50_max",
+        ):
+            cb = getattr(self, name, None)
+            if cb:
+                combos.append(cb)
+        combos.append(self.busquedas_combo)
+
+        for cb in combos:
+            try:
+                cb.configure(
+                    fg_color=entry_bg,
+                    border_color=border,
+                    text_color=text,
+                    button_color=primary,
+                    button_hover_color=primary_hover,
+                )
+            except Exception:
+                pass
+
+        self.btn_aceptar.configure(fg_color=primary2, hover_color=primary2_hover, text_color="white")
+        self.btn_restaurar.configure(fg_color=primary, hover_color=primary_hover, text_color="white")
+        self.btn_cancelar.configure(fg_color=danger, hover_color=danger_hover, text_color="white")
+
+        # D) Fuerza scrollregion al final (evita huecos blancos al fondo)
+        try:
+            self.after(10, lambda: self._canvas.configure(scrollregion=self._canvas.bbox("all")))
+        except Exception:
+            pass
+
+
     def _bind_mousewheel(self):
         def _on_mousewheel(event):
             try:
@@ -491,13 +710,9 @@ class ModificarParametrosDialog(BaseDialog):
             except Exception:
                 pass
 
-        # bind solo a este dialog
         self._canvas.bind("<MouseWheel>", _on_mousewheel)
         self.bind("<MouseWheel>", _on_mousewheel)
 
-    # -------------------------
-    # Carga/guardado
-    # -------------------------
     def cargar_desdeJSON(self):
         from src.backend.endpoints.conexion import cargarConfig
 
@@ -552,18 +767,17 @@ class ModificarParametrosDialog(BaseDialog):
         default_min,
         default_max,
     ):
-        seccion_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        seccion_frame = ctk.CTkFrame(parent, fg_color="transparent", corner_radius=0)
         seccion_frame.pack(fill="x", pady=(15, 10))
 
-        label = ctk.CTkLabel(
+        title_lbl = ctk.CTkLabel(
             seccion_frame,
             text=titulo,
             font=ctk.CTkFont(size=12, weight="bold"),
-            text_color="#2C3E50",
         )
-        label.pack(anchor="w", pady=(0, 10))
+        title_lbl.pack(anchor="w", pady=(0, 10))
 
-        combos_frame = ctk.CTkFrame(seccion_frame, fg_color="transparent")
+        combos_frame = ctk.CTkFrame(seccion_frame, fg_color="transparent", corner_radius=0)
         combos_frame.pack(anchor="w")
 
         combo_min = ctk.CTkComboBox(
@@ -571,31 +785,29 @@ class ModificarParametrosDialog(BaseDialog):
             values=valores_min,
             width=140,
             height=32,
-            fg_color="white",
-            border_color="#8FA3B0",
         )
         combo_min.set(default_min)
         combo_min.pack(side="left", padx=(0, 10))
         setattr(self, var_min_name, combo_min)
 
-        ctk.CTkLabel(
+        a_lbl = ctk.CTkLabel(
             combos_frame,
             text="a",
             font=ctk.CTkFont(size=12, weight="bold"),
-            text_color="#2C3E50",
-        ).pack(side="left", padx=10)
+        )
+        a_lbl.pack(side="left", padx=10)
 
         combo_max = ctk.CTkComboBox(
             combos_frame,
             values=valores_max,
             width=140,
             height=32,
-            fg_color="white",
-            border_color="#8FA3B0",
         )
         combo_max.set(default_max)
         combo_max.pack(side="left", padx=(10, 0))
         setattr(self, var_max_name, combo_max)
+
+        self._range_labels.append((title_lbl, a_lbl))
 
     def confirmar(self):
         self.resultado = {
@@ -630,6 +842,9 @@ class ModificarParametrosDialog(BaseDialog):
         self.destroy()
 
 
+# =========================================================
+#                         VIEW PRINCIPAL
+# =========================================================
 class TesterMainView(ctk.CTkFrame):
     """
     Vista principal del ONT TESTER con botones superiores y panel de pruebas.
@@ -646,6 +861,7 @@ class TesterMainView(ctk.CTkFrame):
         estacion = general.get("estacion")
         self.numero_estacion = str(estacion)
         self.modelo = modelo
+
         app = self.winfo_toplevel()
         self.q = getattr(app, "event_q", None)
 
@@ -654,14 +870,14 @@ class TesterMainView(ctk.CTkFrame):
         self.grid_rowconfigure(1, weight=1)
         self.grid_rowconfigure(2, weight=0)
 
-        title_frame = ctk.CTkFrame(self, fg_color="#6B9080", corner_radius=0)
-        title_frame.grid(row=0, column=0, sticky="ew", padx=0, pady=0)
+        self.title_frame = ctk.CTkFrame(self, fg_color="#6B9080", corner_radius=0)
+        self.title_frame.grid(row=0, column=0, sticky="ew", padx=0, pady=0)
 
-        title_frame.grid_columnconfigure(0, weight=0)
-        title_frame.grid_columnconfigure(1, weight=1)
+        self.title_frame.grid_columnconfigure(0, weight=0)
+        self.title_frame.grid_columnconfigure(1, weight=1)
 
         self.menu_superior = MenuSuperiorDesplegable(
-            title_frame,
+            self.title_frame,
             on_open_tester=self.ir_a_ont_tester,
             on_open_base_diaria=self.ir_a_base_diaria,
             on_open_base_global=self.ir_a_base_global,
@@ -671,35 +887,30 @@ class TesterMainView(ctk.CTkFrame):
         self.menu_superior.grid(row=0, column=0, sticky="w", padx=20, pady=6)
 
         self.titulo = ctk.CTkLabel(
-            title_frame,
+            self.title_frame,
             text=f"ONT TESTER - REPARANDO EN ESTACIÓN {self.numero_estacion}",
             font=ctk.CTkFont(size=18, weight="bold"),
             text_color="white",
         )
         self.titulo.grid(row=0, column=1, sticky="w", padx=20, pady=10)
 
-        buttons_container = ctk.CTkFrame(self, fg_color="transparent")
-        buttons_container.grid(row=1, column=0, sticky="nsew", padx=20, pady=20)
+        self.buttons_container = ctk.CTkFrame(self, fg_color="#E8F4F8")
+        self.buttons_container.grid(row=1, column=0, sticky="nsew", padx=20, pady=20)
+        self.buttons_container.grid_columnconfigure(0, weight=1)
+        self.buttons_container.grid_rowconfigure(0, weight=1)
 
-        buttons_container.grid_columnconfigure(0, weight=1)
-        buttons_container.grid_rowconfigure(0, weight=1)
-
-        buttons_frame = ctk.CTkFrame(buttons_container, fg_color="transparent")
-        buttons_frame.grid(row=0, column=0)
+        self.buttons_frame = ctk.CTkFrame(self.buttons_container, fg_color="#E8F4F8")
+        self.buttons_frame.grid(row=0, column=0)
 
         for col in range(4):
-            buttons_frame.grid_columnconfigure(col, weight=0, minsize=250)
+            self.buttons_frame.grid_columnconfigure(col, weight=0, minsize=250)
 
-        btn1_frame = ctk.CTkFrame(
-            buttons_frame, fg_color="#B8B8B8", corner_radius=15, width=250, height=180
-        )
-        btn1_frame.grid(row=0, column=0, padx=15, pady=10, sticky="nsew")
-        btn1_frame.grid_propagate(False)
-
-        ctk.CTkLabel(btn1_frame, text="👤", font=ctk.CTkFont(size=50)).pack(pady=(20, 10))
-
-        btn1 = ctk.CTkButton(
-            btn1_frame,
+        self.btn1_frame = ctk.CTkFrame(self.buttons_frame, fg_color="#B8B8B8", corner_radius=15, width=250, height=180)
+        self.btn1_frame.grid(row=0, column=0, padx=15, pady=10, sticky="nsew")
+        self.btn1_frame.grid_propagate(False)
+        ctk.CTkLabel(self.btn1_frame, text="👤", font=ctk.CTkFont(size=50)).pack(pady=(20, 10))
+        self.btn1 = ctk.CTkButton(
+            self.btn1_frame,
             text="CAMBIAR ESTACIÓN",
             command=self.on_cambiar_estacion,
             font=ctk.CTkFont(size=14, weight="bold"),
@@ -708,18 +919,14 @@ class TesterMainView(ctk.CTkFrame):
             text_color="#2C3E50",
             height=40,
         )
-        btn1.pack(fill="x", padx=15, pady=(0, 20))
+        self.btn1.pack(fill="x", padx=15, pady=(0, 20))
 
-        btn2_frame = ctk.CTkFrame(
-            buttons_frame, fg_color="#F1B4BB", corner_radius=15, width=250, height=180
-        )
-        btn2_frame.grid(row=0, column=1, padx=15, pady=10, sticky="nsew")
-        btn2_frame.grid_propagate(False)
-
-        ctk.CTkLabel(btn2_frame, text="🏷️", font=ctk.CTkFont(size=50)).pack(pady=(20, 10))
-
-        btn2 = ctk.CTkButton(
-            btn2_frame,
+        self.btn2_frame = ctk.CTkFrame(self.buttons_frame, fg_color="#F1B4BB", corner_radius=15, width=250, height=180)
+        self.btn2_frame.grid(row=0, column=1, padx=15, pady=10, sticky="nsew")
+        self.btn2_frame.grid_propagate(False)
+        ctk.CTkLabel(self.btn2_frame, text="🏷️", font=ctk.CTkFont(size=50)).pack(pady=(20, 10))
+        self.btn2 = ctk.CTkButton(
+            self.btn2_frame,
             text="MODIFICAR ETIQUETADO",
             command=self.on_modificar_etiquetado,
             font=ctk.CTkFont(size=14, weight="bold"),
@@ -728,18 +935,14 @@ class TesterMainView(ctk.CTkFrame):
             text_color="#2C3E50",
             height=40,
         )
-        btn2.pack(fill="x", padx=15, pady=(0, 20))
+        self.btn2.pack(fill="x", padx=15, pady=(0, 20))
 
-        btn3_frame = ctk.CTkFrame(
-            buttons_frame, fg_color="#A8DADC", corner_radius=15, width=250, height=180
-        )
-        btn3_frame.grid(row=0, column=2, padx=15, pady=10, sticky="nsew")
-        btn3_frame.grid_propagate(False)
-
-        ctk.CTkLabel(btn3_frame, text="⚙️", font=ctk.CTkFont(size=50)).pack(pady=(20, 10))
-
-        btn3 = ctk.CTkButton(
-            btn3_frame,
+        self.btn3_frame = ctk.CTkFrame(self.buttons_frame, fg_color="#A8DADC", corner_radius=15, width=250, height=180)
+        self.btn3_frame.grid(row=0, column=2, padx=15, pady=10, sticky="nsew")
+        self.btn3_frame.grid_propagate(False)
+        ctk.CTkLabel(self.btn3_frame, text="⚙️", font=ctk.CTkFont(size=50)).pack(pady=(20, 10))
+        self.btn3 = ctk.CTkButton(
+            self.btn3_frame,
             text="MODIFICAR PARÁMETROS",
             command=self.on_modificar_parametros,
             font=ctk.CTkFont(size=14, weight="bold"),
@@ -748,18 +951,14 @@ class TesterMainView(ctk.CTkFrame):
             text_color="#2C3E50",
             height=40,
         )
-        btn3.pack(fill="x", padx=15, pady=(0, 20))
+        self.btn3.pack(fill="x", padx=15, pady=(0, 20))
 
-        btn4_frame = ctk.CTkFrame(
-            buttons_frame, fg_color="#F1B4BB", corner_radius=15, width=250, height=180
-        )
-        btn4_frame.grid(row=0, column=3, padx=15, pady=10, sticky="nsew")
-        btn4_frame.grid_propagate(False)
-
-        ctk.CTkLabel(btn4_frame, text="🔧", font=ctk.CTkFont(size=50)).pack(pady=(20, 10))
-
-        btn4 = ctk.CTkButton(
-            btn4_frame,
+        self.btn4_frame = ctk.CTkFrame(self.buttons_frame, fg_color="#F1B4BB", corner_radius=15, width=250, height=180)
+        self.btn4_frame.grid(row=0, column=3, padx=15, pady=10, sticky="nsew")
+        self.btn4_frame.grid_propagate(False)
+        ctk.CTkLabel(self.btn4_frame, text="🔧", font=ctk.CTkFont(size=50)).pack(pady=(20, 10))
+        self.btn4 = ctk.CTkButton(
+            self.btn4_frame,
             text="PRUEBA",
             command=self.on_prueba,
             font=ctk.CTkFont(size=14, weight="bold"),
@@ -768,7 +967,7 @@ class TesterMainView(ctk.CTkFrame):
             text_color="#2C3E50",
             height=40,
         )
-        btn4.pack(fill="x", padx=15, pady=(0, 20))
+        self.btn4.pack(fill="x", padx=15, pady=(0, 20))
 
         self.panel_pruebas = PanelPruebasConexion(self, self.modelo)
         self.panel_pruebas.grid(row=2, column=0, sticky="ew", padx=15, pady=(0, 10))
@@ -777,6 +976,69 @@ class TesterMainView(ctk.CTkFrame):
         user_id = int(getattr(root, "current_user_id", 0) or 0)
         self.userConsumible = user_id
 
+        self.apply_theme(_palette(self))
+
+    def apply_theme(self, p: dict):
+        bg = p.get("bg", "#E8F4F8")
+        header = p.get("header", "#6B9080")
+
+        root = self.winfo_toplevel()
+        try:
+            root.configure(fg_color=bg)
+        except Exception:
+            pass
+        try:
+            self.master.configure(fg_color=bg)
+        except Exception:
+            pass
+
+        self.configure(fg_color=bg)
+        self.title_frame.configure(fg_color=header)
+        self.titulo.configure(text_color="white")
+
+        try:
+            if hasattr(self.menu_superior, "apply_theme"):
+                self.menu_superior.apply_theme(p)
+        except Exception:
+            pass
+
+        # cards
+        if _mode(self) == "dark":
+            card1 = "#1F2937"
+            card2 = "#111827"
+            card3 = "#0F172A"
+            btn_txt = "#E5E7EB"
+            hover1 = "#334155"
+            hover2 = "#1F2937"
+        else:
+            card1 = "#B8B8B8"
+            card2 = "#A4C4D3"
+            card3 = "#A8DADC"
+            btn_txt = "#2C3E50"
+            hover1 = "#728F9B"
+            hover2 = "#AEDFDF"
+
+        self.buttons_container.configure(fg_color=bg)
+        self.buttons_frame.configure(fg_color=bg)
+        self.btn1_frame.configure(fg_color=card2)
+        self.btn2_frame.configure(fg_color=card2)
+        self.btn3_frame.configure(fg_color=card2)
+        self.btn4_frame.configure(fg_color=card2)
+
+        self.btn1.configure(text_color=btn_txt, hover_color=hover1)
+        self.btn2.configure(text_color=btn_txt, hover_color=hover1)
+        self.btn3.configure(text_color=btn_txt, hover_color=hover1)
+        self.btn4.configure(text_color=btn_txt, hover_color=hover1)
+
+        try:
+            if hasattr(self.panel_pruebas, "apply_theme"):
+                self.panel_pruebas.apply_theme(p)
+        except Exception:
+            pass
+
+    # =========================================================
+    #                NAVEGACIÓN
+    # =========================================================
     def _swap_view(self, view_cls):
         parent = self.master
         try:
@@ -789,6 +1051,13 @@ class TesterMainView(ctk.CTkFrame):
 
         if hasattr(parent, "dispatcher") and parent.dispatcher:
             parent.dispatcher.set_target(nueva)
+
+        root = parent.winfo_toplevel()
+        if hasattr(root, "theme"):
+            try:
+                nueva.apply_theme(root.theme.palette())
+            except Exception:
+                pass
 
     def ir_a_ont_tester(self):
         from src.Frontend.ui.tester_view import TesterView
@@ -805,6 +1074,9 @@ class TesterMainView(ctk.CTkFrame):
     def ir_a_otros(self):
         pass
 
+    # =========================================================
+    #                     ACCIONES
+    # =========================================================
     def on_cambiar_estacion(self):
         dialog = CambiarEstacionDialog(self, self.numero_estacion, self.userConsumible)
         self.wait_window(dialog)
@@ -814,21 +1086,17 @@ class TesterMainView(ctk.CTkFrame):
             self.actualizar_titulo()
 
     def actualizar_titulo(self):
-        self.titulo.configure(
-            text=f"ONT TESTER - REPARANDO EN ESTACIÓN {self.numero_estacion}"
-        )
+        self.titulo.configure(text=f"ONT TESTER - REPARANDO EN ESTACIÓN {self.numero_estacion}")
 
     def on_modificar_etiquetado(self):
         dialog = ModificarEtiquetadoDialog(self, self.userConsumible)
         self.wait_window(dialog)
-
         if dialog.resultado is not None:
             print(f"Configuración de etiqueta guardada: {dialog.resultado}")
 
     def on_modificar_parametros(self):
         dialog = ModificarParametrosDialog(self, self.userConsumible)
         self.wait_window(dialog)
-
         if dialog.resultado is not None:
             print(f"Parámetros guardados: {dialog.resultado}")
 
