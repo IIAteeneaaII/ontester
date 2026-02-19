@@ -473,7 +473,9 @@ class EscaneosDiaView(ctk.CTkFrame):
             from datetime import datetime
             from src.backend.sua_client.dao import get_baseDiaria_view
 
+            # Día local en formato YYYY-MM-DD (compatible con substr(fecha_test,1,10))
             day = datetime.now().astimezone().date().isoformat()
+
             registros = get_baseDiaria_view(day)
 
             if not registros:
@@ -483,18 +485,20 @@ class EscaneosDiaView(ctk.CTkFrame):
 
             rows = []
             for r in registros:
-                status = "PASS" if int(r.get("valido") or 0) == 1 else "FAIL"
+                # Mapear BD -> columnas UI
+                status = "PASS" if int(r["valido"] or 0) == 1 else "FAIL"  # o deja r["valido"] si prefieres
+
                 fila = [
-                    r.get("id"),
-                    r.get("sn"),
-                    r.get("mac"),
-                    r.get("wifi24") or "",
-                    r.get("wifi5") or "",
-                    r.get("passWifi") or "",
-                    status,
-                    r.get("tipo") or "",
-                    r.get("modelo") or "",
-                    r.get("fecha_test") or "",
+                    r["id"],                 # "ID"
+                    r["sn"],                 # "SN"
+                    r["mac"],                # "MAC"
+                    r["wifi24"] or "",       # "SSID_24"
+                    r["wifi5"] or "",        # "SSID_5"
+                    r["passWifi"] or "",     # "PASSWORD"
+                    status,                  # "STATUS"
+                    r["tipo"] or "",         # "TIPO_PRUEBA"
+                    r["modelo"] or "",       # "MODELO"
+                    r["fecha_test"] or "",   # "FECHA"
                 ]
                 rows.append(fila)
 
