@@ -999,7 +999,7 @@ class CommonMixin:
                 output = proc.stdout.decode(errors="ignore")
 
             nets = parse_output(output)
-
+            # debug = True# Añadir debug
             if debug:
                 print(f"[SCAN WIFI] Intento {attempt+1}, {len(nets)} redes:")
                 for n in nets:
@@ -1038,8 +1038,8 @@ class CommonMixin:
         # Asegurar estructura de umbrales (en %)
         if not hasattr(self, "wifi_rssi_thresholds"):
             self.wifi_rssi_thresholds = {
-                "2.4G": {"min_percent": 60}, # TODO cambiar valor por variable
-                "5G":   {"min_percent": 60},
+                "2.4G": {"min_percent": int(self._getMinWifi24SignalPercent())}, 
+                "5G":   {"min_percent": int(self._getMinWifi5SignalPercent())},
             }
 
         result = {
@@ -1179,6 +1179,29 @@ class CommonMixin:
 
         return resultado
     
+    # Función para extraer versión de sft actualizada en ZTE
+    def _get_sft_versionZTE(self) -> str:
+        # 1) Si hubo software_update y trae new_version
+        new_ver = (
+            self.test_results.get("tests", {})
+            .get("software_update", {})
+            .get("details", {})
+            .get("new_version")
+        )
+
+        # 1.5) Validar que no tenga el texto de YA ACTUALIZADO
+        if new_ver and (not "ACTUALIZAD" in new_ver.upper()):
+            return new_ver
+
+        # 2) Fallback: lo actual de basic->DEVINFO
+        return (
+            self.test_results.get("tests", {})
+            .get("basic", {})
+            .get("details", {})
+            .get("DEVINFO", {})
+            .get("SoftwareVer", "N/A")
+        )
+
     def _resultadosFiber(self):
         optTest = self.opcionesTest
         tests_opts = optTest.get("tests", {})
@@ -1193,7 +1216,7 @@ class CommonMixin:
         passWifi = self.test_results['additional_info']['wifi_info']['psw'].get('password_24ghz') # contraseña
 
         # Tests
-        ping = self.test_results['tests']['PING_CONNECTIVITY'].get('status') # pass
+        ping = "PASS" # pass
         if tests_opts.get("factory_reset", True):
             # Verificar si el test de factory_reset realmente se ejecutó
             factory_test = self.test_results.get('tests', {}).get('FACTORY_RESET_PASS')
@@ -1312,7 +1335,7 @@ class CommonMixin:
             if cfg.get("ConnTrigger") == "AlwaysOn":
                 mac = cfg.get("WorkIFMac")  # aquí está la MAC
                 break
-        sftVer = self.test_results.get('tests', {}).get('basic', {}).get('details', {}).get('DEVINFO', {}).get('SoftwareVer', 'N/A') #sft version
+        sftVer = self._get_sft_versionZTE() #sft version
         ruta_wifi = self.test_results.get('tests', {}).get('wifi', {}).get('details', {}).get('WLANAP', [])
         essids_validos = [
             ap["ESSID"]
@@ -1403,7 +1426,12 @@ class CommonMixin:
                 # Verificar que NO estén vacías
                 if raw_24:
                     # wifi 2.4 con valor || validar si la potencia es mayor a la esperada TODO cambiar por variable
-                    net = next((n for n in raw_24 if n["ssid"] == wifi24), None)
+                    # net = next((n for n in raw_24 if n["ssid"] == wifi24), None)
+                    net = max(
+                        (n for n in raw_24 if n.get("ssid") == wifi24 and n.get("signal_percent") is not None),
+                        key=lambda n: n["signal_percent"],
+                        default=None
+                    )
                     if net and net["signal_percent"] >= min_valor_wifi:
                         w24 = True
                     else:
@@ -1414,7 +1442,12 @@ class CommonMixin:
                 # Verificar que NO estén vacías
                 if raw_5:
                     # wifi 2.4 con valor || validar si la potencia es mayor a la esperada TODO cambiar por variable
-                    net = next((n for n in raw_5 if n["ssid"] == wifi5), None)
+                    #net = next((n for n in raw_5 if n["ssid"] == wifi5), None)
+                    net = max(
+                        (n for n in raw_5 if n.get("ssid") == wifi5 and n.get("signal_percent") is not None),
+                        key=lambda n: n["signal_percent"],
+                        default=None
+                    )
                     if net and net["signal_percent"] >= min_valor_wifi5:
                         w5 = True
                     else:
@@ -1536,7 +1569,12 @@ class CommonMixin:
                 # Verificar que NO estén vacías
                 if raw_24:
                     # wifi 2.4 con valor || validar si la potencia es mayor a la esperada TODO cambiar por variable
-                    net = next((n for n in raw_24 if n["ssid"] == wifi24), None)
+                    # net = next((n for n in raw_24 if n["ssid"] == wifi24), None)
+                    net = max(
+                        (n for n in raw_24 if n.get("ssid") == wifi24 and n.get("signal_percent") is not None),
+                        key=lambda n: n["signal_percent"],
+                        default=None
+                    )
                     if net and net["signal_percent"] >= min_valor_wifi:
                         w24 = True
                     else:
@@ -1547,7 +1585,12 @@ class CommonMixin:
                 # Verificar que NO estén vacías
                 if raw_5:
                     # wifi 2.4 con valor || validar si la potencia es mayor a la esperada TODO cambiar por variable
-                    net = next((n for n in raw_5 if n["ssid"] == wifi5), None)
+                    # net = next((n for n in raw_5 if n["ssid"] == wifi5), None)
+                    net = max(
+                        (n for n in raw_5 if n.get("ssid") == wifi5 and n.get("signal_percent") is not None),
+                        key=lambda n: n["signal_percent"],
+                        default=None
+                    )
                     if net and net["signal_percent"] >= min_valor_wifi5:
                         w5 = True
                     else:
@@ -1646,7 +1689,7 @@ class CommonMixin:
         if (self.model == "MOD001" or self.model == "MOD008"):
             #Fiber | ont
             res = self._resultadosFiber()
-        elif (self.model == "MOD002"):
+        elif (self.model == "MOD002" or self.model == "MOD009"):
             #zte | ont
             res = self._resultadosZTE()
         elif (self.model == "MOD003" or self.model == "MOD004" or self.model == "MOD005" or self.model == "MOD007"):

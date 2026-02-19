@@ -722,14 +722,25 @@ class EscaneosDiaView(ctk.CTkFrame):
             return
 
         try:
-            index_to_remove = self.highlighted_row
-            self.all_rows.pop(index_to_remove)
+            if self.viewmodel:
+                print(f"Llamando a backend para borrar registro ID: {row_data[0]}")
+            # print("row_data:", row_data, "len:", len(row_data)) # 1, 7 || SN y MODO
+            sn = row_data[1]
+            modo = row_data[7]
+            from src.backend.sua_client.dao import delete_operation
+            borrado = delete_operation(sn, modo)
+            if borrado:
+                index_to_remove = self.highlighted_row
+                self.all_rows.pop(index_to_remove)
 
-            for key in self.detail_vars:
-                self.detail_vars[key].set("")
+                for key in self.detail_vars:
+                    self.detail_vars[key].set("")
 
-            self.set_table_rows(self.all_rows)
-            self.detail_status_var.set("Registro borrado exitosamente.")
+                self.set_table_rows(self.all_rows)
+                self.detail_status_var.set("Registro borrado exitosamente.")
+            else:
+                messagebox.showerror("Error", "No se pudo borrar: Fallo en la operación SQL")
+
         except Exception as e:
             self.detail_status_var.set(f"Error al borrar: {str(e)}")
             messagebox.showerror("Error", f"No se pudo borrar:\n{str(e)}")

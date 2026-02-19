@@ -158,7 +158,7 @@ def norm_power(valor, tipo):
         try:
             return float(v)
         except (TypeError, ValueError):
-            return None
+            return "FAIL"
     from src.backend.endpoints.conexion import cargarConfig
     config = cargarConfig()
     fibra_cfg = config.get("fibra", {})
@@ -183,6 +183,22 @@ def norm_power(valor, tipo):
         else:
             return "FAIL"
     return "SIN_PRUEBA"
+
+def normalizar_valor_bd(prueba: str) -> str:
+    key_to_bd = {
+        "ping": "ping",
+        "factory_reset": "reset",
+        "software_update": "sftU",
+        "usb_port": "usb",
+        "tx_power": "tx",
+        "rx_power": "rx",
+        "wifi_24ghz_signal": "w24",
+        "wifi_5ghz_signal": "w5"
+    }
+    print(f"[CONEXION] Campo: {prueba}")
+    key = key_to_bd.get(prueba)
+    print(f"[CONEXION] Key: {key}")
+    return key
 
 def get_daily_report_path() -> Path:
         """

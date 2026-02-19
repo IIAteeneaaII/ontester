@@ -311,7 +311,7 @@ class TesterView(ctk.CTkFrame):
 
         self.contador_pruebas_valor = ctk.CTkLabel(
             self.contador_pruebas_frame,
-            text="0",
+            text="0",  # valor inicial 
             font=label_font,
             text_color=label_color,
         )
@@ -323,6 +323,9 @@ class TesterView(ctk.CTkFrame):
             on_run_unit=self._run_unit_from_panel
         )
         self.panel_pruebas.pack(side="bottom", fill="x", padx=0, pady=(0, 10))
+
+        # Inicializar contador
+        self.updatePruebas()
 
         # Iniciar reloj
         self.update_clock()
@@ -556,6 +559,12 @@ class TesterView(ctk.CTkFrame):
         from src.Frontend.ui.inicio_view import InicioView
         self._swap_view(InicioView)
 
+    # ===================== Actualizar contador de pruebas ========
+    def updatePruebas(self):
+        # Llamar a la dao que me trae la consulta con el numero
+        from src.backend.sua_client.dao import get_pruebas_validas
+        pruebas = get_pruebas_validas()
+        self.contador_pruebas_valor.configure(text=str(pruebas))
     # ===================== ESTILO / UI =====================
     def _set_button_style(self, button, state: str):
         if state == "active":
@@ -622,6 +631,11 @@ class TesterView(ctk.CTkFrame):
         if getattr(self, "_unit_stop_event", None) is not None:
             self._unit_stop_event.set()
             self._unit_stop_event = None
+
+        # NO crear nuevo stop_event aquí - _start_loop lo hará después de verificar
+        # que el hilo anterior murió
+        # Limpiar la UI
+        self._limpiezaElementos()
 
         print(f"     Modo seleccionado: {modo}")
         self._set_all_buttons_state("neutral")
@@ -799,32 +813,74 @@ class TesterView(ctk.CTkFrame):
                 self.panel_pruebas.actualizar_estado_conexion(True)
 
         elif kind == "resultados":
-            from_unit = getattr(self, "_unit_running", False)
+            # ejemplo: pintar resultados en tu UI
+            info  = payload.get("info", {})
+            # Detectar si viene de prueba unitaria usando el flag _unit_running
+            from_unit = getattr(self, '_unit_running', False)
             self._render_resultados(payload, from_unit_test=from_unit)
-
-            from src.backend.sua_client.dao import insertar_operacion, extraer_by_id
+            # guardar en DB
+            from src.backend.sua_client.dao import insertar_operacion, extraer_by_id, existe_operacion_dia, validar_por_modo
             modo = self.modo_var.get()
             root = self.winfo_toplevel()
             user_id = int(getattr(root, "current_user_id", None))
-            id_ = insertar_operacion(payload, modo, user_id)
-            _ = extraer_by_id(id_, "operations")
-
+            # Antes de insertar hay que validar que el sn no esté ya registrado en ese MODO
+            registroAnterior = existe_operacion_dia(info.get("sn", "—"), modo)
+            if registroAnterior:
+                # No insertar, actualizar UI con: equipo ya registrado (emit lower maybe)
+                def emit(kind, payload):
+                    if self.master.event_q:
+                        self.master.event_q.put((kind, payload))
+                emit("log", "DISPOSITIVO YA REGISTRADO, NO SE CONTARÁ PARA LAS PRUEBAS")
+            else:
+                id = insertar_operacion(payload, modo, user_id)
+                # Actualizar el campo de valido
+                validar_por_modo(info.get("sn","-"), modo)
+                payload_final = extraer_by_id(id, "operations")
+            
+            self.updatePruebas()
+            # publicar a IOT
+            
         elif kind == "test_individual":
             test_name = payload.get("name", "").lower()
             status = payload.get("status", "FAIL")
+            modo = self.modo_var.get()
+            # Mapeo de nombres de test a keys de botones
             name_to_key = {
-                "ping": "ping",
+                "ping":              "ping",
                 "ping_connectivity": "ping",
-                "factory_reset": "factory_reset",
-                "software_update": "software_update",
-                "usb_port": "usb_port",
-                "tx_power": "tx_power",
-                "rx_power": "rx_power",
-                "wifi_24ghz": "wifi_24ghz_signal",
-                "wifi_5ghz": "wifi_5ghz_signal",
+                "factory_reset":     "factory_reset",
+                "software_update":   "software_update",
+                "usb_port":          "usb_port",
+                "tx_power":          "tx_power",
+                "rx_power":          "rx_power",
+                "wifi_24ghz":        "wifi_24ghz_signal",
+                "wifi_5ghz":         "wifi_5ghz_signal",
             }
             btn_key = name_to_key.get(test_name, test_name)
             self.panel_pruebas._set_button_status(btn_key, status)
+
+            # Validar para que solo en pruebas unitarias haga registros
+            if getattr(self, "_unit_running", False):
+                raw = self.snInfo.cget("text")         
+                sn = raw.replace("SN:", "", 1).strip() # Leer el sn de la UI, Eliminar "SN: "
+                # Normalizar a BD
+                from src.backend.endpoints.conexion import normalizar_valor_bd
+                campo = normalizar_valor_bd(btn_key)
+                # Actualizar el registro de el modo seleccionado
+                from src.backend.sua_client.dao import validar_por_modo, update_operation_snmodo
+                # Primero hacer update
+                # Verificar que el campo no sea None
+                if campo != None:
+                    update_operation_snmodo(sn, modo, campo, status)
+                    # Update al campo de valido
+                    valido = validar_por_modo(sn, modo)
+                    if valido:
+                        #actualizar UI
+                        self.updatePruebas()
+        #elif kind == "test":
+            # ejemplo: actualizar un cuadrito por prueba || de momento no
+            # payload = {"nombre":"wifi_24ghz_signal","estado":"PASS","valor":"-14.6 dBm"}
+            #self._update_test(payload)
 
         elif kind == "resume_monitor":
             modo = self.modo_var.get()
@@ -866,8 +922,10 @@ class TesterView(ctk.CTkFrame):
 
         self.panel_pruebas.modelo = info.get("modelo", "—")
 
-        sn = info.get("sn", "—")
-        mac = info.get("mac", "—")
+        # INFO
+        # modelo = info.get("modelo", "—") # se actualiza desde ont_automatico
+        sn     = info.get("sn", "—")
+        mac    = info.get("mac", "—").upper().replace(":", "-")
         sftver = info.get("sftVer", "—")
         wifi24 = info.get("wifi24", "—")
         wifi5 = info.get("wifi5", "—")

@@ -111,7 +111,10 @@ def insertar_operacion(payload, modo, id_user):
     # Obtener version
     versRow = extraer_ultimo("catalog_meta")
     vers = versRow["id"]
-
+    
+    # Cambiar el nombre de RETESTEO al enum de la bd
+    if(modo == "RETESTEO"):
+        modo = "RETEST"
     # Comprobar que no viene de una unitaria
     if (modo not in  {"ETIQUETA", "TESTEO", "RETEST"}):
         return -1
@@ -288,6 +291,133 @@ def existe_valor_en_campo(table_name: str, campo: str, valor) -> bool:
 
         return bool(r["existe"]) if r else False
 
+def existe_operacion_dia(sn: str, modo: str) -> bool:
+    dia = now_local_iso()[:10]
+    modo = modo.upper()
+    # Cambiar el nombre de RETESTEO al enum de la bd
+    if(modo == "RETESTEO"):
+        modo = "RETEST"
+    # Comprobar que no viene de una unitaria
+    if (modo not in  {"ETIQUETA", "TESTEO", "RETEST"}):
+        return False
+    with get_conn() as con:
+        row = con.execute("""
+            SELECT 1
+            FROM operations
+            WHERE sn = ?
+            AND substr(fecha_test, 1, 10) = ?
+            AND tipo = ?
+            LIMIT 1;
+        """, (sn, dia, modo)).fetchone()
+        return row is not None
+
+def validar_por_modo(sn: str, modo: str):
+    # El modo solo sirve para hacer update en el registro de ese modo
+    # Traer row por sn y modo
+    tipo = (modo or "").strip().upper()
+    if(tipo == "RETESTEO"):
+        tipo = "RETEST"
+    if tipo not in ("ETIQUETA", "TESTEO", "RETEST"):
+        raise ValueError(f"Modo/tipo inválido: {modo}")
+
+    with get_conn() as con:
+        # Actualiza el último registro del sn+tipo
+        con.execute("""
+            UPDATE operations
+            SET valido = CASE
+                WHEN ping  IN ('PASS','SIN_PRUEBA')
+                 AND reset IN ('PASS','SIN_PRUEBA')
+                 AND usb   IN ('PASS','SIN_PRUEBA')
+                 AND tx    IN ('PASS','SIN_PRUEBA')
+                 AND rx    IN ('PASS','SIN_PRUEBA')
+                 AND w24   IN ('PASS','SIN_PRUEBA')
+                 AND w5    IN ('PASS','SIN_PRUEBA')
+                 AND sftU  IN ('PASS','SIN_PRUEBA')
+                THEN 1 ELSE 0 END
+            WHERE id = (
+                SELECT id
+                FROM operations
+                WHERE sn = ? AND tipo = ?
+                ORDER BY fecha_test DESC, id DESC
+                LIMIT 1
+            );
+        """, (sn, tipo))
+        con.commit()
+
+        # leer el valor resultante
+        row = con.execute("""
+            SELECT valido
+            FROM operations
+            WHERE sn = ? AND tipo = ?
+            ORDER BY fecha_test DESC, id DESC
+            LIMIT 1;
+        """, (sn, tipo)).fetchone()
+
+        if row is None:
+            raise ValueError(f"No existe operación para sn={sn} tipo={tipo}")
+
+        return int(row["valido"])
+
+def update_operation_snmodo(sn: str, modo: str, campo: str, valor: str):
+    tipo = (modo or "").strip().upper()
+    if tipo == "RETESTEO":
+        tipo = "RETEST"
+    if tipo not in ("ETIQUETA", "TESTEO", "RETEST"):
+        raise ValueError(f"Modo/tipo inválido: {modo}")
+    
+    campos = {"ping","reset","usb","tx","rx","w24","w5","sftU"}
+
+    if campo not in campos:
+        print(f"[DAO] Campo: {campo}")
+        raise ValueError("Campo inválido")
+    with get_conn() as con:
+        cur = con.execute(f"""
+            UPDATE operations
+            SET {campo} = ?
+            WHERE id = (
+                SELECT id
+                FROM operations
+                WHERE sn = ? AND tipo = ?
+                ORDER BY fecha_test DESC, id DESC
+                LIMIT 1
+            );
+        """, (valor, sn, tipo))
+        con.commit()
+        return cur.rowcount == 1
+
+def delete_operation(sn: str, modo: str) -> bool:
+    tipo = (modo or "").strip().upper()
+    if tipo == "RETESTEO":
+        tipo = "RETEST"
+    if tipo not in ("ETIQUETA", "TESTEO", "RETEST"):
+        raise ValueError(f"Modo/tipo inválido: {modo}")
+
+    with get_conn() as con:
+        cur = con.execute("""
+            DELETE FROM operations
+            WHERE id = (
+              SELECT id
+              FROM operations
+              WHERE sn = ? AND tipo = ?
+              ORDER BY fecha_test DESC, id DESC
+              LIMIT 1
+            );
+        """, (sn, tipo))
+        con.commit()
+        return cur.rowcount == 1
+
+def get_pruebas_validas():
+    now = now_local_iso()[:10]
+    with get_conn() as con:
+        row = con.execute("""
+            SELECT COUNT(*)
+            FROM operations
+            WHERE substr(fecha_test, 1, 10) = ?
+            AND valido =1
+            ;
+        """, (now,)).fetchone()
+        return int(row[0]) if row else 0
+
 def clear_user_station() -> None:
     with get_conn() as con:
         con.execute("DELETE FROM user_station;")
@@ -331,7 +461,6 @@ def get_baseGlobal_view():
             ORDER BY o.fecha_test ASC, o.id ASC;
         """).fetchall()
         return rows
-
 
 def get_baseGlobal_por_dia(day: str):
     """
