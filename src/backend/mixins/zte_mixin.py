@@ -568,7 +568,9 @@ class ZTEMixin:
                     sftVerActual = "".join(ch for ch in sftVer if ch.isdigit())
                 else: # Si tenemos un MOD009
                     sftVerActual = sftVer
-                    sft_num = codigo
+                    sft_num = "V" + codigo
+
+                print(f"[DEBUG] Comparando versiones: actual={sftVerActual}, nueva={sft_num}")
 
                 # Verificar que la actual no sea igual o mayor a la que se quiere instalar
                 if (sftVerActual != sft_num):
