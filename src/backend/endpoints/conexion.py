@@ -307,7 +307,7 @@ def iniciar_pruebaUnitariaConexion(resetFabrica, sftU, usb, fibra, wifi, model, 
                 "mac": True,
                 "ssid_24ghz": wifi, # False
                 "ssid_5ghz": wifi, # False
-                "software_version": sftU, # False
+                "software_version": True, # sftU
                 "wifi_password": False,
                 "model": True
             },
