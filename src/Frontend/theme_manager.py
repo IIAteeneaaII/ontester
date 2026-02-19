@@ -39,7 +39,8 @@ class ThemeManager:
                 "primary2_hover": "#1D3557",
                 "danger": "#C1666B",
                 "danger_hover": "#A4161A",
-                "ok": "#2E7D32",
+                "ok": "#48FF00", #22C55E
+                "titulos": "#6B9080",
             },
             "dark": {
                 "bg": "#0B1220",
@@ -60,7 +61,8 @@ class ThemeManager:
                 "primary2_hover": "#60A5FA",
                 "danger": "#F87171",
                 "danger_hover": "#EF4444",
-                "ok": "#34D399",
+                "ok": "#018A1E",
+                "titulos": "#48FF00",
             },
         }
 

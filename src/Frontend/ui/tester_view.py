@@ -579,7 +579,20 @@ class TesterView(ctk.CTkFrame):
             fg = self.color_neutro_fg
             hover = self.color_neutro_hover
             status = "normal"
-        button.configure(fg_color=fg, hover_color=hover, state=status)
+        # toma el borde desde la paleta si existe
+        root = self.winfo_toplevel()
+        p = root.theme.palette() if hasattr(root, "theme") else {}
+        border = p.get("border", "#8FA3B0")
+
+        button.configure(
+            fg_color=fg,
+            hover_color=hover,
+            state=status,
+            border_width=0,              # <-- clave: evita borde negro pegado
+            border_color=border,         # opcional
+            text_color="white",
+            text_color_disabled="white", # evita “apagado raro” en disabled
+        )
 
     def _set_all_buttons_state(self, state: str):
         self._set_button_style(self.btn_omitir, state)
