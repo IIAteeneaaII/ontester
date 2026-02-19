@@ -156,6 +156,7 @@ class PanelPruebasConexion(ctk.CTkFrame):
         primary_hover = p.get("primary_hover", "#3B8CC2")
         ok = p.get("ok", "#22C55E")
         err = p.get("error", "#EF4444")
+        titulosColor = p.get("titulos", "#6B9080")
 
         self.COL_BG = bg
         self.COL_BORDER = border
@@ -164,6 +165,7 @@ class PanelPruebasConexion(ctk.CTkFrame):
         self.COL_IDLE_HOVER = primary_hover
         self.COL_PASS = ok
         self.COL_FAIL = err
+        self.COL_TITULO_VERDE = titulosColor
 
         # Frame: en claro lo dejamos "verdecito" como tu versión original
         if mode == "dark":
@@ -182,7 +184,7 @@ class PanelPruebasConexion(ctk.CTkFrame):
         # Estado conexión conserva color según texto actual
         try:
             if str(self.lbl_estado.cget("text")).upper().startswith("CONECTADO"):
-                self.lbl_estado.configure(text_color=ok)
+                self.lbl_estado.configure(text_color=titulosColor)
             else:
                 self.lbl_estado.configure(text_color=err)
         except Exception:
@@ -192,7 +194,15 @@ class PanelPruebasConexion(ctk.CTkFrame):
         for key, btn in self.test_buttons.items():
             try:
                 # Si el botón trae un color "extraño" (por hardcode), lo normalizamos
-                btn.configure(fg_color=primary, hover_color=primary_hover, text_color="white")
+                #btn.configure(fg_color=primary, hover_color=primary_hover, text_color="white")
+                btn.configure(
+                    fg_color=primary,
+                    hover_color=primary_hover,
+                    text_color="white",
+                    border_width=0,              # <-- importante: quita el borde heredado
+                    border_color=border,         # opcional, por si luego quieres usar borde
+                    text_color_disabled="white", # por si alguno se deshabilita
+                )
             except Exception:
                 pass
 
@@ -201,7 +211,7 @@ class PanelPruebasConexion(ctk.CTkFrame):
     # ------------------------------------------------------------
     def actualizar_estado_conexion(self, conectado: bool):
         if conectado:
-            self.lbl_estado.configure(text="CONECTADO", text_color=self.COL_PASS)
+            self.lbl_estado.configure(text="CONECTADO", text_color=self.COL_TITULO_VERDE)
         else:
             self.lbl_estado.configure(text="NO CONECTADO", text_color=self.COL_FAIL)
 

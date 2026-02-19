@@ -217,6 +217,7 @@ class InicioView(ctk.CTkFrame):
         self.COL_AZUL_HOVER = p.get("primary_hover", "#3B8CC2")
         self.COL_VERDE = p.get("header", "#6B9080")
         self.COL_AZUL_SUAVE = p.get("deco1", "#A8DADC")
+        self.COL_VERDE_TITULO = p.get("titulos", "#6B9080")
 
         # Fondo general
         self.configure(fg_color=self.COL_BG)
@@ -475,7 +476,7 @@ class InicioView(ctk.CTkFrame):
             self.usuario_id = text
             self.usuario_nombre = nombre or ""
             self.status_var.set(f"Bienvenido, {self.usuario_nombre}")
-            self.status_label.configure(text_color=self.COL_OK)
+            self.status_label.configure(text_color=self.COL_VERDE_TITULO)
             self.btn_comenzar.configure(state="normal")
         else:
             self.usuario_id = None
