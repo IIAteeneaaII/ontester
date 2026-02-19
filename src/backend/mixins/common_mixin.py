@@ -1384,8 +1384,8 @@ class CommonMixin:
                     except (TypeError, ValueError):
                         return -9999
                 pon_optical = fibra_test.get('details', {}).get('PON_OPTICALPARA', {})
-                tx = pon_optical.get('RxPower') # valor negativo
-                rx = pon_optical.get('TxPower') # valor negativo
+                tx = pon_optical.get('TxPower') # valor negativo
+                rx = pon_optical.get('RxPower') # valor negativo
                 print("LOS valores de tx y rx son: "+str(tx)+" "+str(rx))
                 # Revisar si la fibra pasa las pruebas
                 if(_to_float_safe(tx) >= self._getMinFibraTx() and _to_float_safe(tx) <= self._getMaxFibraTx()):
