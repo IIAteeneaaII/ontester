@@ -742,13 +742,15 @@ class ReporteGlobalView(ctk.CTkFrame):
 
     def cargar_base_dia(self):
         """Carga la base de datos del día seleccionado."""
-        dia = int(self.dia_var.get())
-        mes = int(self.mes_combo.get())
-        anio = int(self.anio_combo.get())
-
+        dia = self.dia_var.get().strip()          # "19"
+        mes = self.mes_combo.get()
+        anio = self.anio_combo.get()
+        print(f"Cargando base del día: {dia}/{mes}/{anio}")
+        dia = int(dia)
+        mes = int(mes)
+        anio = int(anio)
         d = date(anio, mes, dia)
-        day = d.isoformat()
-
+        day = d.isoformat()  # 'YYYY-MM-DD'
         from src.backend.sua_client.dao import get_baseGlobal_por_dia
         data = get_baseGlobal_por_dia(day)
 
@@ -759,19 +761,20 @@ class ReporteGlobalView(ctk.CTkFrame):
 
         rows = []
         for r in data:
-            status = "PASS" if int(r.get("valido") or 0) == 1 else "FAIL"
+            status = "PASS" if int(r["valido"] or 0) == 1 else "FAIL"
+
             fila = [
-                r.get("id"),
-                r.get("sn"),
-                r.get("mac"),
-                r.get("version_inicial") or "",
-                r.get("version_final") or "",
-                r.get("modelo") or "",
-                r.get("fecha_test") or "",
-                r.get("version_ont_tester") or "",
-                r.get("ssid_24") or "",
-                r.get("ssid_5") or "",
-                r.get("password") or "",
+                r["id"],
+                r["sn"],
+                r["mac"],
+                r["version_inicial"] or "",
+                r["version_final"] or "",
+                r["modelo"] or "",
+                r["fecha_test"] or "",
+                r["version_ont_tester"] or "",
+                r["ssid_24"] or "",
+                r["ssid_5"] or "",
+                r["password"] or "",
                 status,
             ]
             rows.append(fila)
@@ -788,6 +791,7 @@ class ReporteGlobalView(ctk.CTkFrame):
 
     def cargar_base_global(self):
         """Carga la base de datos global."""
+        print("Cargando base global...")
         from src.backend.sua_client.dao import get_baseGlobal_view
         data = get_baseGlobal_view()
 
@@ -798,19 +802,19 @@ class ReporteGlobalView(ctk.CTkFrame):
 
         rows = []
         for r in data:
-            status = "PASS" if int(r.get("valido") or 0) == 1 else "FAIL"
+            status = "PASS" if int(r["valido"] or 0) == 1 else "FAIL"
             fila = [
-                r.get("id"),
-                r.get("sn"),
-                r.get("mac"),
-                r.get("version_inicial") or "",
-                r.get("version_final") or "",
-                r.get("modelo") or "",
-                r.get("fecha_test") or "",
-                r.get("version_ont_tester") or "",
-                r.get("ssid_24") or "",
-                r.get("ssid_5") or "",
-                r.get("password") or "",
+                r["id"],
+                r["sn"],
+                r["mac"],
+                r["version_inicial"] or "",
+                r["version_final"] or "",
+                r["modelo"] or "",
+                r["fecha_test"] or "",
+                r["version_ont_tester"] or "",
+                r["ssid_24"] or "",
+                r["ssid_5"] or "",
+                r["password"] or "",
                 status,
             ]
             rows.append(fila)
