@@ -41,7 +41,13 @@ class FiberMixin:
             return False
 
         driver = None
-        headless = True # DEBUG: Visible para el usuario
+        headless = True # DEBUG: True para no abrir ventana, False para debug visual
+
+        def emit(kind, payload):
+            out_q = getattr(self, "out_q", None)
+            if out_q:
+                out_q.put((kind, payload))
+
         try:
             print(f"[SELENIUM] Iniciando login Fiberhome a {self.host}...")
             # Configurar opciones de Chrome
@@ -331,6 +337,9 @@ class FiberMixin:
                                 else:
                                     print("[ERROR] Reintento falló - sesión aún activa")
                                     print("[INFO] Cierre manualmente la sesión desde otro navegador o espere timeout")
+                                    emit("pruebas", "Sesión activa. Por favor, vuelva a ejecutar la prueba")
+                                    # emit("pruebas", "Por favor, desconecte el equipo y vuelva a conectarlo para liberar la sesión activa.")
+
                                     if driver:
                                         try:
                                             driver.quit()
