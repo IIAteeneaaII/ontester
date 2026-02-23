@@ -1477,7 +1477,7 @@ class ZTEMixin:
                 # Verificar si se tiene que hacer factory reset
                 optTest = self.opcionesTest
                 tests_opts = optTest.get("tests", {})
-                if tests_opts.get("factory_reset", True):
+                if tests_opts.get("factory_reset", True) and not self._has_executed_test("factory_reset"): # Solo ejecutar reset si la opción está habilitada y no se ha ejecutado antes (usando helper)
                     if (reset is False):
                         # Antes de ejecutar las demás pruebas hay que resetear de fabrica
                         def emit(kind, payload):
@@ -1502,12 +1502,9 @@ class ZTEMixin:
                                 test_dict.pop("Contraseña", None)
                             except Exception:
                                 pass
-
-                            # Desactivar factory_reset para no entrar en loop
-                            try:
-                                self.opcionesTest.setdefault("tests", {})["factory_reset"] = False
-                            except Exception:
-                                pass
+                            
+                            # Anti-loop sin mutar opciones
+                            self._mark_executed_test("factory_reset")
 
                             driver.quit()
 
