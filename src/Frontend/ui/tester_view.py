@@ -509,7 +509,7 @@ class TesterView(ctk.CTkFrame):
 
         nueva.after(0, _restore)
 
-        # ✅ re-aplicar tema
+        #  re-aplicar tema
         if hasattr(root, "theme"):
             try:
                 nueva.apply_theme(root.theme.palette())
@@ -519,7 +519,7 @@ class TesterView(ctk.CTkFrame):
     # ===================== NAVEGACIÓN =====================
     def _swap_view(self, view_cls, **init_kwargs):
         parent = self.master
-        # ✅ tomar root ANTES de destruir (self puede quedar inválido)
+        #  tomar root ANTES de destruir (self puede quedar inválido)
         root = parent.winfo_toplevel()
 
         try:
@@ -533,7 +533,7 @@ class TesterView(ctk.CTkFrame):
         if hasattr(parent, "dispatcher") and parent.dispatcher:
             parent.dispatcher.set_target(nueva)
 
-        # ✅ aplicar tema si existe (usa root, no self)
+        #  aplicar tema si existe (usa root, no self)
         if hasattr(root, "theme") and hasattr(nueva, "apply_theme"):
             try:
                 nueva.apply_theme(root.theme.palette())
@@ -632,11 +632,6 @@ class TesterView(ctk.CTkFrame):
 
         self.clock_label.configure(text=time_string)
         self.after(1000, self.update_clock)
-
-    # ------------------------------------------------------------
-    # TODO: DE AQUÍ HACIA ABAJO CONSERVA TU LÓGICA.
-    # Solo corregí indentaciones/bugs y apliqué theme.
-    # ------------------------------------------------------------
 
     def cambiar_modo(self, modo: str):
         self.stop_event.set()
