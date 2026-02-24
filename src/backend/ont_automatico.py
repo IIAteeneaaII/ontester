@@ -17,6 +17,7 @@ import html
 import threading
 import time
 import requests
+import copy
 import csv
 from datetime import datetime
 from datetime import date
@@ -152,6 +153,9 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
             }
         }
         
+        # Anti-loop por instancia (no muta opcionesTest)
+        self._executed_tests = set()
+        
         # Deshabilitar warnings SSL
         requests.packages.urllib3.disable_warnings()
         
@@ -201,6 +205,16 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
             "GS-HT818": "MOD006",
             "HT818": "MOD006",
         }
+    
+    # Helpers para evitar loops por instancia de ONTAutomatedTester
+    def _has_executed_test(self, test_name: str) -> bool:
+        return test_name in getattr(self, "_executed_tests", set())
+
+    def _mark_executed_test(self, test_name: str) -> None:
+        if not hasattr(self, "_executed_tests"):
+            self._executed_tests = set()
+        self._executed_tests.add(test_name)
+    #-------------------------
     
     # Configuración de umbrales de señal WiFi Fiberhome
     def _configWifiSignalThresholds(self, min24: int, min5: int):
@@ -1451,8 +1465,12 @@ def main_loop(opciones, out_q = None, stop_event = None, auto_test_on_detect = T
 
                 tester = ONTAutomatedTester(ip, detected_model)
                 tester.out_q = out_q
-                tester.opcionesTest = opciones
+                tester.opcionesTest = copy.deepcopy(opciones)
                 tester._stop_event = stop_event
+
+                # Debugeo
+                print("[DEBUG] factory_reset opt:", tester.opcionesTest.get("tests", {}).get("factory_reset"))
+                print("[DEBUG] factory_reset executed:", tester._has_executed_test("factory_reset"))
 
                 print("Las opciones elegidas son: " + str(opciones))
                 emit("pruebas", "Autenticando dispositivo")
@@ -1492,7 +1510,7 @@ def main_loop(opciones, out_q = None, stop_event = None, auto_test_on_detect = T
 
                 et = ONTAutomatedTester(ip, detected_model)
                 et.out_q = out_q
-                et.opcionesTest = opciones
+                et.opcionesTest = copy.deepcopy(opciones)
 
                 emit("pruebas", "Extrayendo datos de etiqueta")
                 et.run_all_tests()

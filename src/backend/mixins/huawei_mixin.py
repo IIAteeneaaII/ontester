@@ -1682,65 +1682,54 @@ class HuaweiMixin:
                 salto = self.hw_maybe_skip_initial_guide(driver)
                 if(salto):
                     print("[INFO] Se saltó la pagina de configuración inicial")
-                    #hacer sesion otra vez
-                    #temp_bool = self._login_huawei()
-                else:
-                    # no reset de fabrica
-                    # print("[INFO] No se saltó la página de configuración inicial o no se encontraron los skips")
-                    # Verificar si se tiene que hacer el reset de fabrica
-                    optTest = self.opcionesTest
-                    tests_opts = optTest.get("tests", {})
-                    if tests_opts.get("factory_reset", True):
-                        def emit(kind, payload):
-                            if self.out_q:
-                                self.out_q.put((kind, payload))
-                        emit("pruebas", "Ejecutando Reinicio de Fabrica")
-                        reset_ok = self._reset_factory_huawei(driver)
-                        time.sleep(110)
+                
+                # Verificar si se tiene que hacer el reset de fabrica (independiente del wizard)
+                optTest = self.opcionesTest
+                tests_opts = optTest.get("tests", {})
 
-                        if(reset_ok):
-                            # Guardar y emitir resultados
-                            self.test_results.setdefault("tests", {})["factory_reset"] = {
-                                "name": "factory_reset",
-                                "status": True,
-                                "data": {
-                                    "result": "PASS"
-                                }
-                            }
-                            #emit("test_individual", {"name": "factory_reset", "status": "PASS"})
+                if tests_opts.get("factory_reset", True) and not self._has_executed_test("factory_reset"):
+                    def emit(kind, payload):
+                        if self.out_q:
+                            self.out_q.put((kind, payload))
 
-                            # 1. Limpiar WiFi previo a relogin
-                            try:
-                                tests_dict = self.test_results.get("tests", {})
-                                tests_dict.pop("hw_wifi24", None)
-                                tests_dict.pop("hw_wifi5", None)
-                                tests_dict.pop("hw_wifi24_pass", None)
-                            except Exception:
-                                pass
+                    emit("pruebas", "Ejecutando Reinicio de Fabrica")
+                    reset_ok = self._reset_factory_huawei(driver)
+                    time.sleep(110)
 
-                            # 2. Desactivar factory_reset para no entrar en loop
-                            try:
-                                self.opcionesTest.setdefault("tests", {})["factory_reset"] = False
-                            except Exception:
-                                pass
+                    if reset_ok:
+                        # Guardar y emitir resultado
+                        self.test_results.setdefault("tests", {})["factory_reset"] = {
+                            "name": "factory_reset",
+                            "status": True,
+                            "data": {"result": "PASS"}
+                        }
 
-                            # 3. Cerrar driver actual y hacer relogin
-                            driver.quit()
-                            return self._login_huawei()
-                        else:
-                            # Guardar y emitir fallo
-                            self.test_results.setdefault("tests", {})["factory_reset"] = {
-                                "name": "factory_reset",
-                                "status": False,
-                                "data": {
-                                    "result": "FAIL"
-                                }
-                            }
-                            #emit("test_individual", {"name": "factory_reset", "status": "FAIL"})
-                            print("[INFO] No se reseteo de fabrica")
+                        # Limpiar WiFi previo a relogin
+                        try:
+                            tests_dict = self.test_results.get("tests", {})
+                            tests_dict.pop("hw_wifi24", None)
+                            tests_dict.pop("hw_wifi5", None)
+                            tests_dict.pop("hw_wifi24_pass", None)
+                        except Exception:
+                            pass
+
+                        # Anti-loop sin mutar opciones
+                        self._mark_executed_test("factory_reset")
+
+                        # Cerrar driver actual y hacer relogin
+                        driver.quit()
+                        return self._login_huawei()
+                    else:
+                        # Guardar y emitir fallo
+                        self.test_results.setdefault("tests", {})["factory_reset"] = {
+                            "name": "factory_reset",
+                            "status": False,
+                            "data": {"result": "FAIL"}
+                        }
+                        print("[INFO] No se reseteo de fabrica")
                 
                 self.huawei_info(driver)
-
+ 
                 driver.quit()
                 return True
             except Exception as e:
