@@ -1348,15 +1348,15 @@ class CommonMixin:
 
         # Tests
         ping = "PASS" # si llega hasta aqui es que se le puede hacer ping
-        if tests_opts.get("factory_reset", True):
+        if tests_opts.get("factory_reset", False):
             # Verificar si el test de factory_reset realmente se ejecutó
             # ZTE guarda como FACTORY_RESET_PASS (igual que Fiberhome)
-            factory_test = self.test_results.get('tests', {}).get('FACTORY_RESET_PASS')
+            factory_test = self.test_results.get('tests', {}).get('factory_reset')
             if factory_test is not None:
                 reset = "PASS" if factory_test.get('status') == True else "FAIL"
             else:
                 # El test de factory_reset no se ejecutó (prueba unitaria de otro test)
-                reset = "SIN PRUEBA"
+                reset = "FAIL"
         else:
             reset = "SIN PRUEBA"
         if tests_opts.get("usb_port", True):
