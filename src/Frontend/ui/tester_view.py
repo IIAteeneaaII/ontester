@@ -112,7 +112,7 @@ class TesterView(ctk.CTkFrame):
         self.modo_menu = ctk.CTkOptionMenu(
             self.left_frame,
             variable=self.modo_var,
-            values=["Testeo", "Retesteo", "Etiqueta", "Monitoreo"],
+            values=["Testeo", "Retesteo", "Etiqueta", "Monitoreo", "Consulta SN"],
             command=self.cambiar_modo,
             font=ctk.CTkFont(size=16, weight="bold"),
             height=36,
@@ -487,7 +487,7 @@ class TesterView(ctk.CTkFrame):
         user_name = getattr(root, "current_user_name", None)
         init_kwargs = getattr(self, "_init_kwargs", {}) or {}
 
-        VALIDOS = {"Testeo", "Retesteo", "Etiqueta", "Monitoreo"}
+        VALIDOS = {"Testeo", "Retesteo", "Etiqueta", "Monitoreo", "Consulta SN"}
         if modo_actual not in VALIDOS:
             return
 
@@ -665,7 +665,7 @@ class TesterView(ctk.CTkFrame):
             self._set_button_style(self.btn_otros_puertos, "active")
             self._set_button_style(self.btn_ethernet, "active")
             self._set_button_style(self.btn_wifi, "active")
-        elif modo in ("Etiqueta", "Monitoreo"):
+        elif modo in ("Etiqueta", "Monitoreo", "Consulta SN"):
             self._set_all_buttons_state("inactive")
 
         if modo in ("Testeo", "Retesteo"):
@@ -673,8 +673,44 @@ class TesterView(ctk.CTkFrame):
         elif modo == "Monitoreo":
             self._start_monitor_loop()
             return
+        elif modo == "Consulta SN":
+            self._consultaSN()
         else:
             self.setOpcionesView(auto_test_on_detect=False)
+
+    def _consultaSN(self):
+        # 1) Si ya hay hilo corriendo, pedir stop y esperar un poco
+        try:
+            if getattr(self, "stop_event", None) is not None:
+                self.stop_event.set()
+        except Exception:
+            pass
+
+        prev = getattr(self, "tester_thread", None)
+        if prev and prev.is_alive():
+            try:
+                prev.join(timeout=2)  # corto para no congelar UI
+            except Exception:
+                pass
+
+        # 2) Si sigue vivo, NO arranques otro (evitas duplicados)
+        if prev and prev.is_alive():
+            try:
+                self.master.event_q.put(("log", "[CONSULTA SN] Hilo previo sigue vivo, no se inicia otro."))
+            except Exception:
+                pass
+            return
+
+        # 3) Nuevo stop_event y nuevo hilo
+        self.stop_event = threading.Event()
+        from src.backend.endpoints.consultaSN import snFinal
+
+        self.tester_thread = threading.Thread(
+            target=snFinal,
+            args=(self.master.event_q, self.stop_event),
+            daemon=True
+        )
+        self.tester_thread.start()
 
     def _start_monitor_loop(self):
         self.stop_event = threading.Event()
@@ -890,6 +926,26 @@ class TesterView(ctk.CTkFrame):
                     if valido:
                         #actualizar UI
                         self.updatePruebas()
+        # Nuevo kind, solo para muestra, no para actualizacion de BD
+        elif kind == "individual_show":
+            test_name = payload.get("name", "").lower()
+            status = payload.get("status", "FAIL")
+            name_to_key = {
+                "ping":              "ping",
+                "ping_connectivity": "ping",
+                "factory_reset":     "factory_reset",
+                "software_update":   "software_update",
+                "usb_port":          "usb_port",
+                "tx_power":          "tx_power",
+                "rx_power":          "rx_power",
+                "wifi_24ghz":        "wifi_24ghz_signal",
+                "wifi_5ghz":         "wifi_5ghz_signal",
+            }
+            btn_key = name_to_key.get(test_name, test_name)
+            self.panel_pruebas._set_button_status(btn_key, status)
+        # Nuevo kind para actualizar SN unicamente
+        elif kind == "sn":
+            self.snInfo.configure(text="SN: " + str(payload))
         #elif kind == "test":
             # ejemplo: actualizar un cuadrito por prueba || de momento no
             # payload = {"nombre":"wifi_24ghz_signal","estado":"PASS","valor":"-14.6 dBm"}
