@@ -1249,15 +1249,24 @@ class CommonMixin:
             print("LOS valores de tx y rx son: "+str(tx)+" "+str(rx))
             print("Los valores de la super de tx son: "+str(self._getMinFibraTx()) +" "+str(self._getMaxFibraTx()))
             print("Los valores de la super de rx son: "+str(self._getMinFibraRx()) +" "+str(self._getMaxFibraRx()))
-            if(_to_float_safe(tx) >= self._getMinFibraTx() and _to_float_safe(tx) <= self._getMaxFibraTx()):
-                tx = tx
-            else:
-                tx = False
-            
-            if(_to_float_safe(rx) >= self._getMinFibraRx() and _to_float_safe(rx) <= self._getMaxFibraRx()):
-                rx = rx
-            else:
-                rx = False
+            tx_f = _to_float_safe(tx)
+            rx_f = _to_float_safe(rx)
+            min_tx = self._getMinFibraTx()
+            max_tx = self._getMaxFibraTx()
+            min_rx = self._getMinFibraRx()
+            max_rx = self._getMaxFibraRx()
+
+            tx_ok = False
+            rx_ok = False
+
+            if tx_f is not None:
+                tx_ok = (tx_f >= min_tx and tx_f <= max_tx)
+
+            if rx_f is not None:
+                rx_ok = (rx_f >= min_rx and rx_f <= max_rx)
+
+            tx = tx if tx_ok else False
+            rx = rx if rx_ok else False
         else:
             tx = "SIN PRUEBA"
             rx = "SIN PRUEBA"
