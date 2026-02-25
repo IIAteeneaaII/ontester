@@ -100,6 +100,86 @@ def extraer_by_id(id, table_name):
         row = cur.fetchone()
         return row
 
+"""
+TODO
+
+"""
+def actualizar_operacion(payload, modo, id_user):
+    # Función para actualizar registro en bd
+    # Tratamiento de la payload
+    info  = payload.get("info", {})
+    tests = payload.get("tests", {})
+    modo = modo.upper()
+    # Obtener version
+    versRow = extraer_ultimo("catalog_meta")
+    vers = versRow["id"]
+    # Cambiar el nombre de RETESTEO al enum de la bd
+    if(modo == "RETESTEO"):
+        modo = "RETEST"
+    # Comprobar que no viene de una unitaria
+    if (modo not in  {"ETIQUETA", "TESTEO", "RETEST"}):
+        return -1
+
+    ultimoStationUser = get_ultimo_user_station_por_usuario(id_user)
+    id_station =  ultimoStationUser["id_station"] # Extraer de tabla user_stations
+    ultima_setting = extraer_ultimo("settings") 
+    id_settings =  ultima_setting["id"] # Extraer el ultimo
+    false_means = "FAIL"
+    from src.backend.endpoints.conexion import norm_result, norm_power
+
+    # Revisar que los valores no vengan raros
+    ignorar = {"NaN", "-", "None", ""}
+
+
+
+    params = {
+        "id_station":  id_station,  # Estos parametros (station, settings) deben leerse desde la bd (config)
+        "id_user":     id_user,     # Se pasa desde la llamada
+        "id_settings": id_settings, # Se lee desde bd
+        "id_catalog_meta": vers,
+        "tipo":        modo,
+
+        "fecha_test": info.get("fecha_test"),
+        "modelo":    info.get("modelo"),
+        "sn":        info.get("sn"),
+        "mac":       info.get("mac"),
+        "sftVer":    info.get("sftVer"),
+        "wifi24":    info.get("wifi24"),
+        "wifi5":     info.get("wifi5"),
+        "passWifi":  info.get("passWifi"),
+
+        # si no viene, forzamos SIN_PRUEBA
+        "ping": norm_result(tests.get("ping"), false_means=false_means),
+        "reset": norm_result(tests.get("reset"), false_means=false_means),
+        "usb": norm_result(tests.get("usb"), false_means=false_means),
+        "tx": norm_power(tests.get("tx"), "tx"),
+        "rx": norm_power(tests.get("rx"), "rx"),
+        "w24": norm_result(tests.get("w24"), false_means=false_means),
+        "w5":  norm_result(tests.get("w5"), false_means=false_means),
+        "sftU": norm_result(tests.get("sftU"), false_means=false_means),
+
+        # sqlite: bool -> int
+        "valido": int(bool(payload.get("valido"))),
+    }
+
+    sql = """
+    INSERT INTO operations (
+        id_station, id_user, id_settings, id_catalog_meta, tipo,
+        fecha_test, modelo, sn, mac, sftVer, wifi24, wifi5, passWifi,
+        ping, reset, usb, tx, rx, w24, w5, sftU,
+        valido
+    ) VALUES (
+        :id_station, :id_user, :id_settings, :id_catalog_meta, :tipo,
+        :fecha_test, :modelo, :sn, :mac, :sftVer, :wifi24, :wifi5, :passWifi,
+        :ping, :reset, :usb, :tx, :rx, :w24, :w5, :sftU,
+        :valido
+    );
+    """
+    with get_conn() as con:
+        cur = con.execute(sql, params)
+        con.commit()
+        return cur.lastrowid
+    
 def insertar_operacion(payload, modo, id_user):
     # Función para agregar datos del tester a la bd sqlite
     # Por el diseño de la bd cada prueba a la que no se le asigne valor tendrá por defecto SIN PRUEBA

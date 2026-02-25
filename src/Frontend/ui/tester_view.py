@@ -344,7 +344,7 @@ class TesterView(ctk.CTkFrame):
         self.info_frame.grid_rowconfigure(4, weight=1)
         self.info_frame.grid_rowconfigure(5, weight=1)
 
-        # ✅ aplicar tema si existe
+        #  aplicar tema si existe
         root = self.winfo_toplevel()
         if hasattr(root, "theme"):
             try:
@@ -490,7 +490,17 @@ class TesterView(ctk.CTkFrame):
         VALIDOS = {"Testeo", "Retesteo", "Etiqueta", "Monitoreo", "Consulta SN"}
         if modo_actual not in VALIDOS:
             return
-
+        # Detener el backend actual
+        try:
+            if hasattr(self, "stop_event") and self.stop_event:
+                self.stop_event.set()
+        except Exception:
+            pass
+        # Detener el target anterior
+        try:
+            parent.dispatcher.set_target(None)
+        except Exception:
+            pass
         try:
             self.destroy()
         except Exception:
