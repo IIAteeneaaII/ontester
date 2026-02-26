@@ -883,6 +883,107 @@ class FiberMixin:
             'extraction_method': 'ajax_get_base_info',
             'raw_data': base_info
         }
+
+        # Reducir base_info para unitarias FIBERHOME según opcionesTest['info'] ---
+        try:
+            opts = getattr(self, "opcionesTest", {}) or {}
+            info_opts = opts.get("info", False)
+            tests_opts = opts.get("tests", {}) or {}
+        except Exception:
+            info_opts = False
+            tests_opts = {}
+
+        # Si info_opts es un dict con valores True, extraemos solo esos campos específicos para evitar sobrecargar la salida
+        if isinstance(info_opts, dict) and any(info_opts.values()):
+            raw = base_info or {}
+            reduced: dict = {"extraction_method": "ajax_get_base_info"}
+
+            # Conservar raw_data completo si la unitaria necesita software_version o software_update
+            needs_raw = bool(info_opts.get("software_version") or tests_opts.get("software_update"))
+            if needs_raw:
+                reduced["raw_data"] = raw
+
+            # Identificación (SN físico preferente)
+            if info_opts.get("sn", False):
+                if raw.get("gponsn"):
+                    reduced["serial_number_physical"] = raw.get("gponsn")
+                elif raw.get("SerialNumber"):
+                    reduced["serial_number_logical"] = raw.get("SerialNumber")
+                elif raw.get("serial_number"):
+                    reduced["serial_number_logical"] = raw.get("serial_number")
+
+            # MAC (primer key válida)
+            if info_opts.get("mac", False):
+                for k in ("brmac", "mac_address", "tr069_mac", "mac"):
+                    if raw.get(k):
+                        reduced["mac_address"] = raw.get(k)
+                        break
+
+            # Modelo y versión de software
+            if info_opts.get("model", False):
+                if raw.get("ModelName"):
+                    reduced["model_name"] = raw.get("ModelName")
+                elif raw.get("model_name"):
+                    reduced["model_name"] = raw.get("model_name")
+            if info_opts.get("software_version", False):
+                if raw.get("SoftwareVersion"):
+                    reduced["software_version"] = raw.get("SoftwareVersion")
+                elif raw.get("software_version"):
+                    reduced["software_version"] = raw.get("software_version")
+
+            # Potencias ópticas (TX/RX)
+            if info_opts.get("tx_power", False):
+                if raw.get("txpower") is not None:
+                    reduced["tx_power_dbm"] = raw.get("txpower")
+                elif raw.get("tx_power_dbm") is not None:
+                    reduced["tx_power_dbm"] = raw.get("tx_power_dbm")
+            if info_opts.get("rx_power", False):
+                if raw.get("rxpower") is not None:
+                    reduced["rx_power_dbm"] = raw.get("rxpower")
+                elif raw.get("rx_power_dbm") is not None:
+                    reduced["rx_power_dbm"] = raw.get("rx_power_dbm")
+            
+            # Asegurar incluir TX/RX si los tests los requieren aunque no estén en info_opts
+            if tests_opts.get("tx_power") and "tx_power_dbm" not in reduced:
+                if raw.get("txpower") is not None:
+                    reduced["tx_power_dbm"] = raw.get("txpower")
+                elif raw.get("tx_power_dbm") is not None:
+                    reduced["tx_power_dbm"] = raw.get("tx_power_dbm")
+
+            if tests_opts.get("rx_power") and "rx_power_dbm" not in reduced:
+                if raw.get("rxpower") is not None:
+                    reduced["rx_power_dbm"] = raw.get("rxpower")
+                elif raw.get("rx_power_dbm") is not None:
+                    reduced["rx_power_dbm"] = raw.get("rx_power_dbm")
+
+            # USB / capacidades
+            if info_opts.get("usb", False) or info_opts.get("usb_port", False):
+                if raw.get("usb_port_num") is not None:
+                    reduced["usb_ports"] = raw.get("usb_port_num")
+                if raw.get("usb_status") is not None:
+                    reduced["usb_status"] = raw.get("usb_status")
+
+            # WiFi (SSIDs / password) — solo si se pidió
+            if any(info_opts.get(k, False) for k in ("ssid_24ghz", "ssid_5ghz", "wifi_password")):
+                wifi_src = raw.get("wifi_info") or raw.get("wifi") or {}
+                # Si raw no contiene wifi_info, intentar extraer con el método especializado (no forzar Selenium)
+                if not wifi_src:
+                    try:
+                        wifi_src = self._extract_wifi_allwan() or {}
+                    except Exception:
+                        wifi_src = {}
+                wifi: dict = {}
+                if info_opts.get("ssid_24ghz", False):
+                    wifi["ssid_24ghz"] = wifi_src.get("ssid_24ghz") or wifi_src.get("ssid_2.4") or wifi_src.get("ssid1")
+                if info_opts.get("ssid_5ghz", False):
+                    wifi["ssid_5ghz"] = wifi_src.get("ssid_5ghz") or wifi_src.get("ssid_5") or wifi_src.get("ssid5")
+                if info_opts.get("wifi_password", False):
+                    wifi["password"] = wifi_src.get("password") or wifi_src.get("psk") or wifi_src.get("pass")
+                if wifi:
+                    reduced["wifi_info"] = wifi
+
+            # Devolver estructura reducida (misma forma esperada por los tests)
+            return reduced
         
         # Información del dispositivo
         if base_info.get('ModelName'):
@@ -1661,7 +1762,6 @@ class FiberMixin:
                     )
 
         # 3) Decidir PASS/FAIL usando TODA la info disponible
-
         usb_status_str = str(usb_status).strip().lower() if usb_status is not None else ""
         status_indica_activo = usb_status_str in ("active", "on", "1", "enable", "enabled", "inserted")
 
@@ -1762,11 +1862,30 @@ class FiberMixin:
         
         # Prioridad 1: Usar datos de get_base_info si están disponibles
         base_info = self.test_results['metadata'].get('base_info')
-        if base_info and base_info.get('tx_power_dbm'):
-            result["status"] = "PASS"
+        tx_raw = base_info.get('tx_power_dbm') if base_info else None
+        if base_info and tx_raw is not None:
+            # Convertir y validar contra umbrales
+            try:
+                tx_val = float(tx_raw)
+            except (TypeError, ValueError):
+                tx_val = None
+            
+            min_tx = self._getMinFibraTx()
+            max_tx = self._getMaxFibraTx()
+
             result["details"]["method"] = "AJAX get_base_info"
-            result["details"]["tx_power_dbm"] = base_info['tx_power_dbm']
-            result["details"]["note"] = "Datos obtenidos de get_base_info"
+            result["details"]["tx_power_dbm"] = tx_raw
+
+            if tx_val is None:
+                result["status"] = "FAIL"
+                result["details"]["note"] = "Valor TX no convertible a número"
+            elif tx_val >= min_tx and tx_val <= max_tx:
+                result["status"] = "PASS"
+                result["details"]["note"] = f"TX dentro de rango ({min_tx}..{max_tx})"
+            else:
+                result["status"] = "FAIL"
+                result["details"]["note"] = f"TX fuera de rango ({min_tx}..{max_tx})"
+
             return result
         
         # Prioridad 2: Intentar metodo AJAX get_pon_info
@@ -1797,11 +1916,30 @@ class FiberMixin:
         
         # Prioridad 1: Usar datos de get_base_info si están disponibles
         base_info = self.test_results['metadata'].get('base_info')
+        rx_raw = base_info.get('rx_power_dbm') if base_info else None
         if base_info and base_info.get('rx_power_dbm'):
-            result["status"] = "PASS"
+            # Convertir y validar contra umbrales
+            try:
+                rx_val = float(rx_raw)
+            except (TypeError, ValueError):
+                rx_val = None
+
+            min_rx = self._getMinFibraRx()
+            max_rx = self._getMaxFibraRx()
+
             result["details"]["method"] = "AJAX get_base_info"
-            result["details"]["rx_power_dbm"] = base_info['rx_power_dbm']
-            result["details"]["note"] = "Datos obtenidos de get_base_info"
+            result["details"]["rx_power_dbm"] = rx_raw
+
+            if rx_val is None:
+                result["status"] = "FAIL"
+                result["details"]["note"] = "Valor RX no convertible a número"
+            elif rx_val >= min_rx and rx_val <= max_rx:
+                result["status"] = "PASS"
+                result["details"]["note"] = f"RX dentro de rango ({min_rx}..{max_rx})"
+            else:
+                result["status"] = "FAIL"
+                result["details"]["note"] = f"RX fuera de rango ({min_rx}..{max_rx})"
+
             return result
         
         # Prioridad 2: Usa el mismo metodo que TX (get_pon_info devuelve ambos)
@@ -2281,3 +2419,16 @@ class FiberMixin:
                 "version_nueva": "N/A"
             }
             return False
+
+'''
+⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⡿⣿⣿⣿
+⡿⠟⠫⠋⢉⣁⣉⡉⠉⠉⠋⠛⣿⣿⣿⡛⠋⠋⠉⠉⣁⣈⣉⡐⠩⠛⢻
+⣷⣦⣶⣿⡿⠯⠭⠭⠭⠭⣝⢻⣿⣿⣿⡿⢫⠭⠭⠭⠭⠭⠿⣿⣷⣦⣼
+⣿⣿⣿⣩⡚⠃⢀⠀⡘⠌⢻⣸⣿⣿⣿⣷⣼⣋⢚⢀⣀⢀⠛⣊⣽⣿⣿
+⣿⣿⣿⣿⣿⣿⣿⣿⣿⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿
+⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⣿⣿
+⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡟⣼⣿⣿
+⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠿⢋⣿⡟⣸⣿⣿⣿
+⣿⣿⣿⣿⣿⣿⣿⢙⣛⣛⣛⣛⣛⣛⣛⣉⣩⣭⣴⣾⣿⣿⢣⣿⣿⣿⣿
+⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⢿⣼⣿⣿⣿⣿
+'''
