@@ -880,11 +880,24 @@ class TesterView(ctk.CTkFrame):
             # Antes de insertar hay que validar que el sn no esté ya registrado en ese MODO
             registroAnterior = existe_operacion_dia(info.get("sn", "—"), modo)
             if registroAnterior:
-                # No insertar, actualizar UI con: equipo ya registrado (emit lower maybe)
+                # Actualizar registro, pero emitir que se modificará la BD
                 def emit(kind, payload):
                     if self.master.event_q:
                         self.master.event_q.put((kind, payload))
-                emit("log", "DISPOSITIVO YA REGISTRADO, NO SE CONTARÁ PARA LAS PRUEBAS")
+                emit("log", "DISPOSITIVO YA REGISTRADO, MODIFICANDO INFORMACIÓN Y RESULTADOS")
+                from src.backend.sua_client.dao import actualizar_operacion
+                from src.backend.endpoints.conexion import is_bad_info
+                if (is_bad_info(info.get("sn"))):
+                    result = 0
+                else:
+                    print("[TESTER] Llamando a update")
+                    result = actualizar_operacion(payload, modo, user_id)
+
+                if result == 1:
+                    emit("pruebas", "BD actualizada con el nuevo registro")
+                else:
+                    emit("pruebas", "Error en la información")
+                validar_por_modo(info.get("sn","-"), modo)
             else:
                 id = insertar_operacion(payload, modo, user_id)
                 # Actualizar el campo de valido

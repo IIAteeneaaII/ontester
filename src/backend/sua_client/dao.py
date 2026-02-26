@@ -105,6 +105,9 @@ TODO
 
 """
 def actualizar_operacion(payload, modo, id_user):
+    # Helper
+    from src.backend.endpoints.conexion import is_bad_info
+    now = now_local_iso()[:10]
     # Función para actualizar registro en bd
     # Tratamiento de la payload
     info  = payload.get("info", {})
@@ -127,10 +130,10 @@ def actualizar_operacion(payload, modo, id_user):
     false_means = "FAIL"
     from src.backend.endpoints.conexion import norm_result, norm_power
 
-    # Revisar que los valores no vengan raros
-    ignorar = {"NaN", "-", "None", ""}
-
-
+    # Verificar la integridad de los datos a update
+    def clean_info(key: str):
+        v = info.get(key)
+        return None if is_bad_info(v) else v
 
     params = {
         "id_station":  id_station,  # Estos parametros (station, settings) deben leerse desde la bd (config)
@@ -139,14 +142,17 @@ def actualizar_operacion(payload, modo, id_user):
         "id_catalog_meta": vers,
         "tipo":        modo,
 
+        # localizar el registro del dia 
+        "day": now,
         "fecha_test": info.get("fecha_test"),
-        "modelo":    info.get("modelo"),
-        "sn":        info.get("sn"),
-        "mac":       info.get("mac"),
-        "sftVer":    info.get("sftVer"),
-        "wifi24":    info.get("wifi24"),
-        "wifi5":     info.get("wifi5"),
-        "passWifi":  info.get("passWifi"),
+        # Proteccion de los datos
+        "modelo":   clean_info("modelo"),
+        "sn":       clean_info("sn"),
+        "mac":      clean_info("mac"),
+        "sftVer":   clean_info("sftVer"),
+        "wifi24":   clean_info("wifi24"),
+        "wifi5":    clean_info("wifi5"),
+        "passWifi": clean_info("passWifi"),
 
         # si no viene, forzamos SIN_PRUEBA
         "ping": norm_result(tests.get("ping"), false_means=false_means),
@@ -163,22 +169,49 @@ def actualizar_operacion(payload, modo, id_user):
     }
 
     sql = """
-    INSERT INTO operations (
-        id_station, id_user, id_settings, id_catalog_meta, tipo,
-        fecha_test, modelo, sn, mac, sftVer, wifi24, wifi5, passWifi,
-        ping, reset, usb, tx, rx, w24, w5, sftU,
-        valido
-    ) VALUES (
-        :id_station, :id_user, :id_settings, :id_catalog_meta, :tipo,
-        :fecha_test, :modelo, :sn, :mac, :sftVer, :wifi24, :wifi5, :passWifi,
-        :ping, :reset, :usb, :tx, :rx, :w24, :w5, :sftU,
-        :valido
+    UPDATE operations
+    SET
+        id_station      = :id_station,
+        id_user         = :id_user,
+        id_settings     = :id_settings,
+        id_catalog_meta = :id_catalog_meta,
+        tipo            = :tipo,
+
+        -- info: NO sobrescribir si viene "malo"
+        fecha_test = COALESCE(:fecha_test, fecha_test),
+        modelo     = COALESCE(:modelo, modelo),
+        sn         = COALESCE(:sn, sn),
+        mac        = COALESCE(:mac, mac),
+        sftVer     = COALESCE(:sftVer, sftVer),
+        wifi24     = COALESCE(:wifi24, wifi24),
+        wifi5      = COALESCE(:wifi5, wifi5),
+        passWifi   = COALESCE(:passWifi, passWifi),
+
+        -- tests: siempre actualizar
+        ping  = :ping,
+        reset = :reset,
+        usb   = :usb,
+        tx    = :tx,
+        rx    = :rx,
+        w24   = :w24,
+        w5    = :w5,
+        sftU  = :sftU,
+
+        valido = :valido
+    WHERE id = (
+        SELECT id
+        FROM operations
+        WHERE sn = :sn
+          AND tipo = :tipo
+          AND substr(fecha_test, 1, 10) = :day
+        ORDER BY fecha_test DESC, id DESC
+        LIMIT 1
     );
     """
     with get_conn() as con:
         cur = con.execute(sql, params)
         con.commit()
-        return cur.lastrowid
+        return cur.rowcount #1 si act, 0 si no encontró 
     
 def insertar_operacion(payload, modo, id_user):
     # Función para agregar datos del tester a la bd sqlite
