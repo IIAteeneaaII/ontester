@@ -344,7 +344,7 @@ class TesterView(ctk.CTkFrame):
         self.info_frame.grid_rowconfigure(4, weight=1)
         self.info_frame.grid_rowconfigure(5, weight=1)
 
-        # ✅ aplicar tema si existe
+        #  aplicar tema si existe
         root = self.winfo_toplevel()
         if hasattr(root, "theme"):
             try:
@@ -490,7 +490,17 @@ class TesterView(ctk.CTkFrame):
         VALIDOS = {"Testeo", "Retesteo", "Etiqueta", "Monitoreo", "Consulta SN"}
         if modo_actual not in VALIDOS:
             return
-
+        # Detener el backend actual
+        try:
+            if hasattr(self, "stop_event") and self.stop_event:
+                self.stop_event.set()
+        except Exception:
+            pass
+        # Detener el target anterior
+        try:
+            parent.dispatcher.set_target(None)
+        except Exception:
+            pass
         try:
             self.destroy()
         except Exception:
@@ -509,7 +519,7 @@ class TesterView(ctk.CTkFrame):
 
         nueva.after(0, _restore)
 
-        # ✅ re-aplicar tema
+        #  re-aplicar tema
         if hasattr(root, "theme"):
             try:
                 nueva.apply_theme(root.theme.palette())
@@ -519,7 +529,7 @@ class TesterView(ctk.CTkFrame):
     # ===================== NAVEGACIÓN =====================
     def _swap_view(self, view_cls, **init_kwargs):
         parent = self.master
-        # ✅ tomar root ANTES de destruir (self puede quedar inválido)
+        #  tomar root ANTES de destruir (self puede quedar inválido)
         root = parent.winfo_toplevel()
 
         try:
@@ -533,7 +543,7 @@ class TesterView(ctk.CTkFrame):
         if hasattr(parent, "dispatcher") and parent.dispatcher:
             parent.dispatcher.set_target(nueva)
 
-        # ✅ aplicar tema si existe (usa root, no self)
+        #  aplicar tema si existe (usa root, no self)
         if hasattr(root, "theme") and hasattr(nueva, "apply_theme"):
             try:
                 nueva.apply_theme(root.theme.palette())
@@ -632,11 +642,6 @@ class TesterView(ctk.CTkFrame):
 
         self.clock_label.configure(text=time_string)
         self.after(1000, self.update_clock)
-
-    # ------------------------------------------------------------
-    # TODO: DE AQUÍ HACIA ABAJO CONSERVA TU LÓGICA.
-    # Solo corregí indentaciones/bugs y apliqué theme.
-    # ------------------------------------------------------------
 
     def cambiar_modo(self, modo: str):
         self.stop_event.set()
@@ -875,11 +880,24 @@ class TesterView(ctk.CTkFrame):
             # Antes de insertar hay que validar que el sn no esté ya registrado en ese MODO
             registroAnterior = existe_operacion_dia(info.get("sn", "—"), modo)
             if registroAnterior:
-                # No insertar, actualizar UI con: equipo ya registrado (emit lower maybe)
+                # Actualizar registro, pero emitir que se modificará la BD
                 def emit(kind, payload):
                     if self.master.event_q:
                         self.master.event_q.put((kind, payload))
-                emit("log", "DISPOSITIVO YA REGISTRADO, NO SE CONTARÁ PARA LAS PRUEBAS")
+                emit("log", "DISPOSITIVO YA REGISTRADO, MODIFICANDO INFORMACIÓN Y RESULTADOS")
+                from src.backend.sua_client.dao import actualizar_operacion
+                from src.backend.endpoints.conexion import is_bad_info
+                if (is_bad_info(info.get("sn"))):
+                    result = 0
+                else:
+                    print("[TESTER] Llamando a update")
+                    result = actualizar_operacion(payload, modo, user_id)
+
+                if result == 1:
+                    emit("pruebas", "BD actualizada con el nuevo registro")
+                else:
+                    emit("pruebas", "Error en la información")
+                validar_por_modo(info.get("sn","-"), modo)
             else:
                 id = insertar_operacion(payload, modo, user_id)
                 # Actualizar el campo de valido

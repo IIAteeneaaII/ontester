@@ -3,6 +3,7 @@ import threading
 import time
 from datetime import date, datetime
 from src.backend.ont_automatico import main_loop
+import math
 
 _UNIT_RUNNING = threading.Event()
 _UNIT_LOCK = threading.Lock()
@@ -224,6 +225,20 @@ def _get_report_path_for(d: date) -> Path:
 
         filename = f"reportes_{d.isoformat()}.csv"
         return reports_dir / filename
+
+# Función para no insertar información que no sirve de nada
+def is_bad_info(v) -> bool:
+    """True si el valor es 'basura' y NO debe sobrescribir en DB."""
+    if v is None:
+        return True
+    # float nan
+    if isinstance(v, float) and math.isnan(v):
+        return True
+    s = str(v).strip()
+    if s == "":
+        return True
+    s_up = s.upper()
+    return s_up in {"NAN", "NONE", "NULL", "N/A", "NA", "--", "---", "SIN_DATO"}
 
 def iniciar_testerConexion(resetFabrica, usb, fibra, wifi, out_q = None, stop_event = None, auto_test_on_detect = True, start_in_monitor = False):
     def emit(kind, payload):

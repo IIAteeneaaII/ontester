@@ -115,7 +115,7 @@ def login_fiber() -> str:
     driver.get(login_url)
 
     # Espera que cargue login
-    WebDriverWait(driver, 15).until(
+    WebDriverWait(driver, 5).until(
         EC.presence_of_element_located((By.ID, "user_name"))
     )
 
@@ -165,6 +165,10 @@ def login_fiber() -> str:
                 
     # Extracción de SN
     snFinal = extraccionFiber(session)
+    try:
+        driver.quit()
+    except:
+        pass
     return snFinal
 
 def extraccionFiber(session) -> str:
@@ -180,7 +184,7 @@ def login_huawei():
      #login con selenium
     driver = None
     headless = True
-    timeout = 5
+    timeout = 2
 
     try:
         # Configurar opciones de Chrome
@@ -244,21 +248,11 @@ def login_huawei():
 
         # Buscar campos de login (intentar varios selectores comunes)
         username_selectors = [
-            (By.ID, 'user_name'),           # Fiberhome específico
-            (By.NAME, 'user_name'),         # Fiberhome específico
-            (By.ID, 'username'),
-            (By.ID, 'Frm_Username'),        #ZTE
-            (By.NAME, 'Frm_Username'),      #ZTE
             (By.ID, 'txt_Username'),        #HUAWEI
             (By.NAME, 'txt_Username'),      #HUAWEI
         ]
         
         password_selectors = [
-            (By.ID, 'loginpp'),             # Fiberhome específico (type=text con clase especial!)
-            (By.NAME, 'loginpp'),           # Fiberhome específico
-            (By.CSS_SELECTOR, 'input.fh-text-security-inter'),  # Fiberhome clase especial
-            (By.ID, 'Frm_Password'),        #ZTE
-            (By.NAME, 'Frm_Password'),      #ZTE
             (By.ID, 'txt_Password'),        #HUAWEI
             (By.NAME, 'txt_Password'),      #HUAWEI
         ]
@@ -287,7 +281,7 @@ def login_huawei():
                 continue
         
         if not password_field:
-            print("[ERROR] No se encontro campo de contrasena. Guardando screenshot...")
+            print("[ERROR] No se encontro campo de contraseña")
             driver.quit()
             return False
 
@@ -337,7 +331,7 @@ def login_huawei():
 
         # return True
         # Esperar a que cargue la página principal (varios indicadores posibles)
-        time.sleep(5)  # Dar tiempo para procesar login
+        time.sleep(2)  # Dar tiempo para procesar login
         cookies = {c["name"]: c["value"] for c in driver.get_cookies()}
         print("[SELENIUM] Cookies obtenidas:", cookies)
 
@@ -360,7 +354,10 @@ def login_huawei():
             #hacer sesion otra vez
             #temp_bool = self._login_huawei()
         sn = huawei_info(driver)
-        driver.quit()
+        try:
+            driver.quit()
+        except:
+            pass
         return sn
     except Exception as e:
         print(f"[ERROR] Selenium login falló: {type(e).__name__} - {e}")
@@ -585,7 +582,10 @@ def login_zte():
 
         sn = zte_info(session, driver)
         
-        driver.quit()
+        try:
+            driver.quit()
+        except:
+            pass
         return sn
     except Exception as e:
         print(f"[ERROR] Selenium login falló: {type(e).__name__} - {e}")
@@ -769,7 +769,7 @@ def _wait_not_busy_login_page(driver, login_url, max_wait=180):
             time.sleep(5)
         return False
 
-def find_element_anywhere(driver, by, sel, desc="", timeout=10):
+def find_element_anywhere(driver, by, sel, desc="", timeout=5):
         """
         Busca un elemento en el documento principal y en todos los iframes recursivamente.
         Retorna el elemento si lo encuentra, manteniendo el driver en el contexto del frame donde se encontró.
@@ -1033,7 +1033,7 @@ def hw_maybe_skip_initial_guide(driver, timeout=10):
             print(f"[WARN] Error general en hw_maybe_skip_initial_guide: {e}")
             return False
         
-def click_anywhere(driver, selectors, desc, timeout=10):
+def click_anywhere(driver, selectors, desc, timeout=5):
     """
     Busca un elemento usando varios selectores, en el documento principal
     y en todos los frames/iframes. Si lo encuentra, hace click.
@@ -1118,3 +1118,25 @@ def click_anywhere(driver, selectors, desc, timeout=10):
 
     print(f"[SELENIUM] No se encontró {desc} en {timeout}s")
     return False
+
+"""
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠖⠃⠀⠀⠀⡁⠀⠀⠀⠀⠀⠐⠆⠀⠀⠀⠀⠀⠀⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡠⢔⡤⠊⠁⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠁⠀⠀⠀⠁⠀⠀⠘⠁⢀⠀⠀⠀⠀⢈⠓⠂⠠⡄⠀⠈⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣠⣶⠿⠞⠋⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠒⠁⠀⠠⡚⠁⢀⣙⣀⣈⡩⠬⢁⠀⢑⠶⠤⡆⠤⡀⠀⠀⠀⠀⠀⠀⢀⠴⢲⣋⣽⣷⠟⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠁⠀⢠⠀⠀⣶⠃⠗⣡⣶⣮⣿⡿⠿⠿⢿⣿⣷⣶⣤⣤⠤⠴⠦⠬⣤⣤⠄⣉⠉⠝⢲⣿⡷⠻⠂⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠀⠀⠀⠀⠁⡀⡸⠁⣰⣿⡿⠛⠋⣁⡀⠤⠤⢄⡀⠈⠛⢯⣿⣟⣾⣶⣶⣮⣭⣵⣾⣿⣟⠿⠉⢨⠖⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⠀⢠⠳⡧⣻⡿⠋⢀⠒⠉⠀⠀⠀⠀⠀⠀⠉⠢⠀⠀⠙⠛⣻⣿⣿⣿⢿⣿⣿⠟⡱⠖⠊⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠁⢠⣧⠓⣾⣿⠁⠀⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⢦⣠⣾⣿⠿⣿⣿⣿⡿⣫⠏⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡀⠀⠂⢃⣸⣿⠇⢠⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣠⣴⣿⠟⢿⠁⠸⡿⣿⣯⡶⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠁⢘⡄⠘⣿⣿⠀⠸⡀⠀⠀⠀⠀⠀⢀⣀⣴⣾⣿⡿⡟⡋⠐⡇⠀⢸⣿⣿⠃⠀⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢡⠘⢰⣿⡿⡆⠀⣇⠀⣀⣠⣤⣶⣿⢷⢟⠻⠀⠈⠀⠀⠀⡇⠀⣼⣿⣿⠂⠀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⠔⢀⡴⢯⣾⠟⡏⢀⣠⣿⣿⣿⣟⢟⡋⠅⠘⠉⠀⠀⠀⠀⢀⠀⠁⢠⣿⣟⠃⠀⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⠞⣻⣷⡿⢙⣩⣶⡿⠿⠛⠉⠑⢡⡁⠀⠀⠀⠀⠀⠀⢀⠔⠁⠀⣰⣿⣿⡟⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣡⣾⣥⣾⢫⡦⠾⠛⠙⠉⠀⠀⢀⣀⠀⠈⠙⠓⠦⠤⠤⠀⠘⠁⢀⡤⣾⡿⠏⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠔⣴⣾⣿⣿⢟⢝⠢⠃⢀⣤⢴⣾⣮⣷⣶⢿⣶⡤⣐⡀⠀⣠⣤⢶⣪⣿⣿⡿⠟⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⡀⣦⣾⡿⡛⠵⠺⢈⡠⠶⠿⠥⠥⡭⠉⠉⢱⡛⠻⠿⣿⣿⣿⣿⣿⠿⠿⠿⠟⠭⠛⠂⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⢀⢴⠕⣋⠝⠕⠐⠀⠔⠉⠀⠀⠀⠀⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⠁⠉⠁⠁⠁⠁⠈⠀⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⢀⣠⠁⠈⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+"""
