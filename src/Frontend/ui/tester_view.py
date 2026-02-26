@@ -1071,15 +1071,34 @@ class TesterView(ctk.CTkFrame):
                 usb_label = "USB no detectada"
             self.usbInfo.configure(text="Usb Port: " + str(usb_label))
 
-        self.snInfo.configure(text="SN: " + str(sn))
-        self.macInfo.configure(text="MAC: " + str(mac))
-        self.sftInfo.configure(text="SOFTWARE: " + str(sftver))
-        self.w24Info.configure(text="WIFI 2.4GHz: " + str(wifi24))
-        self.w5Info.configure(text="WIFI 5 GHz: " + str(wifi5))
-        self.pswInfo.configure(text="Password: " + str(passWi))
+        # self.snInfo.configure(text="SN: " + str(sn))
+        # self.macInfo.configure(text="MAC: " + str(mac))
+        # self.sftInfo.configure(text="SOFTWARE: " + str(sftver))
+        # self.w24Info.configure(text="WIFI 2.4GHz: " + str(wifi24))
+        # self.w5Info.configure(text="WIFI 5 GHz: " + str(wifi5))
+        # self.pswInfo.configure(text="Password: " + str(passWi))
+
+        # INFO (solo si viene)
+        self.set_label_if_present(info, "sn", self.snInfo, "SN: ")
+        self.set_label_if_present(info, "mac", self.macInfo, "MAC: ", transform=self._mac_transform)
+        self.set_label_if_present(info, "sftVer", self.sftInfo, "SOFTWARE: ")
+        self.set_label_if_present(info, "wifi24", self.w24Info, "WIFI 2.4GHz: ")
+        self.set_label_if_present(info, "wifi5", self.w5Info, "WIFI 5 GHz: ")
+        self.set_label_if_present(info, "passWifi", self.pswInfo, "Password: ")
 
         self.estado_prueba_label.configure(text="EJECUTADO", text_color="#6B9080")
 
+    # Funciones extra para la correcta actualización de UI tras unitarias
+    def set_label_if_present(self, info:dict, key:str, label, prefix: str, transform=lambda x: x):
+        if key not in info:
+            return # No hacer nada si no viene el valor
+        val = info.get(key)
+        if val in (None, "", "-", "—", "NAN", "NONE", "NULL", "N/A", "NA", "--", "---"):
+            return # NO pintar valores corruptos
+        label.configure(text=f"{prefix}{transform(val)}")
+    
+    def _mac_transform(self, v):
+        return str(v).upper().replace(":", "-")
 
 if __name__ == "__main__":
     ctk.set_appearance_mode("light")
