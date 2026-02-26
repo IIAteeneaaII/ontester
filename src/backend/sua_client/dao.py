@@ -135,6 +135,17 @@ def actualizar_operacion(payload, modo, id_user):
         v = info.get(key)
         return None if is_bad_info(v) else v
 
+    # Revisar que, si viene de unitaria, no actualice keys que no se hicieron
+    def maybe_norm_result(key):
+        if key not in tests:
+            return None
+        return norm_result(tests.get(key), false_means=false_means)
+    
+    def maybe_norm_power(key, which):
+        if key not in tests:
+            return None
+        return norm_power(tests.get(key), which)
+
     params = {
         "id_station":  id_station,  # Estos parametros (station, settings) deben leerse desde la bd (config)
         "id_user":     id_user,     # Se pasa desde la llamada
@@ -155,15 +166,22 @@ def actualizar_operacion(payload, modo, id_user):
         "passWifi": clean_info("passWifi"),
 
         # si no viene, forzamos SIN_PRUEBA
-        "ping": norm_result(tests.get("ping"), false_means=false_means),
-        "reset": norm_result(tests.get("reset"), false_means=false_means),
-        "usb": norm_result(tests.get("usb"), false_means=false_means),
-        "tx": norm_power(tests.get("tx"), "tx"),
-        "rx": norm_power(tests.get("rx"), "rx"),
-        "w24": norm_result(tests.get("w24"), false_means=false_means),
-        "w5":  norm_result(tests.get("w5"), false_means=false_means),
-        "sftU": norm_result(tests.get("sftU"), false_means=false_means),
-
+        # "ping": norm_result(tests.get("ping"), false_means=false_means),
+        # "reset": norm_result(tests.get("reset"), false_means=false_means),
+        # "usb": norm_result(tests.get("usb"), false_means=false_means),
+        # "tx": norm_power(tests.get("tx"), "tx"),
+        # "rx": norm_power(tests.get("rx"), "rx"),
+        # "w24": norm_result(tests.get("w24"), false_means=false_means),
+        # "w5":  norm_result(tests.get("w5"), false_means=false_means),
+        # "sftU": norm_result(tests.get("sftU"), false_means=false_means),
+        "ping":  maybe_norm_result("ping"),
+        "reset": maybe_norm_result("reset"),
+        "usb":   maybe_norm_result("usb"),
+        "w24":   maybe_norm_result("w24"),
+        "w5":    maybe_norm_result("w5"),
+        "sftU":  maybe_norm_result("sftU"),
+        "tx":    maybe_norm_power("tx", "tx"),
+        "rx":    maybe_norm_power("rx", "rx"),
         # sqlite: bool -> int
         "valido": int(bool(payload.get("valido"))),
     }
@@ -187,15 +205,15 @@ def actualizar_operacion(payload, modo, id_user):
         wifi5      = COALESCE(:wifi5, wifi5),
         passWifi   = COALESCE(:passWifi, passWifi),
 
-        -- tests: siempre actualizar
-        ping  = :ping,
-        reset = :reset,
-        usb   = :usb,
-        tx    = :tx,
-        rx    = :rx,
-        w24   = :w24,
-        w5    = :w5,
-        sftU  = :sftU,
+        -- Actualizar si cambio
+        ping  = COALESCE(:ping, ping),
+        reset = COALESCE(:reset, reset),
+        usb   = COALESCE(:usb, usb),
+        tx    = COALESCE(:tx, tx),
+        rx    = COALESCE(:rx, rx),
+        w24   = COALESCE(:w24, w24),
+        w5    = COALESCE(:w5, w5),
+        sftU  = COALESCE(:sftU, sftU),
 
         valido = :valido
     WHERE id = (
