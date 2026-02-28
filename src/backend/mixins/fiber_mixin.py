@@ -2060,6 +2060,61 @@ class FiberMixin:
 
         print(f"[SELENIUM] No se encontró/clickeó: {desc} en {timeout}s. Último error: {last_err}")
         return False
+
+    def fh_find_logout(self, driver=None, timeout: float = 5) -> Optional[object]:
+        """
+        Buscar el enlace de logout en la UI FiberHome (id="logout").
+        - Usa `self.find_element_anywhere` si existe, si no usa `self.find_element_anywhere2`.
+        - No hace clic, solo devuelve el WebElement si está presente y visible.
+        - Devuelve None si no se encuentra o no es visible dentro del timeout.
+        """
+        if driver is None:
+            driver = getattr(self, "driver", None)
+
+        if not driver:
+            return None
+
+        # Elegir helper disponible para búsqueda multi-frame
+        finder = getattr(self, "find_element_anywhere", None) or getattr(self, "find_element_anywhere2", None)
+
+        # Intento robusto con un reintento en caso de StaleElementReferenceException
+        attempts = 2
+        last_exc = None
+        for _ in range(attempts):
+            try:
+                if finder:
+                    el = finder(driver, By.ID, "logout", desc="Logout", timeout=timeout)
+                else:
+                    # Fallback directo si no hay helper
+                    try:
+                        el = driver.find_element(By.ID, "logout")
+                    except Exception:
+                        el = None
+
+                if el is None:
+                    return None
+
+                # Verificar visibilidad/interactuabilidad
+                try:
+                    if getattr(el, "is_displayed", lambda: True)():
+                        return el
+                    else:
+                        return None
+                except StaleElementReferenceException as e:
+                    last_exc = e
+                    time.sleep(0.15)
+                    continue
+
+            except StaleElementReferenceException as e:
+                last_exc = e
+                time.sleep(0.15)
+                continue
+            except Exception as e:
+                # Cualquier otra excepción devolver None (no romper flujo superior)
+                last_exc = e
+                return None
+
+        return None
     
     def _goto_local_upgrade_menu(self, driver, timeout=15) -> bool:
         """
