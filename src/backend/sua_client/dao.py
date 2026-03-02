@@ -100,6 +100,137 @@ def extraer_by_id(id, table_name):
         row = cur.fetchone()
         return row
 
+"""
+TODO
+
+"""
+def actualizar_operacion(payload, modo, id_user):
+    # Helper
+    from src.backend.endpoints.conexion import is_bad_info
+    now = now_local_iso()[:10]
+    # Función para actualizar registro en bd
+    # Tratamiento de la payload
+    info  = payload.get("info", {})
+    tests = payload.get("tests", {})
+    modo = modo.upper()
+    # Obtener version
+    versRow = extraer_ultimo("catalog_meta")
+    vers = versRow["id"]
+    # Cambiar el nombre de RETESTEO al enum de la bd
+    if(modo == "RETESTEO"):
+        modo = "RETEST"
+    # Comprobar que no viene de una unitaria
+    if (modo not in  {"ETIQUETA", "TESTEO", "RETEST"}):
+        return -1
+
+    ultimoStationUser = get_ultimo_user_station_por_usuario(id_user)
+    id_station =  ultimoStationUser["id_station"] # Extraer de tabla user_stations
+    ultima_setting = extraer_ultimo("settings") 
+    id_settings =  ultima_setting["id"] # Extraer el ultimo
+    false_means = "FAIL"
+    from src.backend.endpoints.conexion import norm_result, norm_power
+
+    # Verificar la integridad de los datos a update
+    def clean_info(key: str):
+        v = info.get(key)
+        return None if is_bad_info(v) else v
+
+    # Revisar que, si viene de unitaria, no actualice keys que no se hicieron
+    def maybe_norm_result(key):
+        if key not in tests:
+            return None
+        return norm_result(tests.get(key), false_means=false_means)
+    
+    def maybe_norm_power(key, which):
+        if key not in tests:
+            return None
+        return norm_power(tests.get(key), which)
+
+    params = {
+        "id_station":  id_station,  # Estos parametros (station, settings) deben leerse desde la bd (config)
+        "id_user":     id_user,     # Se pasa desde la llamada
+        "id_settings": id_settings, # Se lee desde bd
+        "id_catalog_meta": vers,
+        "tipo":        modo,
+
+        # localizar el registro del dia 
+        "day": now,
+        "fecha_test": info.get("fecha_test"),
+        # Proteccion de los datos
+        "modelo":   clean_info("modelo"),
+        "sn":       clean_info("sn"),
+        "mac":      clean_info("mac"),
+        "sftVer":   clean_info("sftVer"),
+        "wifi24":   clean_info("wifi24"),
+        "wifi5":    clean_info("wifi5"),
+        "passWifi": clean_info("passWifi"),
+
+        # si no viene, forzamos SIN_PRUEBA
+        # "ping": norm_result(tests.get("ping"), false_means=false_means),
+        # "reset": norm_result(tests.get("reset"), false_means=false_means),
+        # "usb": norm_result(tests.get("usb"), false_means=false_means),
+        # "tx": norm_power(tests.get("tx"), "tx"),
+        # "rx": norm_power(tests.get("rx"), "rx"),
+        # "w24": norm_result(tests.get("w24"), false_means=false_means),
+        # "w5":  norm_result(tests.get("w5"), false_means=false_means),
+        # "sftU": norm_result(tests.get("sftU"), false_means=false_means),
+        "ping":  maybe_norm_result("ping"),
+        "reset": maybe_norm_result("reset"),
+        "usb":   maybe_norm_result("usb"),
+        "w24":   maybe_norm_result("w24"),
+        "w5":    maybe_norm_result("w5"),
+        "sftU":  maybe_norm_result("sftU"),
+        "tx":    maybe_norm_power("tx", "tx"),
+        "rx":    maybe_norm_power("rx", "rx"),
+        # sqlite: bool -> int
+        "valido": int(bool(payload.get("valido"))),
+    }
+
+    sql = """
+    UPDATE operations
+    SET
+        id_station      = :id_station,
+        id_user         = :id_user,
+        id_settings     = :id_settings,
+        id_catalog_meta = :id_catalog_meta,
+        tipo            = :tipo,
+
+        -- info: NO sobrescribir si viene "malo"
+        fecha_test = COALESCE(:fecha_test, fecha_test),
+        modelo     = COALESCE(:modelo, modelo),
+        sn         = COALESCE(:sn, sn),
+        mac        = COALESCE(:mac, mac),
+        sftVer     = COALESCE(:sftVer, sftVer),
+        wifi24     = COALESCE(:wifi24, wifi24),
+        wifi5      = COALESCE(:wifi5, wifi5),
+        passWifi   = COALESCE(:passWifi, passWifi),
+
+        -- Actualizar si cambio
+        ping  = COALESCE(:ping, ping),
+        reset = COALESCE(:reset, reset),
+        usb   = COALESCE(:usb, usb),
+        tx    = COALESCE(:tx, tx),
+        rx    = COALESCE(:rx, rx),
+        w24   = COALESCE(:w24, w24),
+        w5    = COALESCE(:w5, w5),
+        sftU  = COALESCE(:sftU, sftU),
+
+        valido = :valido
+    WHERE id = (
+        SELECT id
+        FROM operations
+        WHERE sn = :sn
+          AND tipo = :tipo
+          AND substr(fecha_test, 1, 10) = :day
+        ORDER BY fecha_test DESC, id DESC
+        LIMIT 1
+    );
+    """
+    with get_conn() as con:
+        cur = con.execute(sql, params)
+        con.commit()
+        return cur.rowcount #1 si act, 0 si no encontró 
+    
 def insertar_operacion(payload, modo, id_user):
     # Función para agregar datos del tester a la bd sqlite
     # Por el diseño de la bd cada prueba a la que no se le asigne valor tendrá por defecto SIN PRUEBA

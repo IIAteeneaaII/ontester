@@ -112,7 +112,7 @@ class TesterView(ctk.CTkFrame):
         self.modo_menu = ctk.CTkOptionMenu(
             self.left_frame,
             variable=self.modo_var,
-            values=["Testeo", "Retesteo", "Etiqueta", "Monitoreo"],
+            values=["Testeo", "Retesteo", "Etiqueta", "Monitoreo", "Consulta SN"],
             command=self.cambiar_modo,
             font=ctk.CTkFont(size=16, weight="bold"),
             height=36,
@@ -344,7 +344,7 @@ class TesterView(ctk.CTkFrame):
         self.info_frame.grid_rowconfigure(4, weight=1)
         self.info_frame.grid_rowconfigure(5, weight=1)
 
-        # ✅ aplicar tema si existe
+        #  aplicar tema si existe
         root = self.winfo_toplevel()
         if hasattr(root, "theme"):
             try:
@@ -487,10 +487,20 @@ class TesterView(ctk.CTkFrame):
         user_name = getattr(root, "current_user_name", None)
         init_kwargs = getattr(self, "_init_kwargs", {}) or {}
 
-        VALIDOS = {"Testeo", "Retesteo", "Etiqueta", "Monitoreo"}
+        VALIDOS = {"Testeo", "Retesteo", "Etiqueta", "Monitoreo", "Consulta SN"}
         if modo_actual not in VALIDOS:
             return
-
+        # Detener el backend actual
+        try:
+            if hasattr(self, "stop_event") and self.stop_event:
+                self.stop_event.set()
+        except Exception:
+            pass
+        # Detener el target anterior
+        try:
+            parent.dispatcher.set_target(None)
+        except Exception:
+            pass
         try:
             self.destroy()
         except Exception:
@@ -509,7 +519,7 @@ class TesterView(ctk.CTkFrame):
 
         nueva.after(0, _restore)
 
-        # ✅ re-aplicar tema
+        #  re-aplicar tema
         if hasattr(root, "theme"):
             try:
                 nueva.apply_theme(root.theme.palette())
@@ -519,7 +529,7 @@ class TesterView(ctk.CTkFrame):
     # ===================== NAVEGACIÓN =====================
     def _swap_view(self, view_cls, **init_kwargs):
         parent = self.master
-        # ✅ tomar root ANTES de destruir (self puede quedar inválido)
+        #  tomar root ANTES de destruir (self puede quedar inválido)
         root = parent.winfo_toplevel()
 
         try:
@@ -533,7 +543,7 @@ class TesterView(ctk.CTkFrame):
         if hasattr(parent, "dispatcher") and parent.dispatcher:
             parent.dispatcher.set_target(nueva)
 
-        # ✅ aplicar tema si existe (usa root, no self)
+        #  aplicar tema si existe (usa root, no self)
         if hasattr(root, "theme") and hasattr(nueva, "apply_theme"):
             try:
                 nueva.apply_theme(root.theme.palette())
@@ -633,11 +643,6 @@ class TesterView(ctk.CTkFrame):
         self.clock_label.configure(text=time_string)
         self.after(1000, self.update_clock)
 
-    # ------------------------------------------------------------
-    # TODO: DE AQUÍ HACIA ABAJO CONSERVA TU LÓGICA.
-    # Solo corregí indentaciones/bugs y apliqué theme.
-    # ------------------------------------------------------------
-
     def cambiar_modo(self, modo: str):
         self.stop_event.set()
 
@@ -665,7 +670,7 @@ class TesterView(ctk.CTkFrame):
             self._set_button_style(self.btn_otros_puertos, "active")
             self._set_button_style(self.btn_ethernet, "active")
             self._set_button_style(self.btn_wifi, "active")
-        elif modo in ("Etiqueta", "Monitoreo"):
+        elif modo in ("Etiqueta", "Monitoreo", "Consulta SN"):
             self._set_all_buttons_state("inactive")
 
         if modo in ("Testeo", "Retesteo"):
@@ -673,8 +678,44 @@ class TesterView(ctk.CTkFrame):
         elif modo == "Monitoreo":
             self._start_monitor_loop()
             return
+        elif modo == "Consulta SN":
+            self._consultaSN()
         else:
             self.setOpcionesView(auto_test_on_detect=False)
+
+    def _consultaSN(self):
+        # 1) Si ya hay hilo corriendo, pedir stop y esperar un poco
+        try:
+            if getattr(self, "stop_event", None) is not None:
+                self.stop_event.set()
+        except Exception:
+            pass
+
+        prev = getattr(self, "tester_thread", None)
+        if prev and prev.is_alive():
+            try:
+                prev.join(timeout=2)  # corto para no congelar UI
+            except Exception:
+                pass
+
+        # 2) Si sigue vivo, NO arranques otro (evitas duplicados)
+        if prev and prev.is_alive():
+            try:
+                self.master.event_q.put(("log", "[CONSULTA SN] Hilo previo sigue vivo, no se inicia otro."))
+            except Exception:
+                pass
+            return
+
+        # 3) Nuevo stop_event y nuevo hilo
+        self.stop_event = threading.Event()
+        from src.backend.endpoints.consultaSN import snFinal
+
+        self.tester_thread = threading.Thread(
+            target=snFinal,
+            args=(self.master.event_q, self.stop_event),
+            daemon=True
+        )
+        self.tester_thread.start()
 
     def _start_monitor_loop(self):
         self.stop_event = threading.Event()
@@ -836,18 +877,42 @@ class TesterView(ctk.CTkFrame):
             modo = self.modo_var.get()
             root = self.winfo_toplevel()
             user_id = int(getattr(root, "current_user_id", None))
+            # Validar que el SN venga en la payload
+            sn_registro = info.get("sn", "—")
+            if (sn_registro == "—" or sn_registro == None):
+                raw = self.snInfo.cget("text")         
+                sn_registro = raw.replace("SN:", "", 1).strip() # Leer el sn de la UI, Eliminar "SN: "
+                # Actualizar SN
+                info = payload.get("info") or {}
+                info["sn"] = sn_registro
+                payload["info"] = info
             # Antes de insertar hay que validar que el sn no esté ya registrado en ese MODO
-            registroAnterior = existe_operacion_dia(info.get("sn", "—"), modo)
+            print(f"SN FINAL A REGISTRAR: {sn_registro}")
+            registroAnterior = existe_operacion_dia(sn_registro, modo)
             if registroAnterior:
-                # No insertar, actualizar UI con: equipo ya registrado (emit lower maybe)
+                # Actualizar registro, pero emitir que se modificará la BD
                 def emit(kind, payload):
                     if self.master.event_q:
                         self.master.event_q.put((kind, payload))
-                emit("log", "DISPOSITIVO YA REGISTRADO, NO SE CONTARÁ PARA LAS PRUEBAS")
+                emit("log", "DISPOSITIVO YA REGISTRADO, MODIFICANDO INFORMACIÓN Y RESULTADOS")
+                from src.backend.sua_client.dao import actualizar_operacion
+                from src.backend.endpoints.conexion import is_bad_info
+                if (is_bad_info(sn_registro)):
+                    result = 0
+                else:
+                    print("[TESTER] Llamando a update")
+                    
+                    result = actualizar_operacion(payload, modo, user_id)
+
+                if result == 1:
+                    emit("pruebas", "BD actualizada con el nuevo registro")
+                else:
+                    emit("pruebas", "Error en la información")
+                validar_por_modo(sn_registro, modo)
             else:
                 id = insertar_operacion(payload, modo, user_id)
                 # Actualizar el campo de valido
-                validar_por_modo(info.get("sn","-"), modo)
+                validar_por_modo(sn_registro, modo)
                 payload_final = extraer_by_id(id, "operations")
             
             self.updatePruebas()
@@ -890,6 +955,26 @@ class TesterView(ctk.CTkFrame):
                     if valido:
                         #actualizar UI
                         self.updatePruebas()
+        # Nuevo kind, solo para muestra, no para actualizacion de BD
+        elif kind == "individual_show":
+            test_name = payload.get("name", "").lower()
+            status = payload.get("status", "FAIL")
+            name_to_key = {
+                "ping":              "ping",
+                "ping_connectivity": "ping",
+                "factory_reset":     "factory_reset",
+                "software_update":   "software_update",
+                "usb_port":          "usb_port",
+                "tx_power":          "tx_power",
+                "rx_power":          "rx_power",
+                "wifi_24ghz":        "wifi_24ghz_signal",
+                "wifi_5ghz":         "wifi_5ghz_signal",
+            }
+            btn_key = name_to_key.get(test_name, test_name)
+            self.panel_pruebas._set_button_status(btn_key, status)
+        # Nuevo kind para actualizar SN unicamente
+        elif kind == "sn":
+            self.snInfo.configure(text="SN: " + str(payload))
         #elif kind == "test":
             # ejemplo: actualizar un cuadrito por prueba || de momento no
             # payload = {"nombre":"wifi_24ghz_signal","estado":"PASS","valor":"-14.6 dBm"}
@@ -997,15 +1082,34 @@ class TesterView(ctk.CTkFrame):
                 usb_label = "USB no detectada"
             self.usbInfo.configure(text="Usb Port: " + str(usb_label))
 
-        self.snInfo.configure(text="SN: " + str(sn))
-        self.macInfo.configure(text="MAC: " + str(mac))
-        self.sftInfo.configure(text="SOFTWARE: " + str(sftver))
-        self.w24Info.configure(text="WIFI 2.4GHz: " + str(wifi24))
-        self.w5Info.configure(text="WIFI 5 GHz: " + str(wifi5))
-        self.pswInfo.configure(text="Password: " + str(passWi))
+        # self.snInfo.configure(text="SN: " + str(sn))
+        # self.macInfo.configure(text="MAC: " + str(mac))
+        # self.sftInfo.configure(text="SOFTWARE: " + str(sftver))
+        # self.w24Info.configure(text="WIFI 2.4GHz: " + str(wifi24))
+        # self.w5Info.configure(text="WIFI 5 GHz: " + str(wifi5))
+        # self.pswInfo.configure(text="Password: " + str(passWi))
+
+        # INFO (solo si viene)
+        self.set_label_if_present(info, "sn", self.snInfo, "SN: ")
+        self.set_label_if_present(info, "mac", self.macInfo, "MAC: ", transform=self._mac_transform)
+        self.set_label_if_present(info, "sftVer", self.sftInfo, "SOFTWARE: ")
+        self.set_label_if_present(info, "wifi24", self.w24Info, "WIFI 2.4GHz: ")
+        self.set_label_if_present(info, "wifi5", self.w5Info, "WIFI 5 GHz: ")
+        self.set_label_if_present(info, "passWifi", self.pswInfo, "Password: ")
 
         self.estado_prueba_label.configure(text="EJECUTADO", text_color="#6B9080")
 
+    # Funciones extra para la correcta actualización de UI tras unitarias
+    def set_label_if_present(self, info:dict, key:str, label, prefix: str, transform=lambda x: x):
+        if key not in info:
+            return # No hacer nada si no viene el valor
+        val = info.get(key)
+        if val in (None, "", "-", "—", "NAN", "NONE", "NULL", "N/A", "NA", "--", "---"):
+            return # NO pintar valores corruptos
+        label.configure(text=f"{prefix}{transform(val)}")
+    
+    def _mac_transform(self, v):
+        return str(v).upper().replace(":", "-")
 
 if __name__ == "__main__":
     ctk.set_appearance_mode("light")
