@@ -703,6 +703,14 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
                 self.test_results["tests"][result["name"]] = result
 
                 emit("test_individual", {"name": result.get("name",""), "status": result.get("status","FAIL")})
+
+        # Cerrar sesión FiberHome al finalizar diccionario de pruebas
+        if self.model in ("MOD001", "MOD008"):
+            try:
+                self._router_logout_best_effort()
+            except Exception as e:
+                print(f"[LOGOUT] Error cerrando sesión post-pruebas: {e}")
+
         return self.test_results
 
     def _generarCertificado(self):
@@ -1182,6 +1190,13 @@ def run_retest_mode(host: str, model: str = None, output: str = None):
             result = test_methods[test_name]()
             tester.test_results["tests"][result["name"]] = result
     
+    # Cerrar sesión FiberHome al finalizar retesteo
+    if tester.model in ("MOD001", "MOD008"):
+        try:
+            tester._router_logout_best_effort()
+        except Exception as e:
+            print(f"[LOGOUT] Error cerrando sesión post-retesteo: {e}")
+            
     # Mostrar reporte
     print("\n" + tester.generate_report())
     
