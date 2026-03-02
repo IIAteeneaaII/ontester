@@ -882,14 +882,14 @@ class TesterView(ctk.CTkFrame):
             if (sn_registro == "—" or sn_registro == None):
                 raw = self.snInfo.cget("text")         
                 sn_registro = raw.replace("SN:", "", 1).strip() # Leer el sn de la UI, Eliminar "SN: "
-            # Antes de insertar hay que validar que el sn no esté ya registrado en ese MODO
-            print(f"SN FINAL A REGISTRAR: {sn_registro}")
-            registroAnterior = existe_operacion_dia(sn_registro, modo)
-            if registroAnterior:
                 # Actualizar SN
                 info = payload.get("info") or {}
                 info["sn"] = sn_registro
                 payload["info"] = info
+            # Antes de insertar hay que validar que el sn no esté ya registrado en ese MODO
+            print(f"SN FINAL A REGISTRAR: {sn_registro}")
+            registroAnterior = existe_operacion_dia(sn_registro, modo)
+            if registroAnterior:
                 # Actualizar registro, pero emitir que se modificará la BD
                 def emit(kind, payload):
                     if self.master.event_q:
@@ -901,7 +901,7 @@ class TesterView(ctk.CTkFrame):
                     result = 0
                 else:
                     print("[TESTER] Llamando a update")
-
+                    
                     result = actualizar_operacion(payload, modo, user_id)
 
                 if result == 1:
@@ -910,10 +910,6 @@ class TesterView(ctk.CTkFrame):
                     emit("pruebas", "Error en la información")
                 validar_por_modo(sn_registro, modo)
             else:
-                # Actualizar SN
-                info = payload.get("info") or {}
-                info["sn"] = sn_registro
-                payload["info"] = info
                 id = insertar_operacion(payload, modo, user_id)
                 # Actualizar el campo de valido
                 validar_por_modo(sn_registro, modo)
