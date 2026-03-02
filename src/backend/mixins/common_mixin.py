@@ -1202,41 +1202,78 @@ class CommonMixin:
             .get("SoftwareVer", "N/A")
         )
 
+    # Helper para extraccion de información solo si viene
+    def _get_info_exists(self, d, *path, default=None):
+        cur = d
+        for k in path:
+            if not isinstance(cur, dict) or k not in cur:
+                return default
+            cur = cur[k]
+        return cur
+    
     def _resultadosFiber(self):
         optTest = self.opcionesTest
         tests_opts = optTest.get("tests", {})
-        # Valores informativos
-        fecha = self.test_results['metadata'].get('timestamp') # "2025-11-28T13:51:32.497520"
-        modelo = self.test_results['metadata']['device_name'] # modelo 
-        sn = self.test_results['metadata']['base_info']['raw_data'].get('gponsn') #sn
-        mac = self.test_results['metadata']['base_info']['raw_data'].get('brmac') #mac
-        sftVer = self.test_results['metadata']['base_info']['raw_data'].get('SoftwareVersion') #nombre sft
-        wifi24 = self.test_results['metadata']['base_info']['wifi_info'].get('ssid_24ghz') #nombre wifi 2.4
-        wifi5 = self.test_results['metadata']['base_info']['wifi_info'].get('ssid_5ghz') #nombre wifi 2.4
-        passWifi = self.test_results['additional_info']['wifi_info']['psw'].get('password_24ghz') # contraseña
+        tr = self.test_results or {} # por si no existe 
 
-        # Tests
-        ping = "PASS" # pass
+        # Armar estructura
+        info = {}
+        tests = {}
+
+        # Valores informativos, solo si existen
+        fecha = self._get_info_exists(tr, "metadata", "timestamp") #self.test_results['metadata'].get('timestamp') # "2025-11-28T13:51:32.497520"
+        if fecha: info["fecha_test"] = fecha
+
+        modelo = self._get_info_exists(tr, "metadata", "device_name") #self.test_results['metadata']['device_name'] # modelo 
+        if modelo: info["modelo"] = modelo
+
+        sn = self._get_info_exists(tr, "metadata", "base_info", "raw_data", "gponsn") #self.test_results['metadata']['base_info']['raw_data'].get('gponsn') #sn
+        if sn: 
+            info["sn"] = sn
+        else:
+            info["sn"] = self._get_info_exists(tr, "metadata", "serial_number_physical")
+
+        mac = self._get_info_exists(tr, "metadata", "base_info", "raw_data", "brmac") #self.test_results['metadata']['base_info']['raw_data'].get('brmac') #mac
+        if mac: info["mac"] = mac
+        
+        sftVer = self._get_info_exists(tr, "metadata", "base_info", "raw_data", "SoftwareVersion") #self.test_results['metadata']['base_info']['raw_data'].get('SoftwareVersion') #nombre sft
+        if sftVer: info["sftVer"] = sftVer
+
+        wifi24 = self._get_info_exists(tr, "metadata", "base_info", "wifi_info", "ssid_24ghz")#self.test_results['metadata']['base_info']['wifi_info'].get('ssid_24ghz') #nombre wifi 2.4
+        if wifi24: info["wifi24"] = wifi24
+        
+        wifi5 = self._get_info_exists(tr, "metadata", "base_info", "wifi_info", "ssid_5ghz")#self.test_results['metadata']['base_info']['wifi_info'].get('ssid_5ghz') #nombre wifi 2.4
+        if wifi5: info["wifi5"] = wifi5
+
+        passWifi = self._get_info_exists(tr, "additional_info", "wifi_info", "psw", "password_24ghz")#self.test_results['additional_info']['wifi_info']['psw'].get('password_24ghz') # contraseña
+        if passWifi: info["passWifi"] = passWifi
+
+
+        # Tests, solo si se hicieron
+
+        # Por convención, si no viene no poner en SIN PRUEBA
+        tests["ping"] = "PASS" # pass
+
         if tests_opts.get("factory_reset", True):
             # Verificar si el test de factory_reset realmente se ejecutó
             factory_test = self.test_results.get('tests', {}).get('FACTORY_RESET_PASS')
             if factory_test is not None:
-                reset = factory_test.get('status') # pass
+                tests["reset"] = factory_test.get('status') # pass
             else:
                 # El test de factory_reset no se ejecutó (prueba unitaria de otro test)
-                reset = "SIN PRUEBA"
-        else:
-            reset = "SIN PRUEBA"
+                tests["reset"] = "SIN PRUEBA"
+        # else:
+        #     tests["reset"] = "SIN PRUEBA"
         if tests_opts.get("usb_port", True):
             # Verificar si el test de USB realmente se ejecutó
             usb_test = self.test_results.get('tests', {}).get('USB_PORT')
             if usb_test is not None:
-                usb = usb_test.get('status') # pass
+                tests["usb"] = usb_test.get('status') # pass
             else:
                 # El test de USB no se ejecutó (prueba unitaria de otro test)
-                usb = "SIN PRUEBA"
-        else:
-            usb = "SIN PRUEBA"
+                tests["usb"] = "SIN PRUEBA"
+        # else:
+        #     tests["usb"] = "SIN PRUEBA"
         if tests_opts.get("tx_power", True) and tests_opts.get("rx_power", True):
             tx = self.test_results['metadata']['base_info'].get('tx_power_dbm') # valor negativo
             rx = self.test_results['metadata']['base_info'].get('rx_power_dbm') # valor negativo
@@ -1265,11 +1302,11 @@ class CommonMixin:
             if rx_f is not None:
                 rx_ok = (rx_f >= min_rx and rx_f <= max_rx)
 
-            tx = tx if tx_ok else False
-            rx = rx if rx_ok else False
-        else:
-            tx = "SIN PRUEBA"
-            rx = "SIN PRUEBA"
+            tests["tx"] = tx if tx_ok else False
+            tests["rx"] = rx if rx_ok else False
+        # else:
+        #     tests["tx"] = "SIN PRUEBA"
+        #     tests["rx"] = "SIN PRUEBA"
         
         if tests_opts.get("wifi_24ghz_signal", True) and tests_opts.get("wifi_5ghz_signal", True):
             # Verificar si los tests de WiFi realmente se ejecutaron
@@ -1289,25 +1326,25 @@ class CommonMixin:
                     max_valor_wifi5 = self._getMaxWifi5Signal()
 
                     if(rssi_2g >= min_valor_wifi and rssi_2g <= max_valor_wifi):
-                        w24 = True
+                        tests["w24"] = True
                     else:
-                        w24 = False
+                        tests["w24"] = False
 
                     if(rssi_5g >= min_valor_wifi5 and rssi_5g <= max_valor_wifi5):
-                        w5 = True
+                        tests["w5"] = True
                     else:
-                        w5 = False
+                        tests["w5"] = False
                 except:
-                    w24 = False
-                    w5 = False
+                    tests["w24"] = False
+                    tests["w5"] = False
             else:
                 # Los tests de WiFi no se ejecutaron (prueba unitaria de otro test)
-                w24 = "SIN PRUEBA"
-                w5 = "SIN PRUEBA"
-        else:
-            w24 = "SIN PRUEBA"
-            w5 = "SIN PRUEBA"
-        sftU = "SIN PRUEBA"
+                tests["w24"] = "SIN PRUEBA"
+                tests["w5"] = "SIN PRUEBA"
+        # else:
+        #     tests["w24"] = "SIN PRUEBA"
+        #     tests["w5"] = "SIN PRUEBA"
+        #sftU = "SIN PRUEBA"
         if tests_opts.get("software_update", True):
             # Verificar si el test de software_update realmente se ejecutó
             sft_test = self.test_results.get('tests', {}).get('software_update')
@@ -1321,15 +1358,18 @@ class CommonMixin:
                     sftVer = sftVer+" !"
                     if actC:
                         sftVer = actNV+" ACTUALIZADO"
-                        sftU = True
+                        tests["sftU"] = True
                 else:
-                    sftU = True
+                    tests["sftU"] = True
             # else: sftU ya está inicializado como "SIN PRUEBA"
-        
+            # else:
+            #     tests["sftU"] = "SIN PRUEBA"
+
         # Obtener los resultados como json
-        resultado = {}
-        resultado = self._resultados_json_corto(fecha, modelo, sn, mac, sftVer, wifi24, wifi5, passWifi, ping, reset, usb, tx, rx, w24, w5, sftU)
-        return resultado
+        #resultado = {}
+        #resultado = self._resultados_json_corto(fecha, modelo, sn, mac, sftVer, wifi24, wifi5, passWifi, ping, reset, usb, tx, rx, w24, w5, sftU)
+        #return resultado
+        return {"info": info, "tests": tests, "valido": False}
     
     def _resultadosZTE(self):
         optTest = self.opcionesTest

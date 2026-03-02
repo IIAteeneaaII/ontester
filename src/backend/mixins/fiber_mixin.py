@@ -854,13 +854,13 @@ class FiberMixin:
                 reduced["raw_data"] = raw
 
             # Identificación (SN físico preferente)
-            if info_opts.get("sn", False):
-                if raw.get("gponsn"):
-                    reduced["serial_number_physical"] = raw.get("gponsn")
-                elif raw.get("SerialNumber"):
-                    reduced["serial_number_logical"] = raw.get("SerialNumber")
-                elif raw.get("serial_number"):
-                    reduced["serial_number_logical"] = raw.get("serial_number")
+            #if info_opts.get("sn", False): # por seguridad siempre extraerlo
+            if raw.get("gponsn"):
+                reduced["serial_number_physical"] = raw.get("gponsn")
+            elif raw.get("SerialNumber"):
+                reduced["serial_number_logical"] = raw.get("SerialNumber")
+            elif raw.get("serial_number"):
+                reduced["serial_number_logical"] = raw.get("serial_number")
 
             # MAC (primer key válida)
             if info_opts.get("mac", False):
@@ -870,11 +870,11 @@ class FiberMixin:
                         break
 
             # Modelo y versión de software
-            if info_opts.get("model", False):
-                if raw.get("ModelName"):
-                    reduced["model_name"] = raw.get("ModelName")
-                elif raw.get("model_name"):
-                    reduced["model_name"] = raw.get("model_name")
+            # if info_opts.get("model", False):
+            if raw.get("ModelName"):
+                reduced["model_name"] = raw.get("ModelName")
+            elif raw.get("model_name"):
+                reduced["model_name"] = raw.get("model_name")
             if info_opts.get("software_version", False):
                 if raw.get("SoftwareVersion"):
                     reduced["software_version"] = raw.get("SoftwareVersion")
@@ -882,12 +882,12 @@ class FiberMixin:
                     reduced["software_version"] = raw.get("software_version")
 
             # Potencias ópticas (TX/RX)
-            if info_opts.get("tx_power", False):
+            if tests_opts.get("tx_power", False):
                 if raw.get("txpower") is not None:
                     reduced["tx_power_dbm"] = raw.get("txpower")
                 elif raw.get("tx_power_dbm") is not None:
                     reduced["tx_power_dbm"] = raw.get("tx_power_dbm")
-            if info_opts.get("rx_power", False):
+            if tests_opts.get("rx_power", False):
                 if raw.get("rxpower") is not None:
                     reduced["rx_power_dbm"] = raw.get("rxpower")
                 elif raw.get("rx_power_dbm") is not None:
@@ -907,7 +907,8 @@ class FiberMixin:
                     reduced["rx_power_dbm"] = raw.get("rx_power_dbm")
 
             # USB / capacidades
-            if info_opts.get("usb", False) or info_opts.get("usb_port", False):
+            if tests_opts.get("usb", False) or tests_opts.get("usb_port", False):
+                print("INTENTANDO EXTRAER DE USB")
                 if raw.get("usb_port_num") is not None:
                     reduced["usb_ports"] = raw.get("usb_port_num")
                 if raw.get("usb_status") is not None:
@@ -1587,9 +1588,102 @@ class FiberMixin:
             "details": {}
         }
 
-        # Usar get_base_info para filtrar el estado "usb_status"
-        base_info = self.test_results['metadata'].get('base_info')
+        # 1) Capacidad de hardware desde base_info
+        base_info = self.test_results.get("metadata", {}).get("base_info")
+        
         if not base_info:
+            print("FALTA BASE INFO")
+            extracted = self._extract_base_info()
+            print(f"EXTRACTED: {extracted}")
+            if extracted:
+                meta = self.test_results.setdefault("metadata", {})
+                meta["base_info"] = extracted
+                base_info = extracted
+            # result["details"]["error"] = "No se pudo obtener información de hardware (base_info)."
+            # result["details"]["note"] = "get_base_info no disponible"
+            # return result
+        
+        raw = base_info.get("raw_data") or {}
+        usb_ports = (
+            base_info.get("usb_ports")
+            or raw.get("usb_ports")
+            or base_info.get("usb_port_num")
+            or raw.get("usb_port_num")
+            or 0
+        )
+        usb_status = (
+             base_info.get("usb_status")
+             or raw.get("usb_status")
+        )
+
+        # Normaliza el tipo
+        try:
+            usb_ports = int(usb_ports)
+        except (TypeError, ValueError):
+            usb_ports = 0
+
+        result["details"]["hardware_method"] = "AJAX get_base_info"
+        result["details"]["usb_ports_capacity"] = usb_ports
+        if usb_status is not None:
+            result["details"]["usb_status_flag"] = usb_status
+
+        # Si el modelo no declara puertos USB, nada más que hacer
+        if usb_ports <= 0:
+            result["details"]["note"] = "El equipo no reporta puertos USB en base_info."
+            return result
+
+        # 2) Dispositivos conectados vía get_ftpclient_info (mejor esfuerzo)
+        ftp_info: Dict[str, Any] = {}
+        devices: list[str] = []
+        connected_count: int = 0
+
+        try:
+            ftp_info = self._ajax_get("get_ftpclient_info") or {}
+        except Exception as e:
+            # NO hacemos return aquí; solo dejamos registro y usamos solo base_info
+            result["details"]["warning_ftp"] = f"Error llamando get_ftpclient_info: {e}"
+        else:
+            # Normaliza session_valid (puede venir como '1', '0', 1, 0, etc.)
+            session_raw = ftp_info.get("session_valid")
+            try:
+                session_valid = int(session_raw)
+            except (TypeError, ValueError):
+                # si viene raro, no lo tomamos como fatal
+                session_valid = None
+
+            result["details"]["ftp_session_valid"] = session_raw
+
+            usb_list_raw = ftp_info.get("UsbList") or ftp_info.get("USBList") or ""
+            usb_list_raw = str(usb_list_raw)
+
+            if usb_list_raw:
+                devices = [d for d in re.split(r"[,\s]+", usb_list_raw) if d]
+                connected_count = len(devices)
+                result["details"]["usb_devices_connected"] = connected_count
+                result["details"]["usb_devices_list"] = devices
+                result["details"]["usb_list_raw"] = usb_list_raw
+            else:
+                # No lista de dispositivos; marcamos aviso pero no lo tratamos como fallo “duro”
+                if session_valid not in (1, None):
+                    result["details"]["warning_ftp"] = (
+                        f"get_ftpclient_info devolvió session_valid={session_raw} "
+                        "y no se recibió UsbList."
+                    )
+
+        # 3) Decidir PASS/FAIL usando TODA la info disponible
+        usb_status_str = str(usb_status).strip().lower() if usb_status is not None else ""
+        status_indica_activo = usb_status_str in ("active", "on", "1", "enable", "enabled", "inserted")
+
+        # Caso ideal: tenemos lista y coincide con la capacidad
+        if connected_count >= usb_ports and usb_ports > 0: # Aparentemente el puerto 2 sobre reporta conexiones
+            result["status"] = "PASS"
+            result["details"]["note"] = (
+                f"Capacidad declarada: {usb_ports} puerto(s); "
+                f"dispositivos detectados: {connected_count} (OK)."
+            )
+
+        # Hay algunos dispositivos, pero menos que la capacidad -> FAIL
+        elif connected_count > 0 and usb_ports > 0:
             result["status"] = "FAIL"
             result["details"]["error"] = "No se pudo obtener base_info (sesión inválida o no disponible)"
             result["details"]["method"] = "AJAX get_base_info"
