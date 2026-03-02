@@ -879,9 +879,17 @@ class TesterView(ctk.CTkFrame):
             user_id = int(getattr(root, "current_user_id", None))
             # Validar que el SN venga en la payload
             sn_registro = info.get("sn", "—")
+            if (sn_registro == "—" or sn_registro == None):
+                raw = self.snInfo.cget("text")         
+                sn_registro = raw.replace("SN:", "", 1).strip() # Leer el sn de la UI, Eliminar "SN: "
             # Antes de insertar hay que validar que el sn no esté ya registrado en ese MODO
-            registroAnterior = existe_operacion_dia(info.get("sn", "—"), modo)
+            print(f"SN FINAL A REGISTRAR: {sn_registro}")
+            registroAnterior = existe_operacion_dia(sn_registro, modo)
             if registroAnterior:
+                # Actualizar SN
+                info = payload.get("info") or {}
+                info["sn"] = sn_registro
+                payload["info"] = info
                 # Actualizar registro, pero emitir que se modificará la BD
                 def emit(kind, payload):
                     if self.master.event_q:
@@ -889,21 +897,26 @@ class TesterView(ctk.CTkFrame):
                 emit("log", "DISPOSITIVO YA REGISTRADO, MODIFICANDO INFORMACIÓN Y RESULTADOS")
                 from src.backend.sua_client.dao import actualizar_operacion
                 from src.backend.endpoints.conexion import is_bad_info
-                if (is_bad_info(info.get("sn"))):
+                if (is_bad_info(sn_registro)):
                     result = 0
                 else:
                     print("[TESTER] Llamando a update")
+
                     result = actualizar_operacion(payload, modo, user_id)
 
                 if result == 1:
                     emit("pruebas", "BD actualizada con el nuevo registro")
                 else:
                     emit("pruebas", "Error en la información")
-                validar_por_modo(info.get("sn","-"), modo)
+                validar_por_modo(sn_registro, modo)
             else:
+                # Actualizar SN
+                info = payload.get("info") or {}
+                info["sn"] = sn_registro
+                payload["info"] = info
                 id = insertar_operacion(payload, modo, user_id)
                 # Actualizar el campo de valido
-                validar_por_modo(info.get("sn","-"), modo)
+                validar_por_modo(sn_registro, modo)
                 payload_final = extraer_by_id(id, "operations")
             
             self.updatePruebas()

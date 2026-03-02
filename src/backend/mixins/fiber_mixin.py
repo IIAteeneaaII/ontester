@@ -854,13 +854,13 @@ class FiberMixin:
                 reduced["raw_data"] = raw
 
             # Identificación (SN físico preferente)
-            if info_opts.get("sn", False):
-                if raw.get("gponsn"):
-                    reduced["serial_number_physical"] = raw.get("gponsn")
-                elif raw.get("SerialNumber"):
-                    reduced["serial_number_logical"] = raw.get("SerialNumber")
-                elif raw.get("serial_number"):
-                    reduced["serial_number_logical"] = raw.get("serial_number")
+            #if info_opts.get("sn", False): # por seguridad siempre extraerlo
+            if raw.get("gponsn"):
+                reduced["serial_number_physical"] = raw.get("gponsn")
+            elif raw.get("SerialNumber"):
+                reduced["serial_number_logical"] = raw.get("SerialNumber")
+            elif raw.get("serial_number"):
+                reduced["serial_number_logical"] = raw.get("serial_number")
 
             # MAC (primer key válida)
             if info_opts.get("mac", False):
@@ -870,11 +870,11 @@ class FiberMixin:
                         break
 
             # Modelo y versión de software
-            if info_opts.get("model", False):
-                if raw.get("ModelName"):
-                    reduced["model_name"] = raw.get("ModelName")
-                elif raw.get("model_name"):
-                    reduced["model_name"] = raw.get("model_name")
+            # if info_opts.get("model", False):
+            if raw.get("ModelName"):
+                reduced["model_name"] = raw.get("ModelName")
+            elif raw.get("model_name"):
+                reduced["model_name"] = raw.get("model_name")
             if info_opts.get("software_version", False):
                 if raw.get("SoftwareVersion"):
                     reduced["software_version"] = raw.get("SoftwareVersion")
@@ -882,12 +882,12 @@ class FiberMixin:
                     reduced["software_version"] = raw.get("software_version")
 
             # Potencias ópticas (TX/RX)
-            if info_opts.get("tx_power", False):
+            if tests_opts.get("tx_power", False):
                 if raw.get("txpower") is not None:
                     reduced["tx_power_dbm"] = raw.get("txpower")
                 elif raw.get("tx_power_dbm") is not None:
                     reduced["tx_power_dbm"] = raw.get("tx_power_dbm")
-            if info_opts.get("rx_power", False):
+            if tests_opts.get("rx_power", False):
                 if raw.get("rxpower") is not None:
                     reduced["rx_power_dbm"] = raw.get("rxpower")
                 elif raw.get("rx_power_dbm") is not None:
@@ -907,7 +907,8 @@ class FiberMixin:
                     reduced["rx_power_dbm"] = raw.get("rx_power_dbm")
 
             # USB / capacidades
-            if info_opts.get("usb", False) or info_opts.get("usb_port", False):
+            if tests_opts.get("usb", False) or tests_opts.get("usb_port", False):
+                print("INTENTANDO EXTRAER DE USB")
                 if raw.get("usb_port_num") is not None:
                     reduced["usb_ports"] = raw.get("usb_port_num")
                 if raw.get("usb_status") is not None:
@@ -1589,12 +1590,20 @@ class FiberMixin:
 
         # 1) Capacidad de hardware desde base_info
         base_info = self.test_results.get("metadata", {}).get("base_info")
-        raw = base_info.get("raw_data") or {}
+        
         if not base_info:
-            result["details"]["error"] = "No se pudo obtener información de hardware (base_info)."
-            result["details"]["note"] = "get_base_info no disponible"
-            return result
-
+            print("FALTA BASE INFO")
+            extracted = self._extract_base_info()
+            print(f"EXTRACTED: {extracted}")
+            if extracted:
+                meta = self.test_results.setdefault("metadata", {})
+                meta["base_info"] = extracted
+                base_info = extracted
+            # result["details"]["error"] = "No se pudo obtener información de hardware (base_info)."
+            # result["details"]["note"] = "get_base_info no disponible"
+            # return result
+        
+        raw = base_info.get("raw_data") or {}
         usb_ports = (
             base_info.get("usb_ports")
             or raw.get("usb_ports")
