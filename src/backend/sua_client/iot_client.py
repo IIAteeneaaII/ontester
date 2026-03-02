@@ -5,6 +5,7 @@ import time
 import threading
 from datetime import datetime
 from .settings import *
+import uuid
 
 class IoTClient:
     def __init__(self, station_id=None):
@@ -12,11 +13,38 @@ class IoTClient:
         self.client = None
         self.connected = False
         self.heartbeat_timer = None
-        
+
+    def _on_connect(self, client, userdata, flags, rc):
+        """Callback cuando se establece conexión con AWS IoT"""
+        print(f"[MQTT] on_connect rc={rc} flags={flags}")
+        if rc == 0:
+            self.connected = True
+            print("[MQTT]  Conexión establecida con AWS IoT")
+        else:
+            print(f"[MQTT]  Conexión rechazada rc={rc}")
+            self.connected = False
+
+    def _on_disconnect(self, client, userdata, rc):
+        """Callback cuando se pierde la conexión"""
+        print(f"[MQTT] DESCONECTADO rc={rc}")
+        if rc == 0:
+            print("[MQTT] Desconexión limpia")
+        else:
+            print(f"[MQTT]  Desconexión inesperada - AWS cerró la conexión")
+        self.connected = False
+
+    def _on_publish(self, client, userdata, mid):
+        print(f"[MQTT] Mensaje confirmado mid={mid}")
+
     def connect(self):
         """Conecta a AWS IoT Core"""
         try:
             self.client = mqtt.Client(client_id=self.station_id)
+
+            #callbacks
+            self.client.on_connect = self._on_connect
+            self.client.on_disconnect = self._on_disconnect
+            self.client.on_publish = self._on_publish
             
             # Configurar TLS
             self.client.tls_set(
@@ -33,27 +61,29 @@ class IoTClient:
                 lwt_topic,
                 payload=json.dumps({"status": "offline", "timestamp": time.time()}),
                 qos=1,
-                retain=True
+                retain=False
             )
             
             # Conectar
             self.client.connect(AWS_IOT_ENDPOINT, AWS_IOT_PORT, keepalive=300)
             self.client.loop_start()
-            self.connected = True
-            
-            # Publicar presencia online
-            self._publish_presence("online")
-            
-            # Iniciar heartbeat
-            # self._start_heartbeat()
-            
+            #Espera a que se establezca la conexión antes de marcar como conectado
+            timeout = 5  # segundos
+            start_time = time.time()
+            while not self.connected and (time.time() - start_time) < timeout:
+                time.sleep(0.1)
+            if not self.connected:
+                print("Timeout esperando conexión MQTT")
+                return False
+            self._publish_presence("online")  # Publicar presencia online al conectar
             print(f"Conectado a AWS IoT como estación {self.station_id}")
             return True
             
+            
         except Exception as e:
             print(f"Error conectando a AWS IoT: {e}")
-            self.connected = False
             return False
+    
     
     def disconnect(self):
         """Desconecta de AWS IoT"""
@@ -82,7 +112,7 @@ class IoTClient:
             "env": ENVIRONMENT,
             "timestamp": datetime.now().isoformat()
         }
-        self._publish(topic, payload, retain=True)
+        self._publish(topic, payload, retain=False)
     
     def publish_event(self, event_type, data=None):
         """Publica un evento"""
@@ -109,6 +139,11 @@ class IoTClient:
         self._publish(topic, payload)
     
     def _publish(self, topic, payload, qos=1, retain=False):
+        # Agregar ID único para detectar duplicados en AWS
+        payload["message_id"] = str(uuid.uuid4())  # <-- ID único
+        payload["publish_time"] = time.time()
+
+        
         """Publica mensaje MQTT"""
         if not self.connected:
             print(f"ERROR: No conectado, no se puede publicar en {topic}")
