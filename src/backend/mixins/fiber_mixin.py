@@ -79,79 +79,50 @@ class FiberMixin:
             service = Service(driver_path)
             driver = webdriver.Chrome(service=service, options=chrome_options)
             
-            # --- LIMPIEZA DE SESIONES PREVIA (MEJORADA CON POST) ---
-            print("[SELENIUM] FORZANDO CIERRE DE SESIONES ACTIVAS...")
+            # --- LIMPIEZA DE SESIONES PREVIA ---
+            print("[SELENIUM] Verificando sesiones activas...")
             try:
-                # PASO 1: Navegar a login para establecer contexto
-                driver.set_page_load_timeout(5)
-                try:
-                    print("[SELENIUM] Navegando a login para verificar sesiones...")
-                    driver.get(f"http://{self.host}/html/login_inter.html")
-                    time.sleep(1)
-                    
-                    # Verificar si hay alerta de sesión activa Y ACEPTARLA
-                    try:
-                        alert = driver.switch_to.alert
-                        alert_text = alert.text
-                        if "already" in alert_text.lower() or "logged" in alert_text.lower():
-                            print(f"[SELENIUM] ⚠️ Sesión activa detectada: '{alert_text[:60]}...'")
-                            print("[SELENIUM] Aceptando alerta para forzar cierre...")
-                            alert.accept()
-                            time.sleep(2)  # Esperar a que el servidor procese
-                        else:
-                            alert.accept()
-                    except:
-                        print("[SELENIUM] No hay alerta de sesión activa")
-                        pass
-                except Exception as e:
-                    print(f"[SELENIUM] Error verificando login: {e}")
-                
-                # PASO 2: POST logout explícito usando JavaScript
-                print("[SELENIUM] Enviando comandos de logout...")
-                logout_commands = [
-                    f"fetch('http://{self.host}/cgi-bin/do_logout', {{method: 'POST', credentials: 'include'}}).catch(() => {{}})",
-                    f"fetch('http://{self.host}/html/logout.html', {{method: 'GET', credentials: 'include'}}).catch(() => {{}})",
-                    f"document.cookie.split(';').forEach(c => {{document.cookie = c.trim().split('=')[0] + '=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;'}})"
-                ]
-                
-                for cmd in logout_commands:
-                    try:
-                        driver.execute_script(cmd)
-                        time.sleep(0.3)
-                    except:
-                        pass
-                
-                # PASO 3: Limpiar cookies del navegador
+                # Navegar a la UI principal para intentar logout limpio
+                driver.set_page_load_timeout(10)
+                driver.get(f"http://{self.host}/html/main_inter.html")
+                time.sleep(1)
+
+                # Intentar encontrar y clickear el botón logout (si hay sesión activa, estará visible)
+                el = self.find_element_anywhere(driver, By.ID, "logout", desc="Logout (limpieza)", timeout=3)
+                if el:
+                    el.click()
+                    print("[SELENIUM] ✓ Sesión previa cerrada con logout")
+                    time.sleep(2)
+                else:
+                    print("[SELENIUM] No hay sesión activa (logout no encontrado)")
+
+                # Limpiar cookies del navegador
                 driver.delete_all_cookies()
-                print("[SELENIUM] Cookies eliminadas")
-                
-                # PASO 4: Recargar página de login LIMPIA
-                print("[SELENIUM] Recargando login limpio...")
+
+                # Navegar a login limpio
                 driver.get(f"http://{self.host}/html/login_inter.html")
                 time.sleep(1)
-                
-                # PASO 5: Verificar si TODAVÍA hay alerta
+
+                # Aceptar alerta si persiste
                 try:
                     alert = driver.switch_to.alert
-                    print(f"[SELENIUM] ⚠️ ALERTA PERSISTENTE: {alert.text[:60]}")
+                    print(f"[SELENIUM] Alerta persistente: {alert.text[:60]}")
                     alert.accept()
                     time.sleep(2)
-                    
-                    # Si persiste, esperar más tiempo para que el servidor libere la sesión
-                    print("[SELENIUM] Esperando 5s para que el servidor libere sesión...")
-                    time.sleep(5)
-                    
-                    # Recargar una vez más
+                except:
+                    pass
+
+                driver.set_page_load_timeout(30)
+                print("[SELENIUM] ✓ Limpieza de sesiones completada")
+
+            except Exception as e:
+                print(f"[WARN] Error en limpieza previa: {e}")
+                try:
+                    driver.set_page_load_timeout(30)
                     driver.get(f"http://{self.host}/html/login_inter.html")
                     time.sleep(1)
                 except:
-                    print("[SELENIUM] ✓ Login limpio - sin alertas")
-                
-                driver.set_page_load_timeout(30)  # Restaurar timeout
-                print("[SELENIUM] ✓ Limpieza de sesiones completada")
-                
-            except Exception as e:
-                print(f"[WARN] Error en limpieza previa: {e}")
+                    pass
             # -----------------------------------
 
             # Ya estamos en la página de login después de la limpieza
@@ -463,51 +434,30 @@ class FiberMixin:
 
     def _router_logout_best_effort(self, driver=None):
         """
-        Cierra la sesión activa del router Fiberhome.
-        Click en botón logout (id='logout') ubicado en header->top-menu.
+        Cierra la sesión activa del router FiberHome.
+        Usa find_element_anywhere para localizar el <a id="logout"> 
+        (está en el nivel más alto de la UI, no requiere navegación profunda).
         """
         if driver is None:
-            driver = self.driver
-        
+            driver = getattr(self, "driver", None)
+
         if not driver:
-            print("[LOGOUT] No hay driver, creando uno temporal para logout...")
-            # Crear driver temporal solo para hacer logout
-            try:
-                chrome_options = Options()
-                chrome_binary = self._get_chrome_binary_path()
-                chrome_options.binary_location = chrome_binary
-                chrome_options.add_argument('--headless')
-                chrome_options.add_argument('--no-sandbox')
-                chrome_options.add_argument('--disable-dev-shm-usage')
-                chrome_options.add_argument('--disable-gpu')
-                chrome_options.add_argument('--log-level=3')
-                driver_path = self._get_chromedriver_path()
-                service = Service(driver_path)
-                driver = webdriver.Chrome(service=service, options=chrome_options)
-            except Exception as e:
-                print(f"[LOGOUT] Error creando driver temporal: {e}")
-                return False
-        
+            print("[LOGOUT] No hay driver, no hay sesión que cerrar")
+            return False
+
         try:
-            # Navegar a UI principal y click en botón logout
-            driver.get(f"{self.base_url}/html/main_inter.html")
-            time.sleep(1)
-            
-            logout_clicked = self.click_anywhere2(
-                driver, 
-                [(By.ID, "logout")], 
-                desc="Botón Logout", 
-                timeout=5
-            )
-            
-            if logout_clicked:
+            driver.switch_to.default_content()
+            el = self.find_element_anywhere(driver, By.ID, "logout", desc="Logout", timeout=5)
+
+            if el:
+                el.click()
                 print("[LOGOUT] ✓ Sesión cerrada")
                 time.sleep(1)
                 return True
-            else:
-                print("[LOGOUT] Botón logout no encontrado (puede que ya esté deslogueado)")
-                return True  # Asumimos que ya está deslogueado
-                
+
+            print("[LOGOUT] Botón logout no encontrado (puede que no haya sesión activa)")
+            return False
+
         except Exception as e:
             print(f"[LOGOUT] Error: {e}")
             return False
@@ -1639,6 +1589,11 @@ class FiberMixin:
 
         # Usar get_base_info para filtrar el estado "usb_status"
         base_info = self.test_results['metadata'].get('base_info')
+        if not base_info:
+            result["status"] = "FAIL"
+            result["details"]["error"] = "No se pudo obtener base_info (sesión inválida o no disponible)"
+            result["details"]["method"] = "AJAX get_base_info"
+            return result
         
         # Buscar usb_status directamente en raw_data
         raw = base_info.get('raw_data', {}) if isinstance(base_info, dict) else {}
@@ -2060,61 +2015,6 @@ class FiberMixin:
 
         print(f"[SELENIUM] No se encontró/clickeó: {desc} en {timeout}s. Último error: {last_err}")
         return False
-
-    def fh_find_logout(self, driver=None, timeout: float = 5) -> Optional[object]:
-        """
-        Buscar el enlace de logout en la UI FiberHome (id="logout").
-        - Usa `self.find_element_anywhere` si existe, si no usa `self.find_element_anywhere2`.
-        - No hace clic, solo devuelve el WebElement si está presente y visible.
-        - Devuelve None si no se encuentra o no es visible dentro del timeout.
-        """
-        if driver is None:
-            driver = getattr(self, "driver", None)
-
-        if not driver:
-            return None
-
-        # Elegir helper disponible para búsqueda multi-frame
-        finder = getattr(self, "find_element_anywhere", None) or getattr(self, "find_element_anywhere2", None)
-
-        # Intento robusto con un reintento en caso de StaleElementReferenceException
-        attempts = 2
-        last_exc = None
-        for _ in range(attempts):
-            try:
-                if finder:
-                    el = finder(driver, By.ID, "logout", desc="Logout", timeout=timeout)
-                else:
-                    # Fallback directo si no hay helper
-                    try:
-                        el = driver.find_element(By.ID, "logout")
-                    except Exception:
-                        el = None
-
-                if el is None:
-                    return None
-
-                # Verificar visibilidad/interactuabilidad
-                try:
-                    if getattr(el, "is_displayed", lambda: True)():
-                        return el
-                    else:
-                        return None
-                except StaleElementReferenceException as e:
-                    last_exc = e
-                    time.sleep(0.15)
-                    continue
-
-            except StaleElementReferenceException as e:
-                last_exc = e
-                time.sleep(0.15)
-                continue
-            except Exception as e:
-                # Cualquier otra excepción devolver None (no romper flujo superior)
-                last_exc = e
-                return None
-
-        return None
     
     def _goto_local_upgrade_menu(self, driver, timeout=15) -> bool:
         """
