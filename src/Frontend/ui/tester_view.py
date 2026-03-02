@@ -877,6 +877,8 @@ class TesterView(ctk.CTkFrame):
             modo = self.modo_var.get()
             root = self.winfo_toplevel()
             user_id = int(getattr(root, "current_user_id", None))
+            # Validar que el SN venga en la payload
+            sn_registro = info.get("sn", "—")
             # Antes de insertar hay que validar que el sn no esté ya registrado en ese MODO
             registroAnterior = existe_operacion_dia(info.get("sn", "—"), modo)
             if registroAnterior:

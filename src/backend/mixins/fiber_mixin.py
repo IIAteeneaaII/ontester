@@ -1699,13 +1699,23 @@ class FiberMixin:
 
         # 1) Capacidad de hardware desde base_info
         base_info = self.test_results.get("metadata", {}).get("base_info")
+        raw = base_info.get("raw_data") or {}
         if not base_info:
             result["details"]["error"] = "No se pudo obtener información de hardware (base_info)."
             result["details"]["note"] = "get_base_info no disponible"
             return result
 
-        usb_ports = base_info.get("usb_ports", base_info.get("usb_port_num", 0)) or 0
-        usb_status = base_info.get("usb_status")
+        usb_ports = (
+            base_info.get("usb_ports")
+            or raw.get("usb_ports")
+            or base_info.get("usb_port_num")
+            or raw.get("usb_port_num")
+            or 0
+        )
+        usb_status = (
+             base_info.get("usb_status")
+             or raw.get("usb_status")
+        )
 
         # Normaliza el tipo
         try:

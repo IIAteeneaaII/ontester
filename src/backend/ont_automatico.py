@@ -28,6 +28,7 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 from datetime import datetime
 from pathlib import Path
+import traceback
 MAC_REGEX = re.compile(r"([0-9A-Fa-f]{2}(?:(?::|-)?[0-9A-Fa-f]{2}){5})")
 # Selenium para login automático
 try:
@@ -1315,10 +1316,14 @@ def pruebaUnitariaONT(opcionesTest, out_q=None, modelo=None, stop_event=None):
 
     # Emit final "resultados" igual que el main_loop
     try:
+        print(f"[ONT] Llegando al try de resultados en prueba unitaria")
         final = temp_tester._resultados_finales()
+        print(f"[ONT] Emitiendo resultados finales: {final}")
         emit("resultados", final)
     except Exception as e:
         emit("log", f"[WARN] No se pudo emitir resultados finales: {e}")
+        traceback.print_exc()
+        print(f"[ONT] se murió, excepcion: {e}")
 
     # Solo avisamos al loop principal para que SALTE FASE 2
     # si la prueba unitaria fue disruptiva (reset de fábrica o actualización).
