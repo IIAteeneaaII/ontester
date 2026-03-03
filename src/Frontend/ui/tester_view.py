@@ -798,12 +798,13 @@ class TesterView(ctk.CTkFrame):
                 )
 
             finally:
-                self._unit_running = False
-                if self._unit_stop_event is unit_stop:
+                if self._unit_stop_event is unit_stop: # Si no se ha iniciado otra unitaria en paralelo, limpiar la referencia
                     self._unit_stop_event = None
 
-                if not unit_stop.is_set():
+                if not unit_stop.is_set(): # Si no se pidió stop, dejar que el monitor se reactive automáticamente
                     self.master.event_q.put(("resume_monitor", None))
+                else:
+                    self._unit_running = False
 
         threading.Thread(target=worker, daemon=True).start()
 
@@ -870,7 +871,7 @@ class TesterView(ctk.CTkFrame):
             # ejemplo: pintar resultados en tu UI
             info  = payload.get("info", {})
             # Detectar si viene de prueba unitaria usando el flag _unit_running
-            from_unit = getattr(self, '_unit_running', False)
+            from_unit = getattr(self, '_unit_running', False) or payload.get("_from_unit_test", False)
             self._render_resultados(payload, from_unit_test=from_unit)
             # guardar en DB
             from src.backend.sua_client.dao import insertar_operacion, extraer_by_id, existe_operacion_dia, validar_por_modo
@@ -981,6 +982,7 @@ class TesterView(ctk.CTkFrame):
             #self._update_test(payload)
 
         elif kind == "resume_monitor":
+            self._unit_running = False
             modo = self.modo_var.get()
             auto = (modo in ("Testeo", "Retesteo"))
             self._start_loop(auto_test_on_detect=auto, start_in_monitor=True)
