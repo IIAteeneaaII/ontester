@@ -24,6 +24,12 @@ def now_local_iso():
     # ISO con zona local (ej: 2026-01-21T15:33:05-06:00)
     return datetime.now().astimezone().isoformat(timespec="seconds")
 
+def cargar_version() -> str:
+    from src.backend.sua_client.dao import extraer_ultimo
+    versRow = extraer_ultimo("catalog_meta")
+    version = versRow["version"]
+    return version
+
 def load_default_users() -> dict[str, str]:
     # base_utils = Path(__file__).resolve().parents[1]   # -> backend
     from src.backend.sua_client.dao import get_usuarios_activos

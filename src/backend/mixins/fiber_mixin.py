@@ -882,12 +882,12 @@ class FiberMixin:
                     reduced["software_version"] = raw.get("software_version")
 
             # Potencias ópticas (TX/RX)
-            if tests_opts.get("tx_power", False):
+            if info_opts.get("tx_power", False):
                 if raw.get("txpower") is not None:
                     reduced["tx_power_dbm"] = raw.get("txpower")
                 elif raw.get("tx_power_dbm") is not None:
                     reduced["tx_power_dbm"] = raw.get("tx_power_dbm")
-            if tests_opts.get("rx_power", False):
+            if info_opts.get("rx_power", False):
                 if raw.get("rxpower") is not None:
                     reduced["rx_power_dbm"] = raw.get("rxpower")
                 elif raw.get("rx_power_dbm") is not None:
@@ -1765,6 +1765,17 @@ class FiberMixin:
         
         # Prioridad 1: Usar datos de get_base_info si están disponibles
         base_info = self.test_results['metadata'].get('base_info')
+
+        # validar en caso de que no se haya extraido base_info
+        if not base_info:
+            print("FALTA BASE INFO")
+            extracted = self._extract_base_info()
+            print(f"EXTRACTED: {extracted}")
+            if extracted:
+                meta = self.test_results.setdefault("metadata", {})
+                meta["base_info"] = extracted
+                base_info = extracted
+                
         tx_raw = base_info.get('tx_power_dbm') if base_info else None
         if base_info and tx_raw is not None:
             # Convertir y validar contra umbrales
