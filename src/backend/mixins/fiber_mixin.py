@@ -1883,32 +1883,41 @@ class FiberMixin:
                 print(f"[WARN] Error en extracción Selenium: {e}")
         
         # Prioridad 1: Usar datos de get_base_info si están disponibles
-        base_info = self.test_results['metadata'].get('base_info')
-        if base_info and base_info.get('wifi_info'):
-            wifi_info = base_info['wifi_info']
-            if 'ssid_24ghz' in wifi_info:
+        # base_info = self.test_results['metadata'].get('base_info')
+        # if base_info and base_info.get('wifi_info'):
+        #     wifi_info = base_info['wifi_info']
+        #     if 'ssid_24ghz' in wifi_info:
+        #         result["status"] = "PASS"
+        #         result["details"]["method"] = "AJAX get_base_info"
+        #         result["details"]["ssid"] = wifi_info.get('ssid_24ghz')
+        #         # Solo usar password AJAX si no tenemos la de Selenium
+        #         if "password_unencrypted" not in result["details"]:
+        #             result["details"]["password"] = wifi_info.get('password_24ghz', 'N/A')
+        #             result["details"]["note"] = "Password encriptada (use Selenium para versión sin encriptar)"
+        #         result["details"]["channel"] = wifi_info.get('channel_24ghz', 'N/A')
+        #         result["details"]["enabled"] = wifi_info.get('enabled_24ghz', False)
+        #         # return result
+
+        # Asegurar base_info (mismo patrón que test_usb_port)
+        if not self.test_results.get('metadata', {}).get('base_info'):
+            extracted = self._extract_base_info()
+            if extracted:
+                self.test_results.setdefault('metadata', {})['base_info'] = extracted
+
+        # Prueba de potencia real usando netsh (Windows)
+        _base   = self.test_results['metadata'].get('base_info') or {}
+        _winfo  = _base.get('wifi_info') or {}
+        ssid_24 = _winfo.get('ssid_24ghz') or result["details"].get("ssid")
+        ssid_5  = _winfo.get('ssid_5ghz')
+        if ssid_24 and ssid_5:
+            print(f"[TEST] Scan WiFi Windows: 2.4GHz='{ssid_24}', 5GHz='{ssid_5}'")
+            self.test_wifi_rssi_windows(ssid_24, ssid_5)
+
+            potencia = self.test_results.get("tests", {}).get("potencia_wifi", {})
+            if potencia.get("details", {}).get("pass_24"):
                 result["status"] = "PASS"
-                result["details"]["method"] = "AJAX get_base_info"
-                result["details"]["ssid"] = wifi_info.get('ssid_24ghz')
-                # Solo usar password AJAX si no tenemos la de Selenium
-                if "password_unencrypted" not in result["details"]:
-                    result["details"]["password"] = wifi_info.get('password_24ghz', 'N/A')
-                    result["details"]["note"] = "Password encriptada (use Selenium para versión sin encriptar)"
-                result["details"]["channel"] = wifi_info.get('channel_24ghz', 'N/A')
-                result["details"]["enabled"] = wifi_info.get('enabled_24ghz', False)
-                # return result
-        
-        # Prioridad 2: Intentar metodo AJAX get_wifi_status
-        wifi_status = self._ajax_get('get_wifi_status')
-        
-        result["status"] = "PASS"
-        result["details"]["method"] = "AJAX get_wifi_status"
-        result["details"]["data"] = wifi_status
-        if wifi_status.get('session_valid') == 0:
-            result["details"]["error"] = "Requiere session valida (login completo)"
-            result["details"]["note"] = "Basic Auth insuficiente - necesita do_login"
-        else:
-            result["details"]["error"] = "Metodo no accesible"
+                result["details"]["method"] = "netsh_wlan_scan"
+                result["details"]["signal_percent"] = potencia["details"].get("best_24_percent")
         
         return result
     
@@ -1934,33 +1943,12 @@ class FiberMixin:
             except Exception as e:
                 print(f"[WARN] Error en extracción Selenium: {e}")
         
-        # Prioridad 1: Usar datos de get_base_info si están disponibles
-        base_info = self.test_results['metadata'].get('base_info')
-        if base_info and base_info.get('wifi_info'):
-            wifi_info = base_info['wifi_info']
-            if 'ssid_5ghz' in wifi_info:
-                result["status"] = "PASS"
-                result["details"]["method"] = "AJAX get_base_info"
-                result["details"]["ssid"] = wifi_info.get('ssid_5ghz')
-                # Solo usar password AJAX si no tenemos la de Selenium
-                if "password_unencrypted" not in result["details"]:
-                    result["details"]["password"] = wifi_info.get('password_5ghz', 'N/A')
-                    result["details"]["note"] = "Password encriptada (use Selenium para versión sin encriptar)"
-                result["details"]["channel"] = wifi_info.get('channel_5ghz', 'N/A')
-                result["details"]["enabled"] = wifi_info.get('enabled_5ghz', False)
-                # return result
-        
-        # Prioridad 2: Usa el mismo metodo que 2.4GHz (get_wifi_status devuelve ambas bandas)
-        wifi_status = self._ajax_get('get_wifi_status')
-        
-        result["status"] = "PASS"
-        result["details"]["method"] = "AJAX get_wifi_status"
-        result["details"]["data"] = wifi_status
-        if wifi_status.get('session_valid') == 0:
-            result["details"]["error"] = "Requiere session valida (login completo)"
-            result["details"]["note"] = "Basic Auth insuficiente - necesita do_login"
-        else:
-            result["details"]["error"] = "Metodo no accesible"
+        # Resultado de potencia real (ya ejecutado en test_wifi_24ghz)
+        potencia = self.test_results.get("tests", {}).get("potencia_wifi", {})
+        if potencia.get("details", {}).get("pass_5"):
+            result["status"] = "PASS"
+            result["details"]["method"] = "netsh_wlan_scan"
+            result["details"]["signal_percent"] = potencia["details"].get("best_5_percent")
         
         return result
 

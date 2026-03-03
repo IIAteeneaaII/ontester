@@ -1322,17 +1322,18 @@ def pruebaUnitariaONT(opcionesTest, out_q=None, modelo=None, stop_event=None):
         return
     
     # Emit por test usando lo que ya se almacenó en test_results
-    try:
-        for _, result in temp_tester.test_results.get("tests", {}).items():
-            # result típicamente: {"name": "...", "status": "PASS/FAIL", ...}
-            emit("test_individual", {"name": result.get("name", ""), "status": result.get("status", "FAIL")})
-    except Exception as e:
-        emit("log", f"[WARN] No se pudo emitir test_individual: {e}")
+    # try:
+    #     for _, result in temp_tester.test_results.get("tests", {}).items():
+    #         # result típicamente: {"name": "...", "status": "PASS/FAIL", ...}
+    #         emit("test_individual", {"name": result.get("name", ""), "status": result.get("status", "FAIL")})
+    # except Exception as e:
+    #     emit("log", f"[WARN] No se pudo emitir test_individual: {e}")
 
     # Emit final "resultados" igual que el main_loop
     try:
         print(f"[ONT] Llegando al try de resultados en prueba unitaria")
         final = temp_tester._resultados_finales()
+        final["_from_unit_test"] = True
         print(f"[ONT] Emitiendo resultados finales: {final}")
         emit("resultados", final)
     except Exception as e:
