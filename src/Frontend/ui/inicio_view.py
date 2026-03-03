@@ -10,11 +10,14 @@ root_path = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(root_path))
 
 # importar helper de conexion
-from src.backend.endpoints.conexion import load_default_users
+from src.backend.endpoints.conexion import load_default_users, cargar_version
 from src.Frontend.telemetry.dispatcher import EventDispatcher
 from src.Frontend.theme_manager import ThemeManager  # ✅ Theme persistente
 
-
+# Extraer la version actual para mostrarla en UI
+# versRow = extraer_ultimo("catalog_meta")
+# version = versRow["version"]
+APP_VERSION = cargar_version()
 class InicioView(ctk.CTkFrame):
     """
     Pantalla de inicio / login.
@@ -92,7 +95,16 @@ class InicioView(ctk.CTkFrame):
             font=ctk.CTkFont(size=20, weight="bold"),
             text_color="white",
         )
-        self.lbl_title.place(relx=0.5, rely=0.5, anchor="center")
+        self.lbl_title.place(relx=0.5, rely=0.38, anchor="center") #0.5 both
+
+        # Versión (debajo del título)
+        self.lbl_version = ctk.CTkLabel(
+            self.header,
+            text=f"v{APP_VERSION}",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color="white",
+        )
+        self.lbl_version.place(relx=0.5, rely=0.72, anchor="center")
 
         # ✅ Botón toggle tema
         self.btn_theme = ctk.CTkButton(
