@@ -1312,39 +1312,40 @@ class CommonMixin:
             # Verificar si los tests de WiFi realmente se ejecutaron
             wifi24_test = self.test_results.get('tests', {}).get('WIFI_24GHZ')
             wifi5_test = self.test_results.get('tests', {}).get('WIFI_5GHZ')
+            potencia_test = self.test_results.get('tests', {}).get('potencia_wifi')
             
-            if wifi24_test is not None and wifi5_test is not None:
-                w24 = wifi24_test.get('details', {}).get('enabled') # true
-                w5 = wifi5_test.get('details', {}).get('enabled') # true
-                try:
-                    rssi_2g = int(wifi24_test["details"]["data"]["wifi_status"][0]["rssi_2g"]) # valor negativo con la potencia del wifi
-                    rssi_5g = int(wifi24_test["details"]["data"]["wifi_status"][0]["rssi_5g"]) # valor negativo con la potencia del wifi
-                    
-                    min_valor_wifi = self._getMinWifi24Signal()
-                    min_valor_wifi5 = self._getMinWifi5Signal()
-                    max_valor_wifi = self._getMaxWifi24Signal()
-                    max_valor_wifi5 = self._getMaxWifi5Signal()
+            if wifi24_test is not None and wifi5_test is not None and potencia_test is not None:
+                details = potencia_test.get('details', {})
+                raw_24 = details.get("raw_24", [])
+                raw_5 = details.get("raw_5", [])
+                
+                min_24 = self._getMinWifi24SignalPercent()
+                min_5 = self._getMinWifi5SignalPercent()
 
-                    if(rssi_2g >= min_valor_wifi and rssi_2g <= max_valor_wifi):
-                        tests["w24"] = True
-                    else:
-                        tests["w24"] = False
-
-                    if(rssi_5g >= min_valor_wifi5 and rssi_5g <= max_valor_wifi5):
-                        tests["w5"] = True
-                    else:
-                        tests["w5"] = False
-                except:
+                if raw_24:
+                    net = max(
+                        (n for n in raw_24 if n.get("signal_percent") is not None),
+                        key=lambda n: n["signal_percent"],
+                        default=None
+                    )
+                    tests["w24"] = True if (net and net["signal_percent"] >= min_24) else False
+                else:
                     tests["w24"] = False
+
+                if raw_5:
+                    net = max(
+                        (n for n in raw_5 if n.get("signal_percent") is not None),
+                        key=lambda n: n["signal_percent"],
+                        default=None
+                    )
+                    tests["w5"] = True if (net and net["signal_percent"] >= min_5) else False
+                else:
                     tests["w5"] = False
             else:
                 # Los tests de WiFi no se ejecutaron (prueba unitaria de otro test)
                 tests["w24"] = "SIN PRUEBA"
                 tests["w5"] = "SIN PRUEBA"
-        # else:
-        #     tests["w24"] = "SIN PRUEBA"
-        #     tests["w5"] = "SIN PRUEBA"
-        #sftU = "SIN PRUEBA"
+
         if tests_opts.get("software_update", True):
             # Verificar si el test de software_update realmente se ejecutó
             sft_test = self.test_results.get('tests', {}).get('software_update')
