@@ -6,6 +6,7 @@ import threading
 from datetime import datetime
 from .settings import *
 import uuid
+from .sua_acceso import ensure_certs_from_sua
 
 class IoTClient:
     def __init__(self, station_id=None):
@@ -39,6 +40,12 @@ class IoTClient:
     def connect(self):
         """Conecta a AWS IoT Core"""
         try:
+            # Asegurar certs
+            if not (CERTIFICATE_PATH.exists() and PRIVATE_KEY_PATH.exists() and ROOT_CA_PATH.exists()):
+                print("[BOOT] No hay certs locales. Bootstrapping con SUA...")
+                if not ensure_certs_from_sua(poll_interval_sec=10, max_wait_sec=30):
+                    print("[BOOT] No se pudieron obtener certificados desde SUA.")
+                    return False
             self.client = mqtt.Client(client_id=self.station_id)
 
             #callbacks
