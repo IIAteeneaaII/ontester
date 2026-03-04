@@ -1101,22 +1101,71 @@ class TesterMainView(ctk.CTkFrame):
             print(f"Parámetros guardados: {dialog.resultado}")
 
     def on_prueba(self):
-        root = self.winfo_toplevel()
-        user_id = int(getattr(root, "current_user_id", 0) or 0)
-        print("El usuario es: " + str(user_id))
-        if user_id in (27, 121):
-            self._generarBDVista()
-        else:
-            print("Sin permisos")
+        # root = self.winfo_toplevel()
+        # user_id = int(getattr(root, "current_user_id", 0) or 0)
+        # print("El usuario es: " + str(user_id))
+        # if user_id in (27, 121):
+        #     self._generarBDVista()
+        # else:
+        #     print("Sin permisos")
+        # Vista para crear la conexion con SUA
+        self._conexionSua()
 
-    def _generarBDVista(self):
+    def _conexionSua(self):
         win = ctk.CTkToplevel(self)
-        win.title("Consulta de base de datos")
-        win.geometry("900x500")
+        win.title("Conexion a SUA")
+        win.resizable(False, False)
+        _center_window(win, 470,220)
         win.grab_set()
         win.focus_set()
+        # Configuracion de color
+        win.configure(fg_color="#111827")
 
+        # LABELS
+        mac_label = ctk.CTkLabel(win, text="MAC ID:", fg_color="transparent", font=ctk.CTkFont(size=14, weight="bold"))
+        mac_label.grid(row=0, column=0, pady=(20, 10), padx=20)
 
+        # TODO Cambiar esto para leerlo desde BD y revisar si es enroutment o station eky
+        enrout_label = ctk.CTkLabel(win, text="ENROUTMENT code:", fg_color="transparent", font=ctk.CTkFont(size=14, weight="bold"))
+        enrout_label.grid(row=1, column=0, pady=(20, 10), padx=20)
+        
+        # INPUTS DISABLED
+        mac_text = tk.StringVar(value="MAC")
+        mac_input = ctk.CTkEntry(win, textvariable=mac_text, state="disabled", width=190, font=ctk.CTkFont(size=14), text_color="#9CA3AF")
+        mac_input.grid(row=0, column=1, pady=(20, 10), padx=20)
+
+        enrout_text = tk.StringVar(value="ENROUTMENT")
+        enrout_input = ctk.CTkEntry(win, textvariable=enrout_text, state="disabled", width=190, font=ctk.CTkFont(size=14), text_color="#9CA3AF")
+        enrout_input.grid(row=1, column=1, pady=(20, 10), padx=20)
+
+        # BOTONES
+        sol_acces = ctk.CTkButton(
+            win, 
+            text="SOLICITAR ACCESO A SUA", 
+            command=self.acceso, 
+            font=ctk.CTkFont(size=12, weight="bold"), 
+            width=140, height=38,
+            fg_color="#1c8c59",
+            hover_color="#3a8d68"
+        )
+        sol_acces.grid(row=2, column=0, pady=(20, 10), padx=20)
+
+        actualizar = ctk.CTkButton(
+            win, 
+            text="COMPROBAR ACTUALIZACION", 
+            command=self.actualizacion, 
+            font=ctk.CTkFont(size=12, weight="bold"), 
+            width=140, height=38,
+            fg_color="#114b8a",
+            hover_color="#2f5b8a"
+        )
+        actualizar.grid(row=2, column=1, pady=(20, 10), padx=20)
+
+    def acceso(self):
+        print("SOLICITANDO ACCESO")
+
+    def actualizacion(self):
+        print("SOLICITANDO ACTUALIZACION")
 # =========================================================
 #                         TEST
 # =========================================================
