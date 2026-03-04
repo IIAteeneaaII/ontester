@@ -62,6 +62,10 @@ class SuaClient:
         r = requests.post(url, json={"station_id": station_id, "enrollment_code": enrollment_code}, timeout=TIMEOUT)
         if r.status_code != 200:
             raise RuntimeError(f"claim-key {r.status_code}: {r.text}")
+        station_key = r.json()["station_key"]
+        # reemplaza enrollment_code por station_key y activo=2
+        activar_station_key(station_key)
+        print("[SUA] station_key recibida. SQLite actualizado (descripcion=station_key, activo=2).")
         return r.json()
 
     # ------------- TOKEN -------------
@@ -88,12 +92,20 @@ class SuaClient:
         return self._jwt
 
     # ------------- CERTS -------------
-    def get_presigned_urls(self, jwt_token: str) -> Dict[str, Any]:
+    def get_presigned_urls(self) -> Dict[str, Any]:
+        jwt_token = self.get_station_token(STATION_ID, get_station_key_activa())
         url = f"{self.base_url}/api/certificates/presigned-urls"
         r = requests.get(url, headers={"Authorization": f"Bearer {jwt_token}"}, timeout=TIMEOUT)
         if r.status_code != 200:
             raise RuntimeError(f"presigned {r.status_code}: {r.text}")
-        return r.json()
+        urls = r.json()["urls"]
+
+        _download_file(urls["certificate"], Path(CERTIFICATE_PATH))
+        _download_file(urls["private_key"], Path(PRIVATE_KEY_PATH))
+        _download_file(urls["root_ca"], Path(ROOT_CA_PATH))
+
+        print("[SUA] certificados descargados")
+        return True
 
 
 def ensure_certs_from_sua(poll_interval_sec: int = 10, max_wait_sec: int = 30) -> bool:
@@ -128,38 +140,13 @@ def ensure_certs_from_sua(poll_interval_sec: int = 10, max_wait_sec: int = 30) -
         except Exception as e:
             print(f"[SUA] ERROR enroll: {e}")
             return False
-
-        # 4) CLAIM-KEY (poll)
-        # start = _now()
-        # print("[SUA] esperando aprobación para claim-key...")
-        #while True:
-        # try:
-        #     resp = client.claim_key(STATION_ID, enrollment_code)
-        #     station_key = resp["station_key"]
-
-        #     # reemplaza enrollment_code por station_key y activo=1
-        #     activar_station_key(station_key)
-        #     print("[SUA] station_key recibida. SQLite actualizado (descripcion=station_key, activo=1).")
-        #     #break
-        # except Exception as e:
-        #     if max_wait_sec and (_now() - start) > max_wait_sec:
-        #         print("[SUA] Timeout esperando aprobación/claim-key")
-        #         return False
-        #     print(f"[SUA] claim-key aún no disponible. Reintento en {poll_interval_sec}s")
-            #time.sleep(poll_interval_sec)
     return True
-    # 5) TOKEN + PRESIGNED + DOWNLOAD
-    # try:
-    #     jwt_token = client.get_station_token(STATION_ID, station_key)
-    #     data = client.get_presigned_urls(jwt_token)
-    #     urls = data["urls"]
 
-    #     _download_file(urls["certificate"], Path(CERTIFICATE_PATH))
-    #     _download_file(urls["private_key"], Path(PRIVATE_KEY_PATH))
-    #     _download_file(urls["root_ca"], Path(ROOT_CA_PATH))
-
-    #     print("[SUA] certificados descargados en env/")
-    #     return True
-    # except Exception as e:
-    #     print(f"[SUA] ERROR token/presigned/download: {e}")
-    #     return False
+def get_url_certificados() -> bool:
+    client = SuaClient(SUA_BASE_URL)
+    try:
+        client.get_presigned_urls()
+        return True
+    except Exception as e:
+        print(f"[SUA] ERROR get_presigned_urls: {e}")
+        return False
