@@ -1,7 +1,11 @@
 # Metodos para la bd
 import sqlite3
 from src.backend.sua_client.local_db import get_conn
+from datetime import datetime
 
+def now_local_iso():
+    # ISO con zona local (ej: 2026-01-21T15:33:05-06:00)
+    return datetime.now().astimezone().isoformat(timespec="seconds")
 
 def obtenerTablas():
     # with hace que la conexion a la bd se cierre sola
@@ -96,6 +100,137 @@ def extraer_by_id(id, table_name):
         row = cur.fetchone()
         return row
 
+"""
+TODO
+
+"""
+def actualizar_operacion(payload, modo, id_user):
+    # Helper
+    from src.backend.endpoints.conexion import is_bad_info
+    now = now_local_iso()[:10]
+    # Función para actualizar registro en bd
+    # Tratamiento de la payload
+    info  = payload.get("info", {})
+    tests = payload.get("tests", {})
+    modo = modo.upper()
+    # Obtener version
+    versRow = extraer_ultimo("catalog_meta")
+    vers = versRow["id"]
+    # Cambiar el nombre de RETESTEO al enum de la bd
+    if(modo == "RETESTEO"):
+        modo = "RETEST"
+    # Comprobar que no viene de una unitaria
+    if (modo not in  {"ETIQUETA", "TESTEO", "RETEST"}):
+        return -1
+
+    ultimoStationUser = get_ultimo_user_station_por_usuario(id_user)
+    id_station =  ultimoStationUser["id_station"] # Extraer de tabla user_stations
+    ultima_setting = extraer_ultimo("settings") 
+    id_settings =  ultima_setting["id"] # Extraer el ultimo
+    false_means = "FAIL"
+    from src.backend.endpoints.conexion import norm_result, norm_power
+
+    # Verificar la integridad de los datos a update
+    def clean_info(key: str):
+        v = info.get(key)
+        return None if is_bad_info(v) else v
+
+    # Revisar que, si viene de unitaria, no actualice keys que no se hicieron
+    def maybe_norm_result(key):
+        if key not in tests:
+            return None
+        return norm_result(tests.get(key), false_means=false_means)
+    
+    def maybe_norm_power(key, which):
+        if key not in tests:
+            return None
+        return norm_power(tests.get(key), which)
+
+    params = {
+        "id_station":  id_station,  # Estos parametros (station, settings) deben leerse desde la bd (config)
+        "id_user":     id_user,     # Se pasa desde la llamada
+        "id_settings": id_settings, # Se lee desde bd
+        "id_catalog_meta": vers,
+        "tipo":        modo,
+
+        # localizar el registro del dia 
+        "day": now,
+        "fecha_test": info.get("fecha_test"),
+        # Proteccion de los datos
+        "modelo":   clean_info("modelo"),
+        "sn":       clean_info("sn"),
+        "mac":      clean_info("mac"),
+        "sftVer":   clean_info("sftVer"),
+        "wifi24":   clean_info("wifi24"),
+        "wifi5":    clean_info("wifi5"),
+        "passWifi": clean_info("passWifi"),
+
+        # si no viene, forzamos SIN_PRUEBA
+        # "ping": norm_result(tests.get("ping"), false_means=false_means),
+        # "reset": norm_result(tests.get("reset"), false_means=false_means),
+        # "usb": norm_result(tests.get("usb"), false_means=false_means),
+        # "tx": norm_power(tests.get("tx"), "tx"),
+        # "rx": norm_power(tests.get("rx"), "rx"),
+        # "w24": norm_result(tests.get("w24"), false_means=false_means),
+        # "w5":  norm_result(tests.get("w5"), false_means=false_means),
+        # "sftU": norm_result(tests.get("sftU"), false_means=false_means),
+        "ping":  maybe_norm_result("ping"),
+        "reset": maybe_norm_result("reset"),
+        "usb":   maybe_norm_result("usb"),
+        "w24":   maybe_norm_result("w24"),
+        "w5":    maybe_norm_result("w5"),
+        "sftU":  maybe_norm_result("sftU"),
+        "tx":    maybe_norm_power("tx", "tx"),
+        "rx":    maybe_norm_power("rx", "rx"),
+        # sqlite: bool -> int
+        "valido": int(bool(payload.get("valido"))),
+    }
+
+    sql = """
+    UPDATE operations
+    SET
+        id_station      = :id_station,
+        id_user         = :id_user,
+        id_settings     = :id_settings,
+        id_catalog_meta = :id_catalog_meta,
+        tipo            = :tipo,
+
+        -- info: NO sobrescribir si viene "malo"
+        fecha_test = COALESCE(:fecha_test, fecha_test),
+        modelo     = COALESCE(:modelo, modelo),
+        sn         = COALESCE(:sn, sn),
+        mac        = COALESCE(:mac, mac),
+        sftVer     = COALESCE(:sftVer, sftVer),
+        wifi24     = COALESCE(:wifi24, wifi24),
+        wifi5      = COALESCE(:wifi5, wifi5),
+        passWifi   = COALESCE(:passWifi, passWifi),
+
+        -- Actualizar si cambio
+        ping  = COALESCE(:ping, ping),
+        reset = COALESCE(:reset, reset),
+        usb   = COALESCE(:usb, usb),
+        tx    = COALESCE(:tx, tx),
+        rx    = COALESCE(:rx, rx),
+        w24   = COALESCE(:w24, w24),
+        w5    = COALESCE(:w5, w5),
+        sftU  = COALESCE(:sftU, sftU),
+
+        valido = :valido
+    WHERE id = (
+        SELECT id
+        FROM operations
+        WHERE sn = :sn
+          AND tipo = :tipo
+          AND substr(fecha_test, 1, 10) = :day
+        ORDER BY fecha_test DESC, id DESC
+        LIMIT 1
+    );
+    """
+    with get_conn() as con:
+        cur = con.execute(sql, params)
+        con.commit()
+        return cur.rowcount #1 si act, 0 si no encontró 
+    
 def insertar_operacion(payload, modo, id_user):
     # Función para agregar datos del tester a la bd sqlite
     # Por el diseño de la bd cada prueba a la que no se le asigne valor tendrá por defecto SIN PRUEBA
@@ -104,17 +239,29 @@ def insertar_operacion(payload, modo, id_user):
     info  = payload.get("info", {})
     tests = payload.get("tests", {})
     modo = modo.upper()
+
+    # Obtener version
+    versRow = extraer_ultimo("catalog_meta")
+    vers = versRow["id"]
+    
+    # Cambiar el nombre de RETESTEO al enum de la bd
+    if(modo == "RETESTEO"):
+        modo = "RETEST"
     # Comprobar que no viene de una unitaria
     if (modo not in  {"ETIQUETA", "TESTEO", "RETEST"}):
         return -1
-    id_station = 0
-    id_settings = 0
+    
+    ultimoStationUser = get_ultimo_user_station_por_usuario(id_user)
+    id_station =  ultimoStationUser["id_station"] # Extraer de tabla user_stations
+    ultima_setting = extraer_ultimo("settings") 
+    id_settings =  ultima_setting["id"] # Extraer el ultimo
     false_means = "FAIL"
     from src.backend.endpoints.conexion import norm_result, norm_power
     params = {
         "id_station":  id_station,  # Estos parametros (station, settings) deben leerse desde la bd (config)
         "id_user":     id_user,     # Se pasa desde la llamada
         "id_settings": id_settings, # Se lee desde bd
+        "id_catalog_meta": vers,
         "tipo":        modo,
 
         "fecha_test": info.get("fecha_test"),
@@ -142,12 +289,12 @@ def insertar_operacion(payload, modo, id_user):
 
     sql = """
     INSERT INTO operations (
-        id_station, id_user, id_settings, tipo,
+        id_station, id_user, id_settings, id_catalog_meta, tipo,
         fecha_test, modelo, sn, mac, sftVer, wifi24, wifi5, passWifi,
         ping, reset, usb, tx, rx, w24, w5, sftU,
         valido
     ) VALUES (
-        :id_station, :id_user, :id_settings, :tipo,
+        :id_station, :id_user, :id_settings, :id_catalog_meta, :tipo,
         :fecha_test, :modelo, :sn, :mac, :sftVer, :wifi24, :wifi5, :passWifi,
         :ping, :reset, :usb, :tx, :rx, :w24, :w5, :sftU,
         :valido
@@ -157,6 +304,21 @@ def insertar_operacion(payload, modo, id_user):
         cur = con.execute(sql, params)
         con.commit()
         return cur.lastrowid
+
+def get_ultimo_user_station_por_usuario(id_user: int):
+    """
+    Regresa el último registro (más reciente) de user_station para ese id_user,
+    o None si no existe.
+    """
+    with get_conn() as con:
+        row = con.execute("""
+            SELECT id, id_user, id_station
+            FROM user_station
+            WHERE id_user = ?
+            ORDER BY id DESC
+            LIMIT 1;
+        """, (id_user,)).fetchone()
+        return row
 
 def insertar_settings():
     # Función pensada para añadir una row en settings con valores default
@@ -193,7 +355,7 @@ def insertar_userStation(id_user, id_station):
         )
         con.commit()
 
-def insertar_wifi(rssi_min, rssi_max, min_percent) -> int:
+def insertar_wifi(rssi_min, rssi_max, min_percent):
     with get_conn() as con:
         cur = con.execute(
             "INSERT INTO wifi_set (rssi_min, rssi_max, min_percent) VALUES (?, ?, ?);",
@@ -226,6 +388,12 @@ def update_settings(id_wifi, id_fibra, id_settings):
         )
         con.commit()
 
+def insertar_version(con, version: str) -> None:
+    con.execute(
+        "INSERT INTO catalog_meta (version, updated_at) VALUES (?, ?);",
+        (version, now_local_iso())
+    )
+
 def existe_valor_en_campo(table_name: str, campo: str, valor) -> bool:
     with get_conn() as con:
         # 1) validar que la tabla exista
@@ -255,6 +423,133 @@ def existe_valor_en_campo(table_name: str, campo: str, valor) -> bool:
 
         return bool(r["existe"]) if r else False
 
+def existe_operacion_dia(sn: str, modo: str) -> bool:
+    dia = now_local_iso()[:10]
+    modo = modo.upper()
+    # Cambiar el nombre de RETESTEO al enum de la bd
+    if(modo == "RETESTEO"):
+        modo = "RETEST"
+    # Comprobar que no viene de una unitaria
+    if (modo not in  {"ETIQUETA", "TESTEO", "RETEST"}):
+        return False
+    with get_conn() as con:
+        row = con.execute("""
+            SELECT 1
+            FROM operations
+            WHERE sn = ?
+            AND substr(fecha_test, 1, 10) = ?
+            AND tipo = ?
+            LIMIT 1;
+        """, (sn, dia, modo)).fetchone()
+        return row is not None
+
+def validar_por_modo(sn: str, modo: str):
+    # El modo solo sirve para hacer update en el registro de ese modo
+    # Traer row por sn y modo
+    tipo = (modo or "").strip().upper()
+    if(tipo == "RETESTEO"):
+        tipo = "RETEST"
+    if tipo not in ("ETIQUETA", "TESTEO", "RETEST"):
+        raise ValueError(f"Modo/tipo inválido: {modo}")
+
+    with get_conn() as con:
+        # Actualiza el último registro del sn+tipo
+        con.execute("""
+            UPDATE operations
+            SET valido = CASE
+                WHEN ping  IN ('PASS','SIN_PRUEBA')
+                 AND reset IN ('PASS','SIN_PRUEBA')
+                 AND usb   IN ('PASS','SIN_PRUEBA')
+                 AND tx    IN ('PASS','SIN_PRUEBA')
+                 AND rx    IN ('PASS','SIN_PRUEBA')
+                 AND w24   IN ('PASS','SIN_PRUEBA')
+                 AND w5    IN ('PASS','SIN_PRUEBA')
+                 AND sftU  IN ('PASS','SIN_PRUEBA')
+                THEN 1 ELSE 0 END
+            WHERE id = (
+                SELECT id
+                FROM operations
+                WHERE sn = ? AND tipo = ?
+                ORDER BY fecha_test DESC, id DESC
+                LIMIT 1
+            );
+        """, (sn, tipo))
+        con.commit()
+
+        # leer el valor resultante
+        row = con.execute("""
+            SELECT valido
+            FROM operations
+            WHERE sn = ? AND tipo = ?
+            ORDER BY fecha_test DESC, id DESC
+            LIMIT 1;
+        """, (sn, tipo)).fetchone()
+
+        if row is None:
+            raise ValueError(f"No existe operación para sn={sn} tipo={tipo}")
+
+        return int(row["valido"])
+
+def update_operation_snmodo(sn: str, modo: str, campo: str, valor: str):
+    tipo = (modo or "").strip().upper()
+    if tipo == "RETESTEO":
+        tipo = "RETEST"
+    if tipo not in ("ETIQUETA", "TESTEO", "RETEST"):
+        raise ValueError(f"Modo/tipo inválido: {modo}")
+    
+    campos = {"ping","reset","usb","tx","rx","w24","w5","sftU"}
+
+    if campo not in campos:
+        print(f"[DAO] Campo: {campo}")
+        raise ValueError("Campo inválido")
+    with get_conn() as con:
+        cur = con.execute(f"""
+            UPDATE operations
+            SET {campo} = ?
+            WHERE id = (
+                SELECT id
+                FROM operations
+                WHERE sn = ? AND tipo = ?
+                ORDER BY fecha_test DESC, id DESC
+                LIMIT 1
+            );
+        """, (valor, sn, tipo))
+        con.commit()
+        return cur.rowcount == 1
+
+def delete_operation(sn: str, modo: str) -> bool:
+    tipo = (modo or "").strip().upper()
+    if tipo == "RETESTEO":
+        tipo = "RETEST"
+    if tipo not in ("ETIQUETA", "TESTEO", "RETEST"):
+        raise ValueError(f"Modo/tipo inválido: {modo}")
+
+    with get_conn() as con:
+        cur = con.execute("""
+            DELETE FROM operations
+            WHERE id = (
+              SELECT id
+              FROM operations
+              WHERE sn = ? AND tipo = ?
+              ORDER BY fecha_test DESC, id DESC
+              LIMIT 1
+            );
+        """, (sn, tipo))
+        con.commit()
+        return cur.rowcount == 1
+
+def get_pruebas_validas():
+    now = now_local_iso()[:10]
+    with get_conn() as con:
+        row = con.execute("""
+            SELECT COUNT(*)
+            FROM operations
+            WHERE substr(fecha_test, 1, 10) = ?
+            AND valido =1
+            ;
+        """, (now,)).fetchone()
+        return int(row[0]) if row else 0
+
 def clear_user_station() -> None:
     with get_conn() as con:
         con.execute("DELETE FROM user_station;")
@@ -264,3 +559,66 @@ def get_usuarios_activos() -> dict[int, str]:
     with get_conn() as con:
         cur = con.execute("SELECT id, name FROM users WHERE activo = 1;")
         return {row["id"]: row["name"] for row in cur.fetchall()}
+    
+def get_baseDiaria_view(date):
+    with get_conn() as con:
+        cur = con.execute("""
+            SELECT id, sn, mac, wifi24, wifi5, passWifi, valido, tipo, modelo, fecha_test
+            FROM operations
+            WHERE substr(fecha_test, 1, 10) = ?
+            ORDER BY fecha_test ASC;
+        """, (date,)).fetchall()
+        con.commit()
+        return cur
+
+def get_baseGlobal_view():
+    with get_conn() as con:
+        rows = con.execute("""
+            SELECT
+                o.id,
+                o.sn,
+                o.mac,
+                o.sftVer  AS version_inicial,
+                o.sftU    AS version_final,
+                o.modelo,
+                o.fecha_test,
+                cm.version AS version_ont_tester,
+                o.wifi24  AS ssid_24,
+                o.wifi5   AS ssid_5,
+                o.passWifi AS password,
+                o.valido
+            FROM operations o
+            JOIN catalog_meta cm
+              ON cm.id = o.id_catalog_meta
+            ORDER BY o.fecha_test ASC, o.id ASC;
+        """).fetchall()
+        return rows
+
+def get_baseGlobal_por_dia(day: str):
+    """
+    day en formato 'YYYY-MM-DD'
+    """
+    with get_conn() as con:
+        rows = con.execute("""
+            SELECT
+                o.id,
+                o.sn,
+                o.mac,
+                o.sftVer  AS version_inicial,
+                o.sftU    AS version_final,
+                o.modelo,
+                o.fecha_test,
+                cm.version AS version_ont_tester,
+                o.wifi24  AS ssid_24,
+                o.wifi5   AS ssid_5,
+                o.passWifi AS password,
+                o.valido
+            FROM operations o
+            JOIN catalog_meta cm
+              ON cm.id = o.id_catalog_meta
+            WHERE substr(o.fecha_test, 1, 10) = ?
+            ORDER BY o.fecha_test ASC, o.id ASC;
+        """, (day,)).fetchall()
+        return rows
+
+    

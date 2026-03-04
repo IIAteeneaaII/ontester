@@ -3,6 +3,7 @@ import threading
 import time
 from datetime import date, datetime
 from src.backend.ont_automatico import main_loop
+import math
 
 _UNIT_RUNNING = threading.Event()
 _UNIT_LOCK = threading.Lock()
@@ -22,6 +23,12 @@ _UNIT_LOCK = threading.Lock()
 def now_local_iso():
     # ISO con zona local (ej: 2026-01-21T15:33:05-06:00)
     return datetime.now().astimezone().isoformat(timespec="seconds")
+
+def cargar_version() -> str:
+    from src.backend.sua_client.dao import extraer_ultimo
+    versRow = extraer_ultimo("catalog_meta")
+    version = versRow["version"]
+    return version
 
 def load_default_users() -> dict[str, str]:
     # base_utils = Path(__file__).resolve().parents[1]   # -> backend
@@ -158,7 +165,7 @@ def norm_power(valor, tipo):
         try:
             return float(v)
         except (TypeError, ValueError):
-            return None
+            return "FAIL"
     from src.backend.endpoints.conexion import cargarConfig
     config = cargarConfig()
     fibra_cfg = config.get("fibra", {})
@@ -184,6 +191,22 @@ def norm_power(valor, tipo):
             return "FAIL"
     return "SIN_PRUEBA"
 
+def normalizar_valor_bd(prueba: str) -> str:
+    key_to_bd = {
+        "ping": "ping",
+        "factory_reset": "reset",
+        "software_update": "sftU",
+        "usb_port": "usb",
+        "tx_power": "tx",
+        "rx_power": "rx",
+        "wifi_24ghz_signal": "w24",
+        "wifi_5ghz_signal": "w5"
+    }
+    print(f"[CONEXION] Campo: {prueba}")
+    key = key_to_bd.get(prueba)
+    print(f"[CONEXION] Key: {key}")
+    return key
+
 def get_daily_report_path() -> Path:
         """
         Devuelve la ruta del CSV del día.
@@ -208,6 +231,20 @@ def _get_report_path_for(d: date) -> Path:
 
         filename = f"reportes_{d.isoformat()}.csv"
         return reports_dir / filename
+
+# Función para no insertar información que no sirve de nada
+def is_bad_info(v) -> bool:
+    """True si el valor es 'basura' y NO debe sobrescribir en DB."""
+    if v is None:
+        return True
+    # float nan
+    if isinstance(v, float) and math.isnan(v):
+        return True
+    s = str(v).strip()
+    if s == "":
+        return True
+    s_up = s.upper()
+    return s_up in {"NAN", "NONE", "NULL", "N/A", "NA", "--", "---", "SIN_DATO", "—"}
 
 def iniciar_testerConexion(resetFabrica, usb, fibra, wifi, out_q = None, stop_event = None, auto_test_on_detect = True, start_in_monitor = False):
     def emit(kind, payload):
@@ -287,13 +324,13 @@ def iniciar_pruebaUnitariaConexion(resetFabrica, sftU, usb, fibra, wifi, model, 
     try:
         opcionesTest = {
             "info": {
-                "sn": True,
-                "mac": True,
-                "ssid_24ghz": True,
-                "ssid_5ghz": True,
-                "software_version": True,
-                "wifi_password": True,
-                "model": True
+                "sn": resetFabrica,
+                "mac": resetFabrica,
+                "ssid_24ghz": wifi or resetFabrica, # False
+                "ssid_5ghz": wifi or resetFabrica, # False
+                "software_version": sftU or resetFabrica, # sftU
+                "wifi_password": wifi or resetFabrica,
+                "model": True,
             },
             "tests": {
                 "ping": True, # Esta prueba no se deshabilita
@@ -375,13 +412,18 @@ def generaEtiquetaTxt(payload):
     # Crear directorio etiquetas si no existe
     directorio_etiquetas = Path(r"C:\ONT\etiquetas")
     directorio_etiquetas.mkdir(parents=True, exist_ok=True)
+    
+    # Crear directorio de históricos si no existe
+    directorio_historicos = directorio_etiquetas / "historicos"
+    directorio_historicos.mkdir(parents=True, exist_ok=True)
 
     # Fecha para histórico
     today = date.today().isoformat()
     
-    # Ruta del archivo por modelo
+    # Ruta del archivo actual (solo 1 registro, en carpeta principal)
     ruta_txt = directorio_etiquetas / f"etiqueta_{modelo_seguro}.txt"
-    ruta_historico = directorio_etiquetas / f"historico_etiqueta_{modelo_seguro}_{today}.txt"
+    # Ruta del histórico (en subcarpeta historicos)
+    ruta_historico = directorio_historicos / f"historico_etiqueta_{modelo_seguro}_{today}.txt"
 
     # Formato de cabecera para Bartender
     cabecera = "GPON SN,MAC,SSID,KEY,SSID5g,KEY5g\n"

@@ -41,7 +41,13 @@ class FiberMixin:
             return False
 
         driver = None
-        headless = True # DEBUG: Visible para el usuario
+        headless = True # DEBUG: True para no abrir ventana, False para debug visual
+
+        def emit(kind, payload):
+            out_q = getattr(self, "out_q", None)
+            if out_q:
+                out_q.put((kind, payload))
+
         try:
             print(f"[SELENIUM] Iniciando login Fiberhome a {self.host}...")
             # Configurar opciones de Chrome
@@ -73,79 +79,50 @@ class FiberMixin:
             service = Service(driver_path)
             driver = webdriver.Chrome(service=service, options=chrome_options)
             
-            # --- LIMPIEZA DE SESIONES PREVIA (MEJORADA CON POST) ---
-            print("[SELENIUM] FORZANDO CIERRE DE SESIONES ACTIVAS...")
+            # --- LIMPIEZA DE SESIONES PREVIA ---
+            print("[SELENIUM] Verificando sesiones activas...")
             try:
-                # PASO 1: Navegar a login para establecer contexto
-                driver.set_page_load_timeout(5)
-                try:
-                    print("[SELENIUM] Navegando a login para verificar sesiones...")
-                    driver.get(f"http://{self.host}/html/login_inter.html")
-                    time.sleep(1)
-                    
-                    # Verificar si hay alerta de sesión activa Y ACEPTARLA
-                    try:
-                        alert = driver.switch_to.alert
-                        alert_text = alert.text
-                        if "already" in alert_text.lower() or "logged" in alert_text.lower():
-                            print(f"[SELENIUM] ⚠️ Sesión activa detectada: '{alert_text[:60]}...'")
-                            print("[SELENIUM] Aceptando alerta para forzar cierre...")
-                            alert.accept()
-                            time.sleep(2)  # Esperar a que el servidor procese
-                        else:
-                            alert.accept()
-                    except:
-                        print("[SELENIUM] No hay alerta de sesión activa")
-                        pass
-                except Exception as e:
-                    print(f"[SELENIUM] Error verificando login: {e}")
-                
-                # PASO 2: POST logout explícito usando JavaScript
-                print("[SELENIUM] Enviando comandos de logout...")
-                logout_commands = [
-                    f"fetch('http://{self.host}/cgi-bin/do_logout', {{method: 'POST', credentials: 'include'}}).catch(() => {{}})",
-                    f"fetch('http://{self.host}/html/logout.html', {{method: 'GET', credentials: 'include'}}).catch(() => {{}})",
-                    f"document.cookie.split(';').forEach(c => {{document.cookie = c.trim().split('=')[0] + '=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;'}})"
-                ]
-                
-                for cmd in logout_commands:
-                    try:
-                        driver.execute_script(cmd)
-                        time.sleep(0.3)
-                    except:
-                        pass
-                
-                # PASO 3: Limpiar cookies del navegador
+                # Navegar a la UI principal para intentar logout limpio
+                driver.set_page_load_timeout(10)
+                driver.get(f"http://{self.host}/html/main_inter.html")
+                time.sleep(1)
+
+                # Intentar encontrar y clickear el botón logout (si hay sesión activa, estará visible)
+                el = self.find_element_anywhere(driver, By.ID, "logout", desc="Logout (limpieza)", timeout=3)
+                if el:
+                    el.click()
+                    print("[SELENIUM] ✓ Sesión previa cerrada con logout")
+                    time.sleep(2)
+                else:
+                    print("[SELENIUM] No hay sesión activa (logout no encontrado)")
+
+                # Limpiar cookies del navegador
                 driver.delete_all_cookies()
-                print("[SELENIUM] Cookies eliminadas")
-                
-                # PASO 4: Recargar página de login LIMPIA
-                print("[SELENIUM] Recargando login limpio...")
+
+                # Navegar a login limpio
                 driver.get(f"http://{self.host}/html/login_inter.html")
                 time.sleep(1)
-                
-                # PASO 5: Verificar si TODAVÍA hay alerta
+
+                # Aceptar alerta si persiste
                 try:
                     alert = driver.switch_to.alert
-                    print(f"[SELENIUM] ⚠️ ALERTA PERSISTENTE: {alert.text[:60]}")
+                    print(f"[SELENIUM] Alerta persistente: {alert.text[:60]}")
                     alert.accept()
                     time.sleep(2)
-                    
-                    # Si persiste, esperar más tiempo para que el servidor libere la sesión
-                    print("[SELENIUM] Esperando 5s para que el servidor libere sesión...")
-                    time.sleep(5)
-                    
-                    # Recargar una vez más
+                except:
+                    pass
+
+                driver.set_page_load_timeout(30)
+                print("[SELENIUM] ✓ Limpieza de sesiones completada")
+
+            except Exception as e:
+                print(f"[WARN] Error en limpieza previa: {e}")
+                try:
+                    driver.set_page_load_timeout(30)
                     driver.get(f"http://{self.host}/html/login_inter.html")
                     time.sleep(1)
                 except:
-                    print("[SELENIUM] ✓ Login limpio - sin alertas")
-                
-                driver.set_page_load_timeout(30)  # Restaurar timeout
-                print("[SELENIUM] ✓ Limpieza de sesiones completada")
-                
-            except Exception as e:
-                print(f"[WARN] Error en limpieza previa: {e}")
+                    pass
             # -----------------------------------
 
             # Ya estamos en la página de login después de la limpieza
@@ -331,6 +308,9 @@ class FiberMixin:
                                 else:
                                     print("[ERROR] Reintento falló - sesión aún activa")
                                     print("[INFO] Cierre manualmente la sesión desde otro navegador o espere timeout")
+                                    emit("pruebas", "Sesión activa. Por favor, vuelva a ejecutar la prueba")
+                                    # emit("pruebas", "Por favor, desconecte el equipo y vuelva a conectarlo para liberar la sesión activa.")
+
                                     if driver:
                                         try:
                                             driver.quit()
@@ -454,51 +434,30 @@ class FiberMixin:
 
     def _router_logout_best_effort(self, driver=None):
         """
-        Cierra la sesión activa del router Fiberhome.
-        Click en botón logout (id='logout') ubicado en header->top-menu.
+        Cierra la sesión activa del router FiberHome.
+        Usa find_element_anywhere para localizar el <a id="logout"> 
+        (está en el nivel más alto de la UI, no requiere navegación profunda).
         """
         if driver is None:
-            driver = self.driver
-        
+            driver = getattr(self, "driver", None)
+
         if not driver:
-            print("[LOGOUT] No hay driver, creando uno temporal para logout...")
-            # Crear driver temporal solo para hacer logout
-            try:
-                chrome_options = Options()
-                chrome_binary = self._get_chrome_binary_path()
-                chrome_options.binary_location = chrome_binary
-                chrome_options.add_argument('--headless')
-                chrome_options.add_argument('--no-sandbox')
-                chrome_options.add_argument('--disable-dev-shm-usage')
-                chrome_options.add_argument('--disable-gpu')
-                chrome_options.add_argument('--log-level=3')
-                driver_path = self._get_chromedriver_path()
-                service = Service(driver_path)
-                driver = webdriver.Chrome(service=service, options=chrome_options)
-            except Exception as e:
-                print(f"[LOGOUT] Error creando driver temporal: {e}")
-                return False
-        
+            print("[LOGOUT] No hay driver, no hay sesión que cerrar")
+            return False
+
         try:
-            # Navegar a UI principal y click en botón logout
-            driver.get(f"{self.base_url}/html/main_inter.html")
-            time.sleep(1)
-            
-            logout_clicked = self.click_anywhere2(
-                driver, 
-                [(By.ID, "logout")], 
-                desc="Botón Logout", 
-                timeout=5
-            )
-            
-            if logout_clicked:
+            driver.switch_to.default_content()
+            el = self.find_element_anywhere(driver, By.ID, "logout", desc="Logout", timeout=5)
+
+            if el:
+                el.click()
                 print("[LOGOUT] ✓ Sesión cerrada")
                 time.sleep(1)
                 return True
-            else:
-                print("[LOGOUT] Botón logout no encontrado (puede que ya esté deslogueado)")
-                return True  # Asumimos que ya está deslogueado
-                
+
+            print("[LOGOUT] Botón logout no encontrado (puede que no haya sesión activa)")
+            return False
+
         except Exception as e:
             print(f"[LOGOUT] Error: {e}")
             return False
@@ -874,6 +833,108 @@ class FiberMixin:
             'extraction_method': 'ajax_get_base_info',
             'raw_data': base_info
         }
+
+        # Reducir base_info para unitarias FIBERHOME según opcionesTest['info'] ---
+        try:
+            opts = getattr(self, "opcionesTest", {}) or {}
+            info_opts = opts.get("info", False)
+            tests_opts = opts.get("tests", {}) or {}
+        except Exception:
+            info_opts = False
+            tests_opts = {}
+
+        # Si info_opts es un dict con valores True, extraemos solo esos campos específicos para evitar sobrecargar la salida
+        if isinstance(info_opts, dict) and any(info_opts.values()):
+            raw = base_info or {}
+            reduced: dict = {"extraction_method": "ajax_get_base_info"}
+
+            # Conservar raw_data completo si la unitaria necesita software_version o software_update
+            needs_raw = bool(info_opts.get("software_version") or tests_opts.get("software_update"))
+            if needs_raw:
+                reduced["raw_data"] = raw
+
+            # Identificación (SN físico preferente)
+            #if info_opts.get("sn", False): # por seguridad siempre extraerlo
+            if raw.get("gponsn"):
+                reduced["serial_number_physical"] = raw.get("gponsn")
+            elif raw.get("SerialNumber"):
+                reduced["serial_number_logical"] = raw.get("SerialNumber")
+            elif raw.get("serial_number"):
+                reduced["serial_number_logical"] = raw.get("serial_number")
+
+            # MAC (primer key válida)
+            if info_opts.get("mac", False):
+                for k in ("brmac", "mac_address", "tr069_mac", "mac"):
+                    if raw.get(k):
+                        reduced["mac_address"] = raw.get(k)
+                        break
+
+            # Modelo y versión de software
+            # if info_opts.get("model", False):
+            if raw.get("ModelName"):
+                reduced["model_name"] = raw.get("ModelName")
+            elif raw.get("model_name"):
+                reduced["model_name"] = raw.get("model_name")
+            if info_opts.get("software_version", False):
+                if raw.get("SoftwareVersion"):
+                    reduced["software_version"] = raw.get("SoftwareVersion")
+                elif raw.get("software_version"):
+                    reduced["software_version"] = raw.get("software_version")
+
+            # Potencias ópticas (TX/RX)
+            if info_opts.get("tx_power", False):
+                if raw.get("txpower") is not None:
+                    reduced["tx_power_dbm"] = raw.get("txpower")
+                elif raw.get("tx_power_dbm") is not None:
+                    reduced["tx_power_dbm"] = raw.get("tx_power_dbm")
+            if info_opts.get("rx_power", False):
+                if raw.get("rxpower") is not None:
+                    reduced["rx_power_dbm"] = raw.get("rxpower")
+                elif raw.get("rx_power_dbm") is not None:
+                    reduced["rx_power_dbm"] = raw.get("rx_power_dbm")
+            
+            # Asegurar incluir TX/RX si los tests los requieren aunque no estén en info_opts
+            if tests_opts.get("tx_power") and "tx_power_dbm" not in reduced:
+                if raw.get("txpower") is not None:
+                    reduced["tx_power_dbm"] = raw.get("txpower")
+                elif raw.get("tx_power_dbm") is not None:
+                    reduced["tx_power_dbm"] = raw.get("tx_power_dbm")
+
+            if tests_opts.get("rx_power") and "rx_power_dbm" not in reduced:
+                if raw.get("rxpower") is not None:
+                    reduced["rx_power_dbm"] = raw.get("rxpower")
+                elif raw.get("rx_power_dbm") is not None:
+                    reduced["rx_power_dbm"] = raw.get("rx_power_dbm")
+
+            # USB / capacidades
+            if tests_opts.get("usb", False) or tests_opts.get("usb_port", False):
+                print("INTENTANDO EXTRAER DE USB")
+                if raw.get("usb_port_num") is not None:
+                    reduced["usb_ports"] = raw.get("usb_port_num")
+                if raw.get("usb_status") is not None:
+                    reduced["usb_status"] = raw.get("usb_status")
+
+            # WiFi (SSIDs / password) — solo si se pidió
+            if any(info_opts.get(k, False) for k in ("ssid_24ghz", "ssid_5ghz", "wifi_password")):
+                wifi_src = raw.get("wifi_info") or raw.get("wifi") or {}
+                # Si raw no contiene wifi_info, intentar extraer con el método especializado (no forzar Selenium)
+                if not wifi_src:
+                    try:
+                        wifi_src = self._extract_wifi_allwan() or {}
+                    except Exception:
+                        wifi_src = {}
+                wifi: dict = {}
+                if info_opts.get("ssid_24ghz", False):
+                    wifi["ssid_24ghz"] = wifi_src.get("ssid_24ghz") or wifi_src.get("ssid_2.4") or wifi_src.get("ssid1")
+                if info_opts.get("ssid_5ghz", False):
+                    wifi["ssid_5ghz"] = wifi_src.get("ssid_5ghz") or wifi_src.get("ssid_5") or wifi_src.get("ssid5")
+                if info_opts.get("wifi_password", False):
+                    wifi["password"] = wifi_src.get("password") or wifi_src.get("psk") or wifi_src.get("pass")
+                if wifi:
+                    reduced["wifi_info"] = wifi
+
+            # Devolver estructura reducida (misma forma esperada por los tests)
+            return reduced
         
         # Información del dispositivo
         if base_info.get('ModelName'):
@@ -1161,20 +1222,21 @@ class FiberMixin:
                 return {}
             network_menu.click()
             time.sleep(1)
-            
-            # 3. Click en WLAN Security (thr_security)
+
+            # ========== EXTRAER PASSWORD 2.4GHz ==========
+            # 3. Click en 2.4G Advanced (thr_security)
             print("[SELENIUM] Click en WLAN Security...")
             wlan_security = self.find_element_anywhere(driver, By.ID, "thr_security", timeout=5)
             if not wlan_security:
-                print("[ERROR] No se encontró WLAN Security")
+                print("[ERROR] No se encontró 2.4G Advanced")
                 return {}
             wlan_security.click()
             time.sleep(2)
             
-            # 4. Buscar campo PreSharedKey y extraer password
+            # 4. Buscar campo PreSharedKey y extraer password 2.4GHz
             print("[SELENIUM] Buscando campo PreSharedKey...")
             
-            # Intentar encontrar el campo (puede estar en un iframe)
+            # Intentar encontrar el campo de contraseña 2.4G (puede estar en un iframe)
             psk_field = self.find_element_anywhere(driver, By.ID, "PreSharedKey", timeout=5)
             
             if psk_field:
@@ -1213,79 +1275,18 @@ class FiberMixin:
             # ========== EXTRAER PASSWORD 5GHz ==========
             print("\n[SELENIUM] Intentando extraer password 5GHz...")
             try:
-                # MÉTODO 1: Buscar dropdown/selector de banda (común en Fiberhome)
-                print("[SELENIUM] Buscando selector de banda WiFi...")
                 selector_found = False
+                # 5. Click en 5G Advanced (thr_5Gsecurity)
+
+                thr_5gsecurity = self.find_element_anywhere(driver, By.ID, "thr_5Gsecurity", timeout=5)
+                if thr_5gsecurity:
+                    thr_5gsecurity.click()
+                    selector_found = True
+                    time.sleep(1)
+                else:
+                    print("[WARN] No se encontró 5G Advanced (thr_5Gsecurity)")
                 
-                # IDs comunes para selector de banda
-                selector_ids = ["WlanIndex", "ssid_mode", "wlan_mode", "wifi_index", "band_select", "SSID_Index"]
-                
-                for sel_id in selector_ids:
-                    try:
-                        selector = self.find_element_anywhere(driver, By.ID, sel_id, timeout=1)
-                        if selector:
-                            print(f"[SELENIUM] ✓ Selector encontrado: {sel_id}")
-                            
-                            # Verificar si es un select/dropdown
-                            tag_name = selector.tag_name.lower()
-                            if tag_name == 'select':
-                                # Es un dropdown - seleccionar opción de 5GHz
-                                options = selector.find_elements(By.TAG_NAME, "option")
-                                print(f"[DEBUG] Opciones disponibles: {len(options)}")
-                                
-                                # Buscar opción que contenga "5G", "5GHz", o índice 1
-                                for idx, option in enumerate(options):
-                                    opt_text = option.text.lower()
-                                    opt_value = option.get_attribute('value')
-                                    print(f"[DEBUG]   Opción {idx}: text='{option.text}' value='{opt_value}'")
-                                    
-                                    if '5g' in opt_text or '5ghz' in opt_text or opt_value in ['1', 'wlan1', 'ssid1']:
-                                        print(f"[SELENIUM] Seleccionando opción 5GHz: {option.text}")
-                                        option.click()
-                                        time.sleep(2)  # Esperar a que la página actualice
-                                        selector_found = True
-                                        break
-                                
-                                if selector_found:
-                                    break
-                    except Exception as e:
-                        continue
-                
-                # MÉTODO 2: Buscar tabs/pestañas
-                if not selector_found:
-                    print("[SELENIUM] No se encontró selector, buscando tabs...")
-                    tab_ids = ["5g_tab", "wifi_5g", "wlan_5g", "wireless_5g", "tab_5g", "ssid1_tab"]
-                    
-                    for tab_id in tab_ids:
-                        try:
-                            tab_element = self.find_element_anywhere(driver, By.ID, tab_id, timeout=1)
-                            if tab_element:
-                                print(f"[SELENIUM] ✓ Tab 5GHz encontrado: {tab_id}")
-                                tab_element.click()
-                                time.sleep(2)
-                                selector_found = True
-                                break
-                        except:
-                            continue
-                
-                # MÉTODO 3: Buscar menú separado para 5GHz (WLAN Security 5GHz)
-                if not selector_found:
-                    print("[SELENIUM] Buscando menú WLAN Security 5GHz separado...")
-                    menu_5g_ids = ["thr_security_5g", "thr_security5g", "wlan_security_5g", "sec_menu_5g"]
-                    
-                    for menu_id in menu_5g_ids:
-                        try:
-                            menu_5g = self.find_element_anywhere(driver, By.ID, menu_id, timeout=1)
-                            if menu_5g:
-                                print(f"[SELENIUM] ✓ Menú 5GHz encontrado: {menu_id}")
-                                menu_5g.click()
-                                time.sleep(2)
-                                selector_found = True
-                                break
-                        except:
-                            continue
-                
-                # Si encontramos forma de cambiar a 5GHz, leer el MISMO campo PreSharedKey
+                # 6. Buscar campo PreSharedKey (mismo nombre) y extraer password 5GHz
                 if selector_found:
                     print("[SELENIUM] Buscando campo PreSharedKey para 5GHz...")
                     
@@ -1532,14 +1533,33 @@ class FiberMixin:
                     # Extraer información post-reset para verificar estado
                     print("[TEST] Extrayendo información post-reset...")
                     try:
-                        # Intentar extraer info básica
-                        base_info = self._extract_base_info()
-                        if base_info:
-                            self.test_results['metadata']['base_info'] = base_info
-                            result["details"]["post_reset_info"] = "Extracted"
-                            print("[TEST] Información actualizada correctamente")
+                        # 1) Refrescar base_info solo con los campos que cambian
+                        meta = self.test_results.setdefault("metadata", {})
+                        base_prev = meta.get("base_info", {})
+                        base_new = self._extract_base_info() or {}
+
+                        merged = dict(base_prev)  # Copiar previos
+                        merged.update(base_new)  # Actualizar con nuevos
+
+                        # 2) Refrescar SSIDs
+                        wifi_info = self._extract_wifi_allwan() or self._extract_wifi_info()
+                        if wifi_info:
+                            merged["wifi_info"] = wifi_info
+                        
+                        meta["base_info"] = merged
+
+                        # 3) Refrescar password
+                        pw = self._extract_wifi_password_selenium() or {}
+                        if pw:
+                            extra = self.test_results.setdefault('additional_info', {})
+                            wifi_extra = extra.setdefault('wifi_info', {})
+                            wifi_extra['psw'] = pw
+
+                        result["details"]["post_reset_base_info"] = "WiFi refrescado"
+                        print("[TEST] Información post-reset refrescada correctamente.")
+
                     except Exception as e:
-                        print(f"[WARNING] No se pudo extraer info post-reset: {e}")
+                        print(f"[WARNING] No se pudo refrescar info post-reset: {e}")
                         
                 else:
                     result["status"] = "FAIL"
@@ -1570,13 +1590,31 @@ class FiberMixin:
 
         # 1) Capacidad de hardware desde base_info
         base_info = self.test_results.get("metadata", {}).get("base_info")
+        
         if not base_info:
-            result["details"]["error"] = "No se pudo obtener información de hardware (base_info)."
-            result["details"]["note"] = "get_base_info no disponible"
-            return result
-
-        usb_ports = base_info.get("usb_ports", base_info.get("usb_port_num", 0)) or 0
-        usb_status = base_info.get("usb_status")
+            print("FALTA BASE INFO")
+            extracted = self._extract_base_info()
+            print(f"EXTRACTED: {extracted}")
+            if extracted:
+                meta = self.test_results.setdefault("metadata", {})
+                meta["base_info"] = extracted
+                base_info = extracted
+            # result["details"]["error"] = "No se pudo obtener información de hardware (base_info)."
+            # result["details"]["note"] = "get_base_info no disponible"
+            # return result
+        
+        raw = base_info.get("raw_data") or {}
+        usb_ports = (
+            base_info.get("usb_ports")
+            or raw.get("usb_ports")
+            or base_info.get("usb_port_num")
+            or raw.get("usb_port_num")
+            or 0
+        )
+        usb_status = (
+             base_info.get("usb_status")
+             or raw.get("usb_status")
+        )
 
         # Normaliza el tipo
         try:
@@ -1633,7 +1671,6 @@ class FiberMixin:
                     )
 
         # 3) Decidir PASS/FAIL usando TODA la info disponible
-
         usb_status_str = str(usb_status).strip().lower() if usb_status is not None else ""
         status_indica_activo = usb_status_str in ("active", "on", "1", "enable", "enabled", "inserted")
 
@@ -1648,31 +1685,25 @@ class FiberMixin:
         # Hay algunos dispositivos, pero menos que la capacidad -> FAIL
         elif connected_count > 0 and usb_ports > 0:
             result["status"] = "FAIL"
-            result["details"]["note"] = (
-                f"Capacidad declarada: {usb_ports} puerto(s); "
-                f"solo se detectaron {connected_count} dispositivo(s). "
-                "Revisar todos los puertos USB."
-            )
+            result["details"]["error"] = "No se pudo obtener base_info (sesión inválida o no disponible)"
+            result["details"]["method"] = "AJAX get_base_info"
+            return result
+        
+        # Buscar usb_status directamente en raw_data
+        raw = base_info.get('raw_data', {}) if isinstance(base_info, dict) else {}
+        usb_status = (raw.get('usb_status') or base_info.get('usb_status') or '').strip().lower()
 
-        # No tenemos lista de dispositivos, pero el flag de estado dice activo
-        elif connected_count == 0 and status_indica_activo:
-            # Aquí tú decides: PASS “suave” o FAIL.
-            # Yo lo dejaría como PASS pero aclarando que es por flag:
+        # Método de obtención para trazabilidad
+        result["details"]["method"] = "AJAX get_base_info"
+
+        if usb_status == 'active':
             result["status"] = "PASS"
-            result["details"]["note"] = (
-                f"El equipo reporta {usb_ports} puerto(s) USB y estado '{usb_status_str}', "
-                "pero no se pudo leer lista de dispositivos. Verificar manualmente si es necesario."
-            )
-
-        # Nada detectado y sin flag de activo -> FAIL
+            result["details"]["usb_status"] = "Active"
         else:
             result["status"] = "FAIL"
-            result["details"]["note"] = (
-                f"Capacidad de hardware: {usb_ports} puerto(s); "
-                "no se detectaron dispositivos USB. "
-                "Revisar conexión de memorias o posible fallo de puertos."
-            )
-
+            result["details"]["usb_status"] = "Inactive"
+            result["details"]["method"] = "AJAX get_base_info"
+        
         return result
     
     def test_software_version(self) -> Dict[str, Any]:
@@ -1734,11 +1765,41 @@ class FiberMixin:
         
         # Prioridad 1: Usar datos de get_base_info si están disponibles
         base_info = self.test_results['metadata'].get('base_info')
-        if base_info and base_info.get('tx_power_dbm'):
-            result["status"] = "PASS"
+
+        # validar en caso de que no se haya extraido base_info
+        if not base_info:
+            print("FALTA BASE INFO")
+            extracted = self._extract_base_info()
+            print(f"EXTRACTED: {extracted}")
+            if extracted:
+                meta = self.test_results.setdefault("metadata", {})
+                meta["base_info"] = extracted
+                base_info = extracted
+                
+        tx_raw = base_info.get('tx_power_dbm') if base_info else None
+        if base_info and tx_raw is not None:
+            # Convertir y validar contra umbrales
+            try:
+                tx_val = float(tx_raw)
+            except (TypeError, ValueError):
+                tx_val = None
+            
+            min_tx = self._getMinFibraTx()
+            max_tx = self._getMaxFibraTx()
+
             result["details"]["method"] = "AJAX get_base_info"
-            result["details"]["tx_power_dbm"] = base_info['tx_power_dbm']
-            result["details"]["note"] = "Datos obtenidos de get_base_info"
+            result["details"]["tx_power_dbm"] = tx_raw
+
+            if tx_val is None:
+                result["status"] = "FAIL"
+                result["details"]["note"] = "Valor TX no convertible a número"
+            elif tx_val >= min_tx and tx_val <= max_tx:
+                result["status"] = "PASS"
+                result["details"]["note"] = f"TX dentro de rango ({min_tx}..{max_tx})"
+            else:
+                result["status"] = "FAIL"
+                result["details"]["note"] = f"TX fuera de rango ({min_tx}..{max_tx})"
+
             return result
         
         # Prioridad 2: Intentar metodo AJAX get_pon_info
@@ -1769,11 +1830,30 @@ class FiberMixin:
         
         # Prioridad 1: Usar datos de get_base_info si están disponibles
         base_info = self.test_results['metadata'].get('base_info')
+        rx_raw = base_info.get('rx_power_dbm') if base_info else None
         if base_info and base_info.get('rx_power_dbm'):
-            result["status"] = "PASS"
+            # Convertir y validar contra umbrales
+            try:
+                rx_val = float(rx_raw)
+            except (TypeError, ValueError):
+                rx_val = None
+
+            min_rx = self._getMinFibraRx()
+            max_rx = self._getMaxFibraRx()
+
             result["details"]["method"] = "AJAX get_base_info"
-            result["details"]["rx_power_dbm"] = base_info['rx_power_dbm']
-            result["details"]["note"] = "Datos obtenidos de get_base_info"
+            result["details"]["rx_power_dbm"] = rx_raw
+
+            if rx_val is None:
+                result["status"] = "FAIL"
+                result["details"]["note"] = "Valor RX no convertible a número"
+            elif rx_val >= min_rx and rx_val <= max_rx:
+                result["status"] = "PASS"
+                result["details"]["note"] = f"RX dentro de rango ({min_rx}..{max_rx})"
+            else:
+                result["status"] = "FAIL"
+                result["details"]["note"] = f"RX fuera de rango ({min_rx}..{max_rx})"
+
             return result
         
         # Prioridad 2: Usa el mismo metodo que TX (get_pon_info devuelve ambos)
@@ -1814,32 +1894,41 @@ class FiberMixin:
                 print(f"[WARN] Error en extracción Selenium: {e}")
         
         # Prioridad 1: Usar datos de get_base_info si están disponibles
-        base_info = self.test_results['metadata'].get('base_info')
-        if base_info and base_info.get('wifi_info'):
-            wifi_info = base_info['wifi_info']
-            if 'ssid_24ghz' in wifi_info:
+        # base_info = self.test_results['metadata'].get('base_info')
+        # if base_info and base_info.get('wifi_info'):
+        #     wifi_info = base_info['wifi_info']
+        #     if 'ssid_24ghz' in wifi_info:
+        #         result["status"] = "PASS"
+        #         result["details"]["method"] = "AJAX get_base_info"
+        #         result["details"]["ssid"] = wifi_info.get('ssid_24ghz')
+        #         # Solo usar password AJAX si no tenemos la de Selenium
+        #         if "password_unencrypted" not in result["details"]:
+        #             result["details"]["password"] = wifi_info.get('password_24ghz', 'N/A')
+        #             result["details"]["note"] = "Password encriptada (use Selenium para versión sin encriptar)"
+        #         result["details"]["channel"] = wifi_info.get('channel_24ghz', 'N/A')
+        #         result["details"]["enabled"] = wifi_info.get('enabled_24ghz', False)
+        #         # return result
+
+        # Asegurar base_info (mismo patrón que test_usb_port)
+        if not self.test_results.get('metadata', {}).get('base_info'):
+            extracted = self._extract_base_info()
+            if extracted:
+                self.test_results.setdefault('metadata', {})['base_info'] = extracted
+
+        # Prueba de potencia real usando netsh (Windows)
+        _base   = self.test_results['metadata'].get('base_info') or {}
+        _winfo  = _base.get('wifi_info') or {}
+        ssid_24 = _winfo.get('ssid_24ghz') or result["details"].get("ssid")
+        ssid_5  = _winfo.get('ssid_5ghz')
+        if ssid_24 and ssid_5:
+            print(f"[TEST] Scan WiFi Windows: 2.4GHz='{ssid_24}', 5GHz='{ssid_5}'")
+            self.test_wifi_rssi_windows(ssid_24, ssid_5)
+
+            potencia = self.test_results.get("tests", {}).get("potencia_wifi", {})
+            if potencia.get("details", {}).get("pass_24"):
                 result["status"] = "PASS"
-                result["details"]["method"] = "AJAX get_base_info"
-                result["details"]["ssid"] = wifi_info.get('ssid_24ghz')
-                # Solo usar password AJAX si no tenemos la de Selenium
-                if "password_unencrypted" not in result["details"]:
-                    result["details"]["password"] = wifi_info.get('password_24ghz', 'N/A')
-                    result["details"]["note"] = "Password encriptada (use Selenium para versión sin encriptar)"
-                result["details"]["channel"] = wifi_info.get('channel_24ghz', 'N/A')
-                result["details"]["enabled"] = wifi_info.get('enabled_24ghz', False)
-                # return result
-        
-        # Prioridad 2: Intentar metodo AJAX get_wifi_status
-        wifi_status = self._ajax_get('get_wifi_status')
-        
-        result["status"] = "PASS"
-        result["details"]["method"] = "AJAX get_wifi_status"
-        result["details"]["data"] = wifi_status
-        if wifi_status.get('session_valid') == 0:
-            result["details"]["error"] = "Requiere session valida (login completo)"
-            result["details"]["note"] = "Basic Auth insuficiente - necesita do_login"
-        else:
-            result["details"]["error"] = "Metodo no accesible"
+                result["details"]["method"] = "netsh_wlan_scan"
+                result["details"]["signal_percent"] = potencia["details"].get("best_24_percent")
         
         return result
     
@@ -1865,34 +1954,12 @@ class FiberMixin:
             except Exception as e:
                 print(f"[WARN] Error en extracción Selenium: {e}")
         
-        # Prioridad 1: Usar datos de get_base_info si están disponibles
-        base_info = self.test_results['metadata'].get('base_info')
-        if base_info and base_info.get('wifi_info'):
-            wifi_info = base_info['wifi_info']
-            if 'ssid_5ghz' in wifi_info:
-                result["status"] = "PASS"
-                result["details"]["method"] = "AJAX get_base_info"
-                result["details"]["ssid"] = wifi_info.get('ssid_5ghz')
-                # Solo usar password AJAX si no tenemos la de Selenium
-                if "password_unencrypted" not in result["details"]:
-                    result["details"]["password"] = wifi_info.get('password_5ghz', 'N/A')
-                    result["details"]["note"] = "Password encriptada (use Selenium para versión sin encriptar)"
-                result["details"]["channel"] = wifi_info.get('channel_5ghz', 'N/A')
-                result["details"]["enabled"] = wifi_info.get('enabled_5ghz', False)
-                # return result
-        
-        # Prioridad 2: Usa el mismo metodo que 2.4GHz (get_wifi_status devuelve ambas bandas)
-        wifi_status = self._ajax_get('get_wifi_status')
-        
-        
-        result["status"] = "PASS"
-        result["details"]["method"] = "AJAX get_wifi_status"
-        result["details"]["data"] = wifi_status
-        if wifi_status.get('session_valid') == 0:
-            result["details"]["error"] = "Requiere session valida (login completo)"
-            result["details"]["note"] = "Basic Auth insuficiente - necesita do_login"
-        else:
-            result["details"]["error"] = "Metodo no accesible"
+        # Resultado de potencia real (ya ejecutado en test_wifi_24ghz)
+        potencia = self.test_results.get("tests", {}).get("potencia_wifi", {})
+        if potencia.get("details", {}).get("pass_5"):
+            result["status"] = "PASS"
+            result["details"]["method"] = "netsh_wlan_scan"
+            result["details"]["signal_percent"] = potencia["details"].get("best_5_percent")
         
         return result
 
@@ -2253,3 +2320,16 @@ class FiberMixin:
                 "version_nueva": "N/A"
             }
             return False
+
+'''
+⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⡿⣿⣿⣿
+⡿⠟⠫⠋⢉⣁⣉⡉⠉⠉⠋⠛⣿⣿⣿⡛⠋⠋⠉⠉⣁⣈⣉⡐⠩⠛⢻
+⣷⣦⣶⣿⡿⠯⠭⠭⠭⠭⣝⢻⣿⣿⣿⡿⢫⠭⠭⠭⠭⠭⠿⣿⣷⣦⣼
+⣿⣿⣿⣩⡚⠃⢀⠀⡘⠌⢻⣸⣿⣿⣿⣷⣼⣋⢚⢀⣀⢀⠛⣊⣽⣿⣿
+⣿⣿⣿⣿⣿⣿⣿⣿⣿⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿
+⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⣿⣿
+⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡟⣼⣿⣿
+⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠿⢋⣿⡟⣸⣿⣿⣿
+⣿⣿⣿⣿⣿⣿⣿⢙⣛⣛⣛⣛⣛⣛⣛⣉⣩⣭⣴⣾⣿⣿⢣⣿⣿⣿⣿
+⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⢿⣼⣿⣿⣿⣿
+'''

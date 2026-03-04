@@ -426,38 +426,34 @@ class ZTEMixin:
         print("[SELENIUM] Navegando a Management & Diagnosis...")
         driver.get(self.base_url)  # http://192.168.1.1
         
-        # Entrar en Management & Diagnosis
-        ok = self.click_anywhere(
-            driver,
-            selectors=[
-                (By.ID, "mgrAndDiag"),
-                (By.CSS_SELECTOR, "a[menupage='mgrAndDiag']"),
-                (By.LINK_TEXT, "Management & Diagnosis"),
-            ],
-            desc="Management & Diagnosis",
-            timeout=10
+        mgmt = WebDriverWait(driver, 25).until(
+            #EC.element_to_be_clickable((By.LINK_TEXT, "Management & Diagnosis"))
+            EC.presence_of_element_located((By.XPATH, '//a[@title="Management & Diagnosis"]'))
         )
-        if not ok:
-            raise RuntimeError("No se pudo hacer click en Management & Diagnosis")
+        driver.execute_script("arguments[0].scrollIntoView({block:'center'});", mgmt)
+        driver.execute_script("arguments[0].focus();", mgmt)
+        driver.execute_script("arguments[0].click();", mgmt)
+        #mgmt.click()
+        # print("[DEBUG] URL:", driver.current_url)
+        # print("[DEBUG] readyState:", driver.execute_script("return document.readyState"))
+        # print("[DEBUG] page snippet:", driver.page_source[:200].lower())
+        print("[SELENIUM] Click en Management & Diagnosis")
         
         print("[SELENIUM] Management & Diagnosis debería ser accesible ahora")
 
     def nav_devMgr(self, driver):
         print("[SELENIUM] Navegando a System Management...")
         
-        # Entrar en System Management
-        ok = self.click_anywhere(
-            driver,
-            selectors=[
-                (By.ID, "devMgr"),
-                (By.CSS_SELECTOR, "p[menupage='devMgr']"),
-                (By.XPATH, "//p[contains(text(),'System Management')]"),
-            ],
-            desc="System Management",
-            timeout=10
-        )
-        if not ok:
-            raise RuntimeError("No se pudo hacer click en System Management")
+        # Usar WebDriverWait + JS click (mismo patrón que factory reset)
+        try:
+            sysMgmt = WebDriverWait(driver, 15).until(
+                EC.presence_of_element_located((By.ID, "devMgr"))
+            )
+            driver.execute_script("arguments[0].scrollIntoView({block:'center'});", sysMgmt)
+            driver.execute_script("arguments[0].click();", sysMgmt)
+            print("[SELENIUM] Click en System Management OK")
+        except Exception as e:
+            raise RuntimeError(f"No se pudo hacer click en System Management: {e}")
         
         print("[SELENIUM] System Management debería ser accesible ahora")
 
@@ -467,17 +463,16 @@ class ZTEMixin:
         # Esperar a que aparezca la pestaña después de hacer clic en System Management
         time.sleep(2)
         
-        # Usar directamente el ID que ya proporcionaste
-        ok = self.click_anywhere(
-            driver,
-            selectors=[
-                (By.ID, "firmwareUpgr"),
-            ],
-            desc="Software Upgrade (firmwareUpgr)",
-            timeout=10
-        )
-        if not ok:
-            raise RuntimeError("No se pudo hacer clic en Software Upgrade (id=firmwareUpgr)")
+        # Usar WebDriverWait + JS click (mismo patrón que factory reset)
+        try:
+            fwUpgr = WebDriverWait(driver, 15).until(
+                EC.presence_of_element_located((By.ID, "firmwareUpgr"))
+            )
+            driver.execute_script("arguments[0].scrollIntoView({block:'center'});", fwUpgr)
+            driver.execute_script("arguments[0].click();", fwUpgr)
+            print("[SELENIUM] Click en Software Upgrade OK")
+        except Exception as e:
+            raise RuntimeError(f"No se pudo hacer clic en Software Upgrade (id=firmwareUpgr): {e}")
         
         print("[SELENIUM] Software Upgrade abierto")
         time.sleep(1)
@@ -503,7 +498,7 @@ class ZTEMixin:
 
     def test_sft_updateCheckZTE(self):
         # Solo ejecutar para dispositivos ZTE (MOD002)
-        if self.model not in ["MOD002"]:
+        if self.model not in ["MOD002", "MOD009"]:
             # No es un dispositivo ZTE, dejar que otros mixins lo manejen
             return super().test_sft_updateCheck() if hasattr(super(), 'test_sft_updateCheck') else False
             
@@ -527,10 +522,13 @@ class ZTEMixin:
             print("[ERROR] No se pudo obtener la versión de software del dispositivo")
             return False
             
-        FIRMWARE_PATH = r"C:\BINS\F670L"
-        # Patrón para MOD002: [modelo]_[version]
-        # Ejemplo: F670L_V9.0.11P1N94.bin
-        patron = re.compile(r'^F670L_V[\d.PN]+$')
+        # Directorio y patrón según modelo
+        if self.model == "MOD009":
+            FIRMWARE_PATH = r"C:\BINS\F6600"
+            patron = re.compile(r'^F6600_V[\d.A-Z]+$', re.IGNORECASE)
+        else:
+            FIRMWARE_PATH = r"C:\BINS\F670L"
+            patron = re.compile(r'^F670L_V[\d.A-Z]+$', re.IGNORECASE)
         
         # Proceso de carga diferente dependiendo qué modelo de Fiber sea
         # Verificar si la versión de software está actualizada
@@ -550,12 +548,13 @@ class ZTEMixin:
                 stem = Path(archivo).stem
                 
                 # Extraer código según el formato
-                if modelo == "MOD002":
+                if modelo in ("MOD002", "MOD009"):
                     # Formato: totalplay_F670L_V9.0.11P1N94_UPGRADE_BOOTLDR
                     # Extraer la parte V9.0.11P1N94
-                    match = re.search(r'V([\d.P\dN\d]+)', stem)
+                    # Ahora se adapta al formato del MOD009, que es similar pero con una letra al final
+                    match = re.search(r'V([\d.A-Z]+$)', stem, re.IGNORECASE)
                     if match:
-                        codigo = match.group(1)  # "9.0.11P1N94"
+                        codigo = match.group(1)  # "9.0.11P1N94[letra dependiendo del modelo]"
                     else:
                         print("[ERROR] No se pudo extraer la versión del archivo")
                         return False
@@ -563,11 +562,18 @@ class ZTEMixin:
                     # Formato antiguo: HG6145F_RP4379
                     codigo = stem.split("_", 1)[1]  # "RP4379"
 
-                sft_num = "".join(ch for ch in codigo if ch.isdigit()) # Extraer solo dígitos
-                sftVerActual = "".join(ch for ch in sftVer if ch.isdigit())
+                if modelo == "MOD002":
+                    # Para el modelo antiguo, extraemos solo los dígitos del código
+                    sft_num = "".join(ch for ch in codigo if ch.isdigit()) # Extraer solo dígitos
+                    sftVerActual = "".join(ch for ch in sftVer if ch.isdigit())
+                else: # Si tenemos un MOD009
+                    sftVerActual = sftVer
+                    sft_num = "V" + codigo
+
+                print(f"[DEBUG] Comparando versiones: actual={sftVerActual}, nueva={sft_num}")
 
                 # Verificar que la actual no sea igual o mayor a la que se quiere instalar
-                if (sftVerActual < sft_num):
+                if (sftVerActual != sft_num):
                     print("[INFO] Se necesita actualizar software")
                     return True
                 else:
@@ -594,7 +600,7 @@ class ZTEMixin:
                     "status": True,
                     "details": {
                         "previous_version": self.test_results.get('metadata', {}).get('base_info', {}).get('raw_data', {}).get('SoftwareVer', 'N/A'),
-                        "new_version": "El archhivo bin no tiene buen nombre",
+                        "new_version": "El archivo bin no tiene buen nombre",
                         "firmware_file": "archivo",
                         "update_completed": False,
                         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -620,7 +626,7 @@ class ZTEMixin:
         ok = self.test_sft_updateCheckZTE()
         if ok:
             print("[INFO] Actualizando software...")
-            FIRMWARE_PATH = r"C:\BINS\F670L"
+            FIRMWARE_PATH = r"C:\BINS\F6600" if self.model == "MOD009" else r"C:\BINS\F670L"
             archivo = self.searchBins(FIRMWARE_PATH)
             
             try:
@@ -708,9 +714,9 @@ class ZTEMixin:
                         elif 'error' in page_text or 'failed' in page_text:
                             print("[ERROR] Error detectado en la interfaz de actualización")
                             # Guardar evidencia del error
-                            driver.save_screenshot(f"error_firmware_{timestamp}.png")
-                            with open(f"error_firmware_{timestamp}.html", 'w', encoding='utf-8') as f:
-                                f.write(driver.page_source)
+                            # driver.save_screenshot(f"error_firmware_{timestamp}.png")
+                            # with open(f"error_firmware_{timestamp}.html", 'w', encoding='utf-8') as f:
+                            #     f.write(driver.page_source)
                             return False
                         
                         time.sleep(check_interval)
@@ -749,10 +755,17 @@ class ZTEMixin:
                     time.sleep(5)
                     
                     # Navegar a Status para habilitar endpoint
-                    mgmt = WebDriverWait(driver, 10).until(
-                        EC.element_to_be_clickable((By.LINK_TEXT, "Management & Diagnosis"))
+                    mgmt = WebDriverWait(driver, 25).until(
+                        #EC.element_to_be_clickable((By.LINK_TEXT, "Management & Diagnosis"))
+                        EC.presence_of_element_located((By.XPATH, '//a[@title="Management & Diagnosis"]'))
                     )
-                    mgmt.click()
+                    driver.execute_script("arguments[0].scrollIntoView({block:'center'});", mgmt)
+                    driver.execute_script("arguments[0].focus();", mgmt)
+                    driver.execute_script("arguments[0].click();", mgmt)
+                    #mgmt.click()
+                    # print("[DEBUG] URL:", driver.current_url)
+                    # print("[DEBUG] readyState:", driver.execute_script("return document.readyState"))
+                    # print("[DEBUG] page snippet:", driver.page_source[:200].lower())
                     print("[SELENIUM] Click en Management & Diagnosis")
                     time.sleep(3)
                     
@@ -833,89 +846,120 @@ class ZTEMixin:
             return False
 
     def _reset_factory_zte(self, driver) -> bool:
+        """
+        Factory Reset para ZTE usando click_anywhere (robusto).
+        Espera activamente a que cada elemento aparezca antes de hacer clic.
+        Funciona independientemente de la velocidad de la máquina.
+        """
         print("[SELENIUM] Iniciando proceso de Factory Reset ZTE...")
-
-        wait = WebDriverWait(driver, 10)
-
-        def click_with_retry(locator, desc, retries=3, delay=1.0) -> bool:
-            for intento in range(1, retries + 1):
-                try:
-                    elem = wait.until(EC.element_to_be_clickable(locator))
-                    elem.click()
-                    return True
-                except StaleElementReferenceException:
-                    print(f"[SELENIUM] {desc}: StaleElementReference, reintentando "
-                        f"({intento}/{retries})...")
-                    time.sleep(delay)
-            return False
 
         try:
             driver.switch_to.default_content()
+            driver.get(self.base_url)  # http://192.168.1.1
+            time.sleep(2)
 
-            # 1) Top menu
-            print("[SELENIUM] Top Menu 'Management & Diagnosis'...")
-            if not click_with_retry((By.ID, "mgrAndDiag"),
-                                    "Top menu 'Management & Diagnosis'"):
-                print("[ERROR] No se pudo clicar el menú superior 'Management & Diagnosis'")
-                return False
-
-            # 2) Menú lateral
-            print("[SELENIUM] Buscando menú lateral 'System Management'...")
-            if not click_with_retry((By.ID, "devMgr"),
-                                    "Menú lateral 'System Management'"):
-                print("[ERROR] No se pudo clicar el menú lateral 'System Management'")
-                return False
-
-            # 3) Pestaña Device Management
-            print("[SELENIUM] Pestaña 'Device Management' encontrada. Haciendo click...")
-            if not click_with_retry((By.ID, "rebootAndReset"),
-                                    "Pestaña 'Device Management'"):
-                print("[ERROR] No se pudo clicar la pestaña 'Device Management'")
-                return False
-
-            # 4) Expandir sección Factory Reset (sin guardar el WebElement)
-            print("[SELENIUM] Esperando sección 'Factory Reset Management'...")
-            header_loc = (By.ID, "ResetManagBar")
-            wait.until(EC.presence_of_element_located(header_loc))
-
-            print("[SELENIUM] Sección 'Factory Reset Management' colapsada. Expandiendo...")
-            for intento in range(1, 4):
-                try:
-                    driver.find_element(*header_loc).click()
-                    break
-                except StaleElementReferenceException:
-                    print(f"[SELENIUM] Encabezado 'Factory Reset' stale, reintentando "
-                        f"({intento}/3)...")
-                    time.sleep(0.8)
-
-            # 5) Ahora esperamos directamente el botón Btn_reset como señal de que ya está expandido
-            print("[SELENIUM] Buscando botón 'Factory Reset' (Btn_reset)...")
-            if not click_with_retry((By.ID, "Btn_reset"), "Botón 'Factory Reset'"):
-                print("[ERROR] No se pudo localizar un botón 'Factory Reset' cliqueable.")
-                return False
-
-            # 6) Diálogo de confirmación (OK)
-            print("[SELENIUM] Esperando diálogo de confirmación 'Are you sure to restore factory defaults?'...")
-            confirm_loc = (By.ID, "confirmOK")
+            # 1) Top menu - Management & Diagnosis
+            print("[SELENIUM] Paso 1: Click en Management & Diagnosis...")
             try:
-                confirm_btn = WebDriverWait(driver, 8).until(
-                    EC.element_to_be_clickable(confirm_loc)
+                mgmt = WebDriverWait(driver, 25).until(
+                    EC.presence_of_element_located((By.XPATH, '//a[@title="Management & Diagnosis"]'))
                 )
-                confirm_btn.click()
-                print("[SELENIUM] Botón 'OK' de confirmación clickeado.")
-            except TimeoutException:
-                print("[ERROR] No apareció el botón de confirmación 'OK' (id=confirmOK).")
+                driver.execute_script("arguments[0].scrollIntoView({block:'center'});", mgmt)
+                driver.execute_script("arguments[0].click();", mgmt)
+                print("[SELENIUM] Click en Management & Diagnosis OK")
+            except Exception as e:
+                print(f"[ERROR] No se pudo hacer click en Management & Diagnosis: {e}")
                 return False
-            except StaleElementReferenceException:
-                if not click_with_retry(confirm_loc, "Botón 'OK' de confirmación", retries=2):
-                    print("[ERROR] No se pudo hacer click en el botón 'OK' de confirmación (stale).")
-                    return False
 
-            print("[SELENIUM] Factory Reset enviado. El equipo empezará a reiniciarse.")
+            # 2) Menú lateral - System Management
+            print("[SELENIUM] Paso 2: Click en System Management...")
+            try:
+                sysMgmt = WebDriverWait(driver, 15).until(
+                    EC.presence_of_element_located((By.ID, "devMgr"))
+                )
+                driver.execute_script("arguments[0].scrollIntoView({block:'center'});", sysMgmt)
+                driver.execute_script("arguments[0].click();", sysMgmt)
+                print("[SELENIUM] Click en System Management OK")
+            except Exception as e:
+                print(f"[ERROR] No se pudo hacer click en System Management: {e}")
+                return False
+            
+            # Esperar a que cargue (Device Management se abre automáticamente)
+            time.sleep(2)
+
+            # # 3) Pestaña Device Management
+            # print("[SELENIUM] Paso 3: Click en Device Management...")
+            # ok = self.click_anywhere(
+            #     driver,
+            #     selectors=[
+            #         (By.ID, "rebootAndReset"),
+            #         (By.CSS_SELECTOR, "a#rebootAndReset"),
+            #         (By.CSS_SELECTOR, "a[id='rebootAndReset']"),
+            #         (By.CSS_SELECTOR, "a[menuclass='3'][id='rebootAndReset']"),
+            #         (By.CSS_SELECTOR, "a[title='Device Management']"),
+            #         (By.XPATH, "//a[@id='rebootAndReset']"),
+            #         (By.XPATH, "//a[@title='Device Management']"),
+            #         (By.LINK_TEXT, "Device Management"),
+            #     ],
+            #     desc="Device Management",
+            #     timeout=15
+            # )
+            # if not ok:
+            #     print("[ERROR] No se pudo hacer click en Device Management")
+            #     return False
+            
+            # # Esperar a que cargue el contenido (AJAX)
+            # time.sleep(2)
+
+            # 3) Expandir sección Factory Reset Management (es <h1 id="ResetManagBar">)
+            print("[SELENIUM] Paso 3: Expandiendo sección Factory Reset Management...")
+            try:
+                resetBar = WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.ID, "ResetManagBar"))
+                )
+                driver.execute_script("arguments[0].scrollIntoView({block:'center'});", resetBar)
+                driver.execute_script("arguments[0].click();", resetBar)
+                print("[SELENIUM] Click en Factory Reset Management Bar OK")
+            except Exception as e:
+                print(f"[WARN] No se encontró ResetManagBar, puede que ya esté expandido: {e}")
+            
+            # Esperar a que se expanda la sección
+            time.sleep(1.5)
+
+            # 4) Hacer click en botón Factory Reset (es <input id="Btn_reset" value="Factory Reset">)
+            print("[SELENIUM] Paso 4: Click en botón Factory Reset...")
+            try:
+                btnReset = WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.ID, "Btn_reset"))
+                )
+                driver.execute_script("arguments[0].scrollIntoView({block:'center'});", btnReset)
+                driver.execute_script("arguments[0].click();", btnReset)
+                print("[SELENIUM] Click en botón Factory Reset OK")
+            except Exception as e:
+                print(f"[ERROR] No se pudo hacer click en el botón Factory Reset: {e}")
+                return False
+
+            # 5) Diálogo de confirmación (OK)
+            print("[SELENIUM] Paso 5: Esperando diálogo de confirmación...")
+            time.sleep(1)
+            
+            try:
+                confirmOK = WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.ID, "confirmOK"))
+                )
+                driver.execute_script("arguments[0].click();", confirmOK)
+                print("[SELENIUM] Click en confirmación OK")
+            except Exception as e:
+                print(f"[ERROR] No se pudo hacer click en el botón de confirmación OK: {e}")
+                return False
+
+            print("[SELENIUM] Factory Reset enviado exitosamente. El equipo empezará a reiniciarse.")
             return True
 
         except Exception as e:
             print(f"[ERROR] Falló el proceso de Factory Reset ZTE: {e}")
+            import traceback
+            traceback.print_exc()
             return False
 
     def nav_zte_wifi_pass(self, driver):
@@ -1078,19 +1122,24 @@ class ZTEMixin:
         #Update para generar reportes
         pruebas = [
             # VACIO para solo agregar las que se piden en opciones
-            ("basic", self.info_zte_basic, xml_url), # Esta es info, por lo que siempre se ejecuta
+            # ("basic", self.info_zte_basic, xml_url), # Esta es info, por lo que siempre se ejecuta
             # ("usb",   self.nav_usb,        xml_usb), # ok
             ("lan",   self.nav_lan,        xml_lan), # Lan forma parte de la info basica
             ("wifi",  self.nav_wifi,       xml_wifi), # Esta parte del wifi es para la info basica
             # ("fibra", self.nav_fibra,      xml_fibra), # ok
             ("mac",   self.nav_mac,        xml_mac), # Mac forma parte de la info basica
         ]
-        
+
+        info_opts = optTest.get("info", False)
+        if isinstance(info_opts, dict):
+            if any(info_opts.values()):
+                pruebas.insert(0, ("basic", self.info_zte_basic, xml_url))
+        elif info_opts:
+            pruebas.insert(0, ("basic", self.info_zte_basic, xml_url))
         if tests_opts.get("usb_port", True): # Ejecutando True por defecto
             pruebas.append( ("usb",   self.nav_usb,        xml_usb) )
         if tests_opts.get("tx_power", True) and tests_opts.get("rx_power", True):
             pruebas.append( ("fibra", self.nav_fibra,      xml_fibra) )
-
 
         try:
             print("Opcion 1:\n")
@@ -1114,6 +1163,7 @@ class ZTEMixin:
                 
                 # DEBUG: Ver qué contiene parsed
                 if name == "basic":
+                    print(f"[DEBUG] La respuesta raw es: {raw[:300]}")
                     print(f"[DEBUG] Prueba 'basic' - Contenido de parsed: {list(parsed.keys())}")
                     print(f"[DEBUG] DEVINFO presente: {'DEVINFO' in parsed}")
                     if 'DEVINFO' in parsed:
@@ -1136,10 +1186,44 @@ class ZTEMixin:
                     }
 
                 # 5) Armar el objeto resultado de esta prueba
+                # result = {
+                #     "name": name,
+                #     "status": parsed.get("error", {}).get("str") == "SUCC",
+                #     "details": parsed,          # aquí va el json parseado de ese XML
+                # }
+
+                # Filtrar detalles cuando las opciones de 'info' son un dict (unitarias)
+                info_opts = optTest.get("info", False)
+                # Por defecto guardamos todo el parsed
+                details = parsed
+
+                # Si 'info' viene como dict (unidades solicitadas explícitamente),
+                # respetar qué campos de DEVINFO se deben almacenar para 'basic'
+                if isinstance(info_opts, dict) and name == "basic":
+                    devinfo = parsed.get("DEVINFO") or {}
+                    keep = {}
+
+                    # model
+                    if info_opts.get("model", False) and devinfo.get("ModelName") is not None:
+                        keep["ModelName"] = devinfo.get("ModelName")
+                    # serial number
+                    if info_opts.get("sn", False) and devinfo.get("SerialNumber") is not None:
+                        keep["SerialNumber"] = devinfo.get("SerialNumber")
+                    # software version (campo en DEVINFO: SoftwareVer)
+                    if info_opts.get("software_version", False) and devinfo.get("SoftwareVer") is not None:
+                        keep["SoftwareVer"] = devinfo.get("SoftwareVer")
+
+                    # Si hay algo que guardar en DEVINFO → dejar sólo eso; si no, vaciar detalles
+                    if keep:
+                        details = {"DEVINFO": keep}
+                    else:
+                        details = {}
+
+                # (Caso por defecto: details = parsed)
                 result = {
                     "name": name,
                     "status": parsed.get("error", {}).get("str") == "SUCC",
-                    "details": parsed,          # aquí va el json parseado de ese XML
+                    "details": details,          # aquí va el json (o la versión filtrada) del XML
                 }
 
                 # 6) Guardarlo en self.test_results (igual que tu patrón test_func)
@@ -1200,6 +1284,15 @@ class ZTEMixin:
 
             # all_nets = self.scan_wifi_windows(debug=True)  # debug
 
+            # Emitir resultado de factory_reset si se ejecutó
+            factory_result = self.test_results.get('tests', {}).get('factory_reset', {})
+            if factory_result:
+                def emit(kind, payload):
+                    if self.out_q:
+                        self.out_q.put((kind, payload))
+                status = "PASS" if factory_result.get('status') == True else "FAIL"
+                emit("test_individual", {"name": "factory_reset", "status": status})
+                
             #Guardar a archivo
             self.save_results2("test_mod002")
         except Exception as e:
@@ -1209,6 +1302,7 @@ class ZTEMixin:
         # funcion de inicio de sesión zte (ip diferente -> 192.168.1.1)
         # Este login / peticiones no se hacen mediante ajax ya que el modelo no lo soporta
         print("[DEBUG] El valor de reset recibido es: "+str(reset))
+        print("[ZTE] Intentando login con ZTE normal_user")
         # Vereficar selenium (prob se usará siemr}pre, es sencillo de usar)
         if SELENIUM_AVAILABLE:
             #Login con selenium, pero sin acceder a cookies
@@ -1248,11 +1342,12 @@ class ZTEMixin:
                 print(f"[SELENIUM] Navegando a {base_url}...")
                 
                 try:
+                    driver.set_page_load_timeout(30)
                     driver.get(base_url)
                 except Exception as e:
-                    print(f"[ERROR] No se pudo cargar VAMOS A SEGUIR PARA ESTE MODELO {base_url}: {e} ")
-                    # driver.quit()
-                    # return False
+                    print(f"[ERROR] No se pudo cargar {base_url}: {e}")
+                    #driver.quit()
+                    #return False
                 
                 # Esperar breve a que cargue la página
                 time.sleep(2)
@@ -1368,7 +1463,7 @@ class ZTEMixin:
                 
                 if login_button:
                     driver.execute_script("arguments[0].click();", login_button)
-                    login_button.click()
+                    #login_button.click()
                     print("[SELENIUM] Click en botón de login...")
                 else:
                     # Si no hay botón, enviar formulario con Enter
@@ -1382,7 +1477,7 @@ class ZTEMixin:
                 # Verificar si se tiene que hacer factory reset
                 optTest = self.opcionesTest
                 tests_opts = optTest.get("tests", {})
-                if tests_opts.get("factory_reset", True):
+                if tests_opts.get("factory_reset", True) and not self._has_executed_test("factory_reset"): # Solo ejecutar reset si la opción está habilitada y no se ha ejecutado antes (usando helper)
                     if (reset is False):
                         # Antes de ejecutar las demás pruebas hay que resetear de fabrica
                         def emit(kind, payload):
@@ -1391,13 +1486,38 @@ class ZTEMixin:
                         emit("pruebas", "Ejecutando: Reinicio De Fabrica")
                         resetZTE = self._reset_factory_zte(driver)
                         print("[INFO] Esperando a que el ZTE reinicie tras Factory Reset...")
-                        time.sleep(100)  # espera
+                        time.sleep(110)  # espera
                         if (resetZTE):
-                            reset = True
-                            self._login_zte(True) # Es necesario volver a loggearse después del reset
+                            # Guardar resultado PASS
+                            self.test_results.setdefault("tests", {})["factory_reset"] = {
+                                "name": "factory_reset",
+                                "status": True,
+                                "data": {"result": "PASS"}
+                            }
+
+                            # Limpiar resultados previos
+                            try:
+                                test_dict = self.test_results.get("tests", {})
+                                test_dict.pop("wifi", None)
+                                test_dict.pop("Contraseña", None)
+                            except Exception:
+                                pass
+                            
+                            # Anti-loop sin mutar opciones
+                            self._mark_executed_test("factory_reset")
+
                             driver.quit()
-                            return True
+
+                            # Re login post-reset (zte_info(driver) -> repuebla wifi/Contraseña)
+                            return self._login_zte(True)
+                        
                         else:
+                            # Guardar resultado FAIL
+                            self.test_results.setdefault("tests", {})["factory_reset"] = {
+                                "name": "factory_reset",
+                                "status": False,
+                                "data": {"result": "FAIL"}
+                            }
                             print("[WARNING] No se pudo resetear, saltando pruebas")
                             driver.quit()
                             return False
@@ -1408,13 +1528,20 @@ class ZTEMixin:
                     (By.LINK_TEXT, "Management & Diagnosis")
                 ]
                 
-                mgmt = WebDriverWait(driver, 10).until(
-                    EC.element_to_be_clickable((By.LINK_TEXT, "Management & Diagnosis"))
+                mgmt = WebDriverWait(driver, 25).until(
+                    #EC.element_to_be_clickable((By.LINK_TEXT, "Management & Diagnosis"))
+                    EC.presence_of_element_located((By.XPATH, '//a[@title="Management & Diagnosis"]'))
                 )
-                mgmt.click()
+                driver.execute_script("arguments[0].scrollIntoView({block:'center'});", mgmt)
+                driver.execute_script("arguments[0].focus();", mgmt)
+                driver.execute_script("arguments[0].click();", mgmt)
+                #mgmt.click()
+                # print("[DEBUG] URL:", driver.current_url)
+                # print("[DEBUG] readyState:", driver.execute_script("return document.readyState"))
+                # print("[DEBUG] page snippet:", driver.page_source[:200].lower())
                 print("[SELENIUM] Click en Management & Diagnosis")
                 
-                time.sleep(3)
+                time.sleep(1.5)
 
                 # Debug EXTREMO
                 # with open("zte_after_mgmt.html", "w", encoding="utf-8") as f:

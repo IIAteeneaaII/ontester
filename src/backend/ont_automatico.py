@@ -13,9 +13,11 @@ import socket
 import subprocess
 import platform
 import re
+import html
 import threading
 import time
 import requests
+import copy
 import csv
 from datetime import datetime
 from datetime import date
@@ -26,6 +28,7 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 from datetime import datetime
 from pathlib import Path
+import traceback
 MAC_REGEX = re.compile(r"([0-9A-Fa-f]{2}(?:(?::|-)?[0-9A-Fa-f]{2}){5})")
 # Selenium para login automático
 try:
@@ -151,6 +154,9 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
             }
         }
         
+        # Anti-loop por instancia (no muta opcionesTest)
+        self._executed_tests = set()
+        
         # Deshabilitar warnings SSL
         requests.packages.urllib3.disable_warnings()
         
@@ -183,6 +189,12 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
             "ZXHN F670L": "MOD002",
             "ZTE F670L": "MOD002",
             "F670L": "MOD002",
+
+            # # MOD009: ZTE F6600
+            "ZTE ZXHN F6600": "MOD009",
+            "ZXHN F6600": "MOD009",
+            "ZTE F6600": "MOD009",
+            "F6600": "MOD009",
             
             # MOD001: FIBERHOME HG6145F
             "FIBERHOME HG6145F": "MOD001",
@@ -194,6 +206,16 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
             "GS-HT818": "MOD006",
             "HT818": "MOD006",
         }
+    
+    # Helpers para evitar loops por instancia de ONTAutomatedTester
+    def _has_executed_test(self, test_name: str) -> bool:
+        return test_name in getattr(self, "_executed_tests", set())
+
+    def _mark_executed_test(self, test_name: str) -> None:
+        if not hasattr(self, "_executed_tests"):
+            self._executed_tests = set()
+        self._executed_tests.add(test_name)
+    #-------------------------
     
     # Configuración de umbrales de señal WiFi Fiberhome
     def _configWifiSignalThresholds(self, min24: int, min5: int):
@@ -369,7 +391,7 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
             return self._login_grandstream()
         elif device_type == "FIBERHOME" or self.model == "MOD001" or self.model == "MOD008":
             return self._login_fiberhome()  # Fiberhome usa Selenium
-        elif device_type == "ZTE" or self.model == "MOD002":
+        elif device_type == "ZTE" or self.model in ["MOD002", "MOD009"]:
             return self._login_zte(False) # False para indicar que aun no se ha reseteado
         elif device_type == "HUAWEI" or self.model in ["MOD003", "MOD004", "MOD005", "MOD007"]:
             return self._login_huawei()
@@ -452,11 +474,27 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
                 return "HUAWEI"
             
             # --- 4. DETECCIÓN ZTE ---
-            if any(k in html_lower for k in ['zte', 'zxhn', 'f670l', 'frm_username', 'frm_password']):
+            if any(k in html_lower for k in ['zte', 'zxhn', 'f670l', 'f6600', 'frm_username', 'frm_password']):
                 print("[AUTH] Dispositivo ZTE detectado automáticamente")
-                if not self.model:
+                
+                zte_model = ""
+
+                # Extraer modelo desde <title> (misma lógica que Huawei)
+                title_match = re.search(r"<title>(.*?)</title>", raw_html, re.IGNORECASE)
+                if title_match:
+                    zte_model = html.unescape(title_match.group(1)).upper().strip()
+
+                print(f"[AUTH] ZTE <title> extraído: '{zte_model}'")
+
+                # Asignación directa (mismo patrón que Huawei)
+                if "F6600" in zte_model:
+                    self.model = "MOD009"
+                elif "F670L" in zte_model:
                     self.model = "MOD002"
-                    print(f"[AUTH] Modelo asignado: {self.model}")
+                else:
+                    self.model = "MOD002"  # fallback
+
+                print(f"[AUTH] Modelo ZTE asignado: {self.model} ({zte_model if zte_model else 'Indeterminado'})")
                 return "ZTE"
             
             return "ONT"
@@ -497,6 +535,7 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
             "MOD001": "HG6145F",
             "MOD008": "HG6145F1",
             "MOD002": "F670L",
+            "MOD009": "F6600",
             "MOD004": "HG8145V5",
             "MOD005": "HG8145V5 SMALL",
             "MOD006": "HT818",
@@ -569,12 +608,12 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
         # IMPORTANTE Las opciones modificadas aqui solo entran en vigor para el FIBERHOME
         # Tests comunes a todos los dispositivos
         common_tests = [
-            self.test_pwd_pass,
+            #self.test_pwd_pass,
             #self.test_factory_reset,
-            self.test_ping_connectivity,
-            self.test_http_connectivity,
-            self.test_port_scan,
-            self.test_dns_resolution,
+            #self.test_ping_connectivity,
+            # self.test_http_connectivity,
+            # self.test_port_scan,
+            # self.test_dns_resolution,
             self.test_software_version,
         ]
         
@@ -664,6 +703,14 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
                 self.test_results["tests"][result["name"]] = result
 
                 emit("test_individual", {"name": result.get("name",""), "status": result.get("status","FAIL")})
+
+        # Cerrar sesión FiberHome al finalizar diccionario de pruebas
+        if self.model in ("MOD001", "MOD008"):
+            try:
+                self._router_logout_best_effort()
+            except Exception as e:
+                print(f"[LOGOUT] Error cerrando sesión post-pruebas: {e}")
+
         return self.test_results
 
     def _generarCertificado(self):
@@ -713,80 +760,81 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
         # 3) Cualquier otra combinación -> Inicial
         return "Inicial"
 
+    # Ya no necesito esta función c:
     def saveBDiaria(self, resultados):
         print("[BASE] Llegando a base diaria")
         # Traer los resultados de la prueba
-        res = resultados
-        # Versión del software
-        version_ont = "BETA"
+        # res = resultados
+        # # Versión del software
+        # version_ont = "BETA"
 
-        # Encabezados
-        HEADERS = [
-            "ID",
-            "SN",
-            "MAC",
-            "SSID_24",
-            "SSID_5",
-            "PASSWORD",
-            "MODELO",
-            "STATUS",
-            "VERSION_INICIAL",
-            "VERSION_FINAL",
-            "TIPO_PRUEBA",
-            "FECHA",
-            "VERSION_ONT_TESTER",
-        ]
+        # # Encabezados
+        # HEADERS = [
+        #     "ID",
+        #     "SN",
+        #     "MAC",
+        #     "SSID_24",
+        #     "SSID_5",
+        #     "PASSWORD",
+        #     "MODELO",
+        #     "STATUS",
+        #     "VERSION_INICIAL",
+        #     "VERSION_FINAL",
+        #     "TIPO_PRUEBA",
+        #     "FECHA",
+        #     "VERSION_ONT_TESTER",
+        # ]
 
-        ruta_csv = self.get_daily_report_path()
-        archivo_nuevo = not ruta_csv.exists()
+        # ruta_csv = self.get_daily_report_path()
+        # archivo_nuevo = not ruta_csv.exists()
 
-        # 4) Calcular el siguiente ID
-        if archivo_nuevo:
-            next_id = 1
-        else:
-            with ruta_csv.open(newline="", encoding="utf-8") as f:
-                reader = csv.reader(f)
-                # saltar encabezado si existe
-                next(reader, None)
-                last_id = 0
-                for row in reader:
-                    if row and row[0].isdigit():
-                        last_id = int(row[0])
-                next_id = last_id + 1
+        # # 4) Calcular el siguiente ID
+        # if archivo_nuevo:
+        #     next_id = 1
+        # else:
+        #     with ruta_csv.open(newline="", encoding="utf-8") as f:
+        #         reader = csv.reader(f)
+        #         # saltar encabezado si existe
+        #         next(reader, None)
+        #         last_id = 0
+        #         for row in reader:
+        #             if row and row[0].isdigit():
+        #                 last_id = int(row[0])
+        #         next_id = last_id + 1
 
-        #Creación de 
-        info  = res.get("info", {})
-        tests = res.get("tests", {})
-        valido = res.get("valido", False)
-        tipo_prueba = self.getTipoPrueba()
-        registro = [
-            next_id,              # ID
-            info.get("sn", ""),            # SN
-            info.get("mac", ""),           # MAC
-            info.get("wifi24", ""),        # SSID_24
-            info.get("wifi5", ""),         # SSID_5
-            info.get("passWifi", ""),      # PASSWORD
-            info.get("modelo", ""),        # MODELO
-            "OK" if valido else "FAIL",        # STATUS
-            "---",   # VERSION_INICIAL
-            info.get("sftVer", ""),     # VERSION_FINAL
-            tipo_prueba,   # TIPO_PRUEBA
-            date.today().strftime("%d-%m-%Y"),     # FECHA
-            version_ont,          # VERSION_ONT_TESTER
-        ]
+        # #Creación de 
+        # info  = res.get("info", {})
+        # tests = res.get("tests", {})
+        # valido = res.get("valido", False)
+        # tipo_prueba = self.getTipoPrueba()
+        # registro = [
+        #     next_id,              # ID
+        #     info.get("sn", ""),            # SN
+        #     info.get("mac", ""),           # MAC
+        #     info.get("wifi24", ""),        # SSID_24
+        #     info.get("wifi5", ""),         # SSID_5
+        #     info.get("passWifi", ""),      # PASSWORD
+        #     info.get("modelo", ""),        # MODELO
+        #     "OK" if valido else "FAIL",        # STATUS
+        #     "---",   # VERSION_INICIAL
+        #     info.get("sftVer", ""),     # VERSION_FINAL
+        #     tipo_prueba,   # TIPO_PRUEBA
+        #     date.today().strftime("%d-%m-%Y"),     # FECHA
+        #     version_ont,          # VERSION_ONT_TESTER
+        # ]
 
-        # Guardar del archivo
-        ruta_csv = self.get_daily_report_path()
-        archivo_nuevo = not ruta_csv.exists()
+        # # Guardar del archivo
+        # ruta_csv = self.get_daily_report_path()
+        # archivo_nuevo = not ruta_csv.exists()
 
-        with ruta_csv.open(mode="a", newline="", encoding="utf-8") as f:
-            writer = csv.writer(f)
+        # with ruta_csv.open(mode="a", newline="", encoding="utf-8") as f:
+        #     writer = csv.writer(f)
 
-            # Si es nuevo, escribimos los encabezados primero
-            if archivo_nuevo:
-                writer.writerow(HEADERS)
+        #     # Si es nuevo, escribimos los encabezados primero
+        #     if archivo_nuevo:
+        #         writer.writerow(HEADERS)
 
-            writer.writerow(registro)
+        #     writer.writerow(registro)
 
 def main():
     parser = argparse.ArgumentParser(description="ONT Automated Test Suite")
@@ -896,7 +944,7 @@ def main():
         tester._generarCertificado()
     
 
-def monitor_device_connection(ip: str, interval: int = 1, max_failures: int = 3, stop_event = None):
+def monitor_device_connection(ip: str, interval: int = 1, max_failures: int = 1, stop_event = None):
     """
     Monitorea continuamente la conexión con un dispositivo mediante ping.
     Retorna cuando se pierda la conexión o se reciba señal de stop.
@@ -1142,6 +1190,13 @@ def run_retest_mode(host: str, model: str = None, output: str = None):
             result = test_methods[test_name]()
             tester.test_results["tests"][result["name"]] = result
     
+    # Cerrar sesión FiberHome al finalizar retesteo
+    if tester.model in ("MOD001", "MOD008"):
+        try:
+            tester._router_logout_best_effort()
+        except Exception as e:
+            print(f"[LOGOUT] Error cerrando sesión post-retesteo: {e}")
+            
     # Mostrar reporte
     print("\n" + tester.generate_report())
     
@@ -1190,6 +1245,8 @@ def pruebaUnitariaONT(opcionesTest, out_q=None, modelo=None, stop_event=None):
     '''# Obtener la IP del dispositivo según modelo
     if modelo == "F670L":
         ip = "192.168.1.1"
+    elif modelo == "F6600":
+        ip = "192.168.1.1"
     else:
         ip = "192.168.100.1"'''
     
@@ -1201,6 +1258,7 @@ def pruebaUnitariaONT(opcionesTest, out_q=None, modelo=None, stop_event=None):
         "HG6145F": "MOD001",
         "HG6145F1": "MOD008",
         "F670L": "MOD002",
+        "F6600": "MOD009",
         "HG8145X6-10": "MOD003",
         "HG8145X6": "MOD007",
         "HG8145V5": "MOD004",
@@ -1209,7 +1267,7 @@ def pruebaUnitariaONT(opcionesTest, out_q=None, modelo=None, stop_event=None):
     model_code = MODEL_UI_TO_CODE.get(modelo_ui, None)
 
     # IP por modelo
-    ip = "192.168.1.1" if modelo_ui == "F670L" else "192.168.100.1"
+    ip = "192.168.1.1" if model_code in ("MOD002", "MOD009") else "192.168.100.1"
 
     # Instancia de ONTAutomatedTester para esta ejecución puntual
     temp_tester = ONTAutomatedTester(host=ip, model=model_code)
@@ -1264,19 +1322,24 @@ def pruebaUnitariaONT(opcionesTest, out_q=None, modelo=None, stop_event=None):
         return
     
     # Emit por test usando lo que ya se almacenó en test_results
-    try:
-        for _, result in temp_tester.test_results.get("tests", {}).items():
-            # result típicamente: {"name": "...", "status": "PASS/FAIL", ...}
-            emit("test_individual", {"name": result.get("name", ""), "status": result.get("status", "FAIL")})
-    except Exception as e:
-        emit("log", f"[WARN] No se pudo emitir test_individual: {e}")
+    # try:
+    #     for _, result in temp_tester.test_results.get("tests", {}).items():
+    #         # result típicamente: {"name": "...", "status": "PASS/FAIL", ...}
+    #         emit("test_individual", {"name": result.get("name", ""), "status": result.get("status", "FAIL")})
+    # except Exception as e:
+    #     emit("log", f"[WARN] No se pudo emitir test_individual: {e}")
 
     # Emit final "resultados" igual que el main_loop
     try:
+        print(f"[ONT] Llegando al try de resultados en prueba unitaria")
         final = temp_tester._resultados_finales()
+        final["_from_unit_test"] = True
+        print(f"[ONT] Emitiendo resultados finales: {final}")
         emit("resultados", final)
     except Exception as e:
         emit("log", f"[WARN] No se pudo emitir resultados finales: {e}")
+        traceback.print_exc()
+        print(f"[ONT] se murió, excepcion: {e}")
 
     # Solo avisamos al loop principal para que SALTE FASE 2
     # si la prueba unitaria fue disruptiva (reset de fábrica o actualización).
@@ -1396,6 +1459,8 @@ def main_loop(opciones, out_q = None, stop_event = None, auto_test_on_detect = T
             print(f"\n[OK] {device_type} detectado: {ip} (Modelo: {detected_model})")
             # Decir que ya se hizo la conexión
             emit("con", "Dispositivo Conectado")
+            # Marcar PING como PASS automáticamente (conexión confirmada por _scan_for_device)
+            emit("test_individual", {"name": "ping", "status": "PASS"})
             last_tested_ip = ip
 
             # Mostrar modelo en UI
@@ -1421,8 +1486,12 @@ def main_loop(opciones, out_q = None, stop_event = None, auto_test_on_detect = T
 
                 tester = ONTAutomatedTester(ip, detected_model)
                 tester.out_q = out_q
-                tester.opcionesTest = opciones
+                tester.opcionesTest = copy.deepcopy(opciones)
                 tester._stop_event = stop_event
+
+                # Debugeo
+                print("[DEBUG] factory_reset opt:", tester.opcionesTest.get("tests", {}).get("factory_reset"))
+                print("[DEBUG] factory_reset executed:", tester._has_executed_test("factory_reset"))
 
                 print("Las opciones elegidas son: " + str(opciones))
                 emit("pruebas", "Autenticando dispositivo")
@@ -1462,7 +1531,7 @@ def main_loop(opciones, out_q = None, stop_event = None, auto_test_on_detect = T
 
                 et = ONTAutomatedTester(ip, detected_model)
                 et.out_q = out_q
-                et.opcionesTest = opciones
+                et.opcionesTest = copy.deepcopy(opciones)
 
                 emit("pruebas", "Extrayendo datos de etiqueta")
                 et.run_all_tests()
@@ -1490,8 +1559,8 @@ def main_loop(opciones, out_q = None, stop_event = None, auto_test_on_detect = T
             print(f"\n[FASE 3/3] MONITOREO DE CONEXIÓN")
             print("-" * 60)
 
-            # Monitoreo simple: 3 pings fallidos = desconexión = nuevo ciclo de escaneo
-            user_interrupted = monitor_device_connection(ip, interval=1, max_failures=3, stop_event=stop_event)
+            # Monitoreo simple: 1 ping fallido = desconexión = nuevo ciclo de escaneo
+            user_interrupted = monitor_device_connection(ip, interval=1, max_failures=1, stop_event=stop_event)
 
             if user_interrupted:
                 # stop_event o Ctrl+C: salir del main_loop
