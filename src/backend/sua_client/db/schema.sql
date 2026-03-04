@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS stations (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     descripcion TEXT    NOT NULL,
-    activo      INTEGER NOT NULL DEFAULT 0,
+    activo      INTEGER NOT NULL DEFAULT 1,
     update_at   TEXT,
     id_settings INTEGER,
     created_at  TEXT    NOT NULL,

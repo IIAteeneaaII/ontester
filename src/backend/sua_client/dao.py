@@ -624,12 +624,23 @@ def get_baseGlobal_por_dia(day: str):
 
 
 def _now_iso():
-    return datetime.now().isoformat(timespec="seconds")
+    #return datetime.now().isoformat(timespec="seconds")
+    return now_local_iso()
 
 def get_station_key_activa() -> str | None:
     """
-    Regresa station_key si existe una estación con activo=1.
+    Regresa station_key si existe una estación con activo=2.
     Se asume 1 estación por PC (toma la última).
+    """
+    with get_conn() as con:
+        row = con.execute(
+            "SELECT descripcion FROM stations WHERE activo = 2 ORDER BY id DESC LIMIT 1;"
+        ).fetchone()
+        return row["descripcion"] if row and row["descripcion"] else None
+
+def get_enrollment_code_pendiente() -> str | None:
+    """
+    Regresa enrollment_code si existe una estación pendiente con activo=1 (toma la última).
     """
     with get_conn() as con:
         row = con.execute(
@@ -637,25 +648,15 @@ def get_station_key_activa() -> str | None:
         ).fetchone()
         return row["descripcion"] if row and row["descripcion"] else None
 
-def get_enrollment_code_pendiente() -> str | None:
-    """
-    Regresa enrollment_code si existe una estación pendiente con activo=0 (toma la última).
-    """
-    with get_conn() as con:
-        row = con.execute(
-            "SELECT descripcion FROM stations WHERE activo = 0 ORDER BY id DESC LIMIT 1;"
-        ).fetchone()
-        return row["descripcion"] if row and row["descripcion"] else None
-
 def upsert_enrollment_pendiente(enrollment_code: str) -> None:
     """
-    Si ya hay una fila pendiente (activo=0), la actualiza con el enrollment_code.
+    Si ya hay una fila pendiente (activo=1), la actualiza con el enrollment_code.
     Si no hay, crea una fila pendiente nueva.
     """
     now = _now_iso()
     with get_conn() as con:
         row = con.execute(
-            "SELECT id FROM stations WHERE activo = 0 ORDER BY id DESC LIMIT 1;"
+            "SELECT id FROM stations WHERE activo = 1 ORDER BY id DESC LIMIT 1;"
         ).fetchone()
 
         if row:
@@ -665,7 +666,7 @@ def upsert_enrollment_pendiente(enrollment_code: str) -> None:
             )
         else:
             con.execute(
-                "INSERT INTO stations (descripcion, activo, update_at, created_at) VALUES (?, 0, ?, ?);",
+                "INSERT INTO stations (descripcion, activo, update_at, created_at) VALUES (?, 1, ?, ?);",
                 (enrollment_code, now, now),
             )
         con.commit()
@@ -679,17 +680,17 @@ def activar_station_key(station_key: str) -> None:
     with get_conn() as con:
         # Busca una pendiente para reutilizarla
         pending = con.execute(
-            "SELECT id FROM stations WHERE activo = 0 ORDER BY id DESC LIMIT 1;"
+            "SELECT id FROM stations WHERE activo = 1 ORDER BY id DESC LIMIT 1;"
         ).fetchone()
 
         if pending:
             con.execute(
-                "UPDATE stations SET descripcion = ?, activo = 1, update_at = ? WHERE id = ?;",
+                "UPDATE stations SET descripcion = ?, activo = 2, update_at = ? WHERE id = ?;",
                 (station_key, now, pending["id"]),
             )
         else:
             con.execute(
-                "INSERT INTO stations (descripcion, activo, update_at, created_at) VALUES (?, 1, ?, ?);",
+                "INSERT INTO stations (descripcion, activo, update_at, created_at) VALUES (?, 2, ?, ?);",
                 (station_key, now, now),
             )
 

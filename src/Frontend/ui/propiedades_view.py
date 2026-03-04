@@ -1125,16 +1125,28 @@ class TesterMainView(ctk.CTkFrame):
         mac_label = ctk.CTkLabel(win, text="MAC ID:", fg_color="transparent", font=ctk.CTkFont(size=14, weight="bold"))
         mac_label.grid(row=0, column=0, pady=(20, 10), padx=20)
 
-        # TODO Cambiar esto para leerlo desde BD y revisar si es enroutment o station eky
-        enrout_label = ctk.CTkLabel(win, text="ENROUTMENT code:", fg_color="transparent", font=ctk.CTkFont(size=14, weight="bold"))
+        #  Cambiar esto para leerlo desde BD y revisar si es enroutment o station eky
+        # Validar estado de estacion
+        from src.backend.sua_client.dao import get_station_key_activa, get_enrollment_code_pendiente
+        activa = get_station_key_activa()
+        if activa:
+            # Key activa ∴ STATION KEY
+            enrout_label = ctk.CTkLabel(win, text="STATION KEY:", fg_color="transparent", font=ctk.CTkFont(size=14, weight="bold"))
+        else:
+            enrout_label = ctk.CTkLabel(win, text="ENROUTMENT code:", fg_color="transparent", font=ctk.CTkFont(size=14, weight="bold"))
         enrout_label.grid(row=1, column=0, pady=(20, 10), padx=20)
         
         # INPUTS DISABLED
-        mac_text = tk.StringVar(value="MAC")
+        from src.backend.sua_client.settings import STATION_ID
+        mac_text = tk.StringVar(value=STATION_ID)
         mac_input = ctk.CTkEntry(win, textvariable=mac_text, state="disabled", width=190, font=ctk.CTkFont(size=14), text_color="#9CA3AF")
         mac_input.grid(row=0, column=1, pady=(20, 10), padx=20)
 
-        enrout_text = tk.StringVar(value="ENROUTMENT")
+        if activa:
+            enrout_text = tk.StringVar(value=activa)
+        else:
+            desc = get_enrollment_code_pendiente()
+            enrout_text = tk.StringVar(value=desc)
         enrout_input = ctk.CTkEntry(win, textvariable=enrout_text, state="disabled", width=190, font=ctk.CTkFont(size=14), text_color="#9CA3AF")
         enrout_input.grid(row=1, column=1, pady=(20, 10), padx=20)
 
@@ -1142,7 +1154,7 @@ class TesterMainView(ctk.CTkFrame):
         sol_acces = ctk.CTkButton(
             win, 
             text="SOLICITAR ACCESO A SUA", 
-            command=self.acceso, 
+            command=lambda: self.acceso(), 
             font=ctk.CTkFont(size=12, weight="bold"), 
             width=140, height=38,
             fg_color="#1c8c59",
@@ -1153,7 +1165,7 @@ class TesterMainView(ctk.CTkFrame):
         actualizar = ctk.CTkButton(
             win, 
             text="COMPROBAR ACTUALIZACION", 
-            command=self.actualizacion, 
+            command=lambda: self.actualizacion(), 
             font=ctk.CTkFont(size=12, weight="bold"), 
             width=140, height=38,
             fg_color="#114b8a",
@@ -1163,6 +1175,40 @@ class TesterMainView(ctk.CTkFrame):
 
     def acceso(self):
         print("SOLICITANDO ACCESO")
+
+        # 4) CLAIM-KEY (poll)
+        # start = _now()
+        # print("[SUA] esperando aprobación para claim-key...")
+        #while True:
+        # try:
+        #     resp = client.claim_key(STATION_ID, enrollment_code)
+        #     station_key = resp["station_key"]
+
+        #     # reemplaza enrollment_code por station_key y activo=1
+        #     activar_station_key(station_key)
+        #     print("[SUA] station_key recibida. SQLite actualizado (descripcion=station_key, activo=1).")
+        #     #break
+        # except Exception as e:
+        #     if max_wait_sec and (_now() - start) > max_wait_sec:
+        #         print("[SUA] Timeout esperando aprobación/claim-key")
+        #         return False
+        #     print(f"[SUA] claim-key aún no disponible. Reintento en {poll_interval_sec}s")
+            #time.sleep(poll_interval_sec)
+        # 5) TOKEN + PRESIGNED + DOWNLOAD
+        # try:
+        #     jwt_token = client.get_station_token(STATION_ID, station_key)
+        #     data = client.get_presigned_urls(jwt_token)
+        #     urls = data["urls"]
+
+        #     _download_file(urls["certificate"], Path(CERTIFICATE_PATH))
+        #     _download_file(urls["private_key"], Path(PRIVATE_KEY_PATH))
+        #     _download_file(urls["root_ca"], Path(ROOT_CA_PATH))
+
+        #     print("[SUA] certificados descargados en env/")
+        #     return True
+        # except Exception as e:
+        #     print(f"[SUA] ERROR token/presigned/download: {e}")
+        #     return False
 
     def actualizacion(self):
         print("SOLICITANDO ACTUALIZACION")

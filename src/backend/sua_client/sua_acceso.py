@@ -15,7 +15,6 @@ from .settings import (
     ROOT_CA_PATH,
 )
 
-# IMPORTA tus funciones del DAO (ajusta el path real del módulo)
 from src.backend.sua_client.dao import (
     get_station_key_activa,
     get_enrollment_code_pendiente,
@@ -100,8 +99,8 @@ class SuaClient:
 def ensure_certs_from_sua(poll_interval_sec: int = 10, max_wait_sec: int = 30) -> bool:
     """
     Flujo final con SQLite local:
-    - stations.activo=1 => descripcion=station_key
-    - stations.activo=0 => descripcion=enrollment_code
+    - stations.activo=2 => descripcion=station_key
+    - stations.activo=1 => descripcion=enrollment_code
     """
     if _certs_exist():
         return True
@@ -111,16 +110,16 @@ def ensure_certs_from_sua(poll_interval_sec: int = 10, max_wait_sec: int = 30) -
     # 1) ¿ya tenemos station_key?
     station_key = get_station_key_activa()
     if station_key:
-        print("[SUA] station_key encontrada en SQLite (activo=1)")
+        print("[SUA] station_key encontrada en SQLite (activo=2)")
     else:
         # 2) enrollment_code pendiente o generar
         enrollment_code = get_enrollment_code_pendiente()
-        if not enrollment_code:
+        if (enrollment_code == None or "estacion" in enrollment_code):
             enrollment_code = secrets.token_urlsafe(32)
             upsert_enrollment_pendiente(enrollment_code)
-            print("[SUA] enrollment_code generado y guardado en SQLite (activo=0)")
+            print("[SUA] enrollment_code generado y guardado en SQLite (activo=1)")
         else:
-            print("[SUA] enrollment_code pendiente encontrada en SQLite (activo=0)")
+            print("[SUA] enrollment_code pendiente encontrada en SQLite (activo=1)")
 
         # 3) ENROLL (idempotente)
         try:
@@ -131,36 +130,36 @@ def ensure_certs_from_sua(poll_interval_sec: int = 10, max_wait_sec: int = 30) -
             return False
 
         # 4) CLAIM-KEY (poll)
-        start = _now()
-        print("[SUA] esperando aprobación para claim-key...")
-        while True:
-            try:
-                resp = client.claim_key(STATION_ID, enrollment_code)
-                station_key = resp["station_key"]
+        # start = _now()
+        # print("[SUA] esperando aprobación para claim-key...")
+        #while True:
+        # try:
+        #     resp = client.claim_key(STATION_ID, enrollment_code)
+        #     station_key = resp["station_key"]
 
-                # reemplaza enrollment_code por station_key y activo=1
-                activar_station_key(station_key)
-                print("[SUA] station_key recibida. SQLite actualizado (descripcion=station_key, activo=1).")
-                break
-            except Exception as e:
-                if max_wait_sec and (_now() - start) > max_wait_sec:
-                    print("[SUA] Timeout esperando aprobación/claim-key")
-                    return False
-                print(f"[SUA] claim-key aún no disponible. Reintento en {poll_interval_sec}s")
-                time.sleep(poll_interval_sec)
-
+        #     # reemplaza enrollment_code por station_key y activo=1
+        #     activar_station_key(station_key)
+        #     print("[SUA] station_key recibida. SQLite actualizado (descripcion=station_key, activo=1).")
+        #     #break
+        # except Exception as e:
+        #     if max_wait_sec and (_now() - start) > max_wait_sec:
+        #         print("[SUA] Timeout esperando aprobación/claim-key")
+        #         return False
+        #     print(f"[SUA] claim-key aún no disponible. Reintento en {poll_interval_sec}s")
+            #time.sleep(poll_interval_sec)
+    return True
     # 5) TOKEN + PRESIGNED + DOWNLOAD
-    try:
-        jwt_token = client.get_station_token(STATION_ID, station_key)
-        data = client.get_presigned_urls(jwt_token)
-        urls = data["urls"]
+    # try:
+    #     jwt_token = client.get_station_token(STATION_ID, station_key)
+    #     data = client.get_presigned_urls(jwt_token)
+    #     urls = data["urls"]
 
-        _download_file(urls["certificate"], Path(CERTIFICATE_PATH))
-        _download_file(urls["private_key"], Path(PRIVATE_KEY_PATH))
-        _download_file(urls["root_ca"], Path(ROOT_CA_PATH))
+    #     _download_file(urls["certificate"], Path(CERTIFICATE_PATH))
+    #     _download_file(urls["private_key"], Path(PRIVATE_KEY_PATH))
+    #     _download_file(urls["root_ca"], Path(ROOT_CA_PATH))
 
-        print("[SUA] certificados descargados en env/")
-        return True
-    except Exception as e:
-        print(f"[SUA] ERROR token/presigned/download: {e}")
-        return False
+    #     print("[SUA] certificados descargados en env/")
+    #     return True
+    # except Exception as e:
+    #     print(f"[SUA] ERROR token/presigned/download: {e}")
+    #     return False
