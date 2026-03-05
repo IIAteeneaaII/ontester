@@ -2,19 +2,37 @@ import pytest
 
 from src.backend.mixins.common_mixin import CommonMixin
 
-@pytest.mark.parametrize(
-    "name, modo, add_tests, expect",
-    [
-        # ETIQUETA: solo ping => casi nada en tests
-        ("etiqueta_minimo", "ETIQUETA",
-         {
+def optical(tx, rx):
+    return {"hw_optical": {"data": {"tx_optical_power": f"{tx:.2f} dBm", "rx_optical_power": f"{rx:.2f} dBm"}}}
+
+def usb(connected=True):
+    return {"hw_usb": {"data": {"connected": connected}}}
+
+def factory_reset(status=True):
+    return {"factory_reset": {"status": status}}
+
+def sw_update(done=True):
+    return {"software_update": {"details": {"update_completed": done}}}
+
+def wifi_raw(p24, p5, ssid24="Totalplay-A2A2", ssid5="Totalplay-A2A2-5G"):
+    return {"potencia_wifi": {"details": {
+        "raw_24": [{"ssid": ssid24, "signal_percent": p24}],
+        "raw_5": [{"ssid": ssid5, "signal_percent": p5}],
+    }}}
+
+# "name, modo, add_tests, expect",
+CASES_HUAWEI = [
+    # ETIQUETA: solo ping => casi nada en tests
+    pytest.param(
+        "etiqueta_minimo", "ETIQUETA",
+        {
             # "hw_mac": {"data": "AA:BB:CC:DD:EE:FF"},
             # "hw_device": {"data": {"software_version": "V1"}},
             # "hw_wifi24": {"data": {"ssid": "WIFI_24", "status": "Enabled"}},
             # "hw_wifi5": {"data": {"ssid": "WIFI_5", "status": "Enabled"}},
             # "hw_wifi24_pass": {"data": {"password": "12345678"}},
-         },
-         {
+        },
+        {
             # Con la lógica actual (05/02/2026) Si no se hace la prueba no se agrega la key
             # "reset": "SIN PRUEBA",
             # "usb": "SIN PRUEBA",
@@ -23,126 +41,56 @@ from src.backend.mixins.common_mixin import CommonMixin
             # "w24": "SIN PRUEBA",
             # "w5": "SIN PRUEBA",
             # "sftU": "SIN PRUEBA",
-         }),
+        },
+        id="ETIQUETA completa (todos los valores encontrados)",
+    ),
 
-        # TEST completo: existen las keys porque se ejecutó todo
-        ("test_completo_ok", "TEST",
-         {
-            # "hw_mac": {"data": "AA:BB:CC:DD:EE:FF"},
-            # "hw_device": {"data": {"software_version": "V1"}},
-            # "hw_wifi24": {"data": {"ssid": "WIFI_24", "status": "Enabled"}},
-            # "hw_wifi5": {"data": {"ssid": "WIFI_5", "status": "Enabled"}},
-            # "hw_wifi24_pass": {"data": {"password": "12345678"}},
-            "factory_reset": {"status": True},
-            "hw_usb": {"data": {"connected": True}},
-            "hw_optical": {"data": {"tx_optical_power": "2.72 dBm", "rx_optical_power": "-14.69 dBm"}},
-            "software_update": {"details": {"update_completed": True}},
-         },
-         {
-            "reset": "PASS",
-            "usb": True,
-            "tx": 2.72,
-            "rx": -14.69,
-            "sftU": True,
-         }),
-         ("test_completo_limites S", "TEST",
-         {
-            "factory_reset": {"status": True},
-            "hw_usb": {"data": {"connected": True}},
-            "hw_optical": {"data": {"tx_optical_power": "5.00 dBm", "rx_optical_power": "-13.00 dBm"}},
-            "software_update": {"details": {"update_completed": True}},
-         },
-         {
-            "reset": "PASS",
-            "usb": True,
-            "tx": 5.0,
-            "rx": -13.0,
-            "sftU": True,
-         }),
-         ("test_completo_limites I", "TEST",
-         {
-            "factory_reset": {"status": True},
-            "hw_usb": {"data": {"connected": True}},
-            "hw_optical": {"data": {"tx_optical_power": "1.00 dBm", "rx_optical_power": "-19.00 dBm"}},
-            "software_update": {"details": {"update_completed": True}},
-         },
-         {
-            "reset": "PASS",
-            "usb": True,
-            "tx": 1.0,
-            "rx": -19.0,
-            "sftU": True,
-         }),
+    # TEST completo: existen las keys porque se ejecutó todo
+    pytest.param(
+        "test_completo_ok", "TEST",
+        {**factory_reset(True), **usb(True), **optical(2.72, -14.69), **sw_update(True)},
+        {"reset": "PASS", "usb": True, "tx": 2.72, "rx": -14.69, "sftU": True},
+        id="TEST INICIAL completo (todos los valores encontrados)",
+    ),
 
-        # RETEST: opciones apagaron reset 
-        ("retest_sin_reset", "RETEST",
-         {
-            # "hw_mac": {"data": "AA:BB:CC:DD:EE:FF"},
-            # "hw_device": {"data": {"software_version": "V1"}},
-            "hw_usb": {"data": {"connected": True}},
-            "hw_optical": {"data": {"tx_optical_power": "2.72 dBm", "rx_optical_power": "-14.69 dBm"}},
-            "software_update": {"status": True, "details": {"update_completed": True}},
-            "potencia_wifi": {"details": {
-                "raw_24": [{"ssid": "Totalplay-A2A2", "signal_percent": 80}],
-                "raw_5": [{"ssid": "Totalplay-A2A2-5G", "signal_percent": 75}],
-            }},
-         },
-         {
-            "sftU": True,
-            "usb": True,
-            "tx": 2.72,
-            "rx": -14.69,
-            "w24": True,
-            "w5": True,
-         }),
-         ("retest_limites_superiores", "RETEST",
-         {
-            "hw_usb": {"data": {"connected": True}},
-            "hw_optical": {"data": {"tx_optical_power": "5.00 dBm", "rx_optical_power": "-13.00 dBm"}},
-            "software_update": {"status": True, "details": {"update_completed": True}},
-            "potencia_wifi": {"details": {
-                "raw_24": [{"ssid": "Totalplay-A2A2", "signal_percent": 100}],
-                "raw_5": [{"ssid": "Totalplay-A2A2-5G", "signal_percent": 100}],
-            }},
-         },
-         {
-            "sftU": True,
-            "usb": True,
-            "tx": 5.0,
-            "rx": -13.0,
-            "w24": True,
-            "w5": True,
-         }),
-         ("retest_limites_inferiores", "RETEST",
-         {
-            "hw_usb": {"data": {"connected": True}},
-            "hw_optical": {"data": {"tx_optical_power": "1.00 dBm", "rx_optical_power": "-19.00 dBm"}},
-            "software_update": {"status": True, "details": {"update_completed": True}},
-            "potencia_wifi": {"details": {
-                "raw_24": [{"ssid": "Totalplay-A2A2", "signal_percent": 60}],
-                "raw_5": [{"ssid": "Totalplay-A2A2-5G", "signal_percent": 60}],
-            }},
-         },
-         {
-            "sftU": True,
-            "usb": True,
-            "tx": 1.0,
-            "rx": -19.0,
-            "w24": True,
-            "w5": True,
-         }),
-    ],
-    # Ponerle ids para salida mas limpia
-    ids=[
-            "ETIQUETA completa (todos los valores encontrados)", 
-            "TEST INICIAL completo (todos los valores encontrados)", 
-            "TEST INICIAL limites de valores S", 
-            "TEST INICIAL limites de valores I", 
-            "RETEST completo (todos los valores encontrados)",
-            "RETEST limites superiores",
-            "RETEST limites inferiores",
-        ]
-)
+    pytest.param(
+        "test_completo_limites S", "TEST",
+        {**factory_reset(True), **usb(True), **optical(5.00, -13.00), **sw_update(True)},
+        {"reset": "PASS", "usb": True, "tx": 5.0, "rx": -13.0, "sftU": True},
+        id="TEST INICIAL limites de valores S",
+    ),
+
+    pytest.param(
+        "test_completo_limites I", "TEST",
+        {**factory_reset(True), **usb(True), **optical(1.00, -19.00), **sw_update(True)},
+        {"reset": "PASS", "usb": True, "tx": 1.0, "rx": -19.0, "sftU": True},
+        id="TEST INICIAL limites de valores I",
+    ),
+
+    # RETEST: opciones apagaron reset
+    pytest.param(
+        "retest_sin_reset", "RETEST",
+        {**usb(True), **optical(2.72, -14.69), **sw_update(True), **wifi_raw(80, 75)},
+        {"sftU": True, "usb": True, "tx": 2.72, "rx": -14.69, "w24": True, "w5": True},
+        id="RETEST completo (todos los valores encontrados)",
+    ),
+
+    pytest.param(
+        "retest_limites_superiores", "RETEST",
+        {**usb(True), **optical(5.00, -13.00), **sw_update(True), **wifi_raw(100, 100)},
+        {"sftU": True, "usb": True, "tx": 5.0, "rx": -13.0, "w24": True, "w5": True},
+        id="RETEST limites superiores",
+    ),
+
+    pytest.param(
+        "retest_limites_inferiores", "RETEST",
+        {**usb(True), **optical(1.00, -19.00), **sw_update(True), **wifi_raw(60, 60)},
+        {"sftU": True, "usb": True, "tx": 1.0, "rx": -19.0, "w24": True, "w5": True},
+        id="RETEST limites inferiores",
+    ),
+]
+
+@pytest.mark.parametrize("name, modo, add_tests, expect", CASES_HUAWEI)
 def test_resultados_huawei_por_modo(name, modo, add_tests, expect,
                                    huawei_base_payload, opts_por_modo, payload_builder, dummy_factory):
     payload = payload_builder(huawei_base_payload, add_tests=add_tests)
