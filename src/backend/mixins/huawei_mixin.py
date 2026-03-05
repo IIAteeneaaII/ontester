@@ -98,7 +98,6 @@ class HuaweiMixin:
         except Exception as e:
             print(f"[WARN] Error general en hw_maybe_skip_initial_guide: {e}")
             return False
-            return False
     
     def _reset_factory_huawei(self, driver) -> bool:
         """
