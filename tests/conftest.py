@@ -1,7 +1,8 @@
 # tests/conftest.py
 import copy
-import types
+from types import SimpleNamespace
 import pytest
+from tests.helpers.tresholds import Thresholds
 
 @pytest.fixture
 def huawei_base_payload():
@@ -102,24 +103,24 @@ def dummy_factory():
     """
     Crea el self-dummy minimo para CommonMixin (resultados por ahora)
     """
-    def _make(test_results: dict, tests_opts: dict,
-              min_wifi24=60, min_wifi5=60,
-              min_tx=1.0, max_tx=5.0,
-              min_rx=-19.0, max_rx=-13.0):
+    def _make(test_results, tests_opts, thresholds=None):
 
-        dummy = types.SimpleNamespace()
-        dummy.opcionesTest = {"tests": tests_opts}
+        if thresholds is None:
+            thresholds = Thresholds()  # valores default para unit tests
+
+        dummy = SimpleNamespace()
+
         dummy.test_results = test_results
+        dummy.opcionesTest = {"tests": tests_opts}
 
-        # Umbrales
-        dummy._getMinWifi24SignalPercent = lambda: min_wifi24
-        dummy._getMinWifi5SignalPercent = lambda: min_wifi5
-        dummy._getMinFibraTx = lambda: min_tx
-        dummy._getMaxFibraTx = lambda: max_tx
-        dummy._getMinFibraRx = lambda: min_rx
-        dummy._getMaxFibraRx = lambda: max_rx
+        # inyectar umbrales
+        dummy._getMinFibraTx = lambda: thresholds.min_tx
+        dummy._getMaxFibraTx = lambda: thresholds.max_tx
+        dummy._getMinFibraRx = lambda: thresholds.min_rx
+        dummy._getMaxFibraRx = lambda: thresholds.max_rx
 
-        from src.backend.mixins.common_mixin import CommonMixin
-        dummy._resultados_json_corto = CommonMixin._resultados_json_corto.__get__(dummy, CommonMixin)
+        dummy._getMinWifi24SignalPercent = lambda: thresholds.min_wifi24
+        dummy._getMinWifi5SignalPercent = lambda: thresholds.min_wifi5
+
         return dummy
     return _make

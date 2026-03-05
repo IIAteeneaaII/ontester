@@ -96,6 +96,24 @@ def test_resultados_huawei_por_modo(name, modo, add_tests, expect,
     payload = payload_builder(huawei_base_payload, add_tests=add_tests)
     opts = opts_por_modo[modo]
 
+    # En caso de querer umbrales específicos (en la clase Tresholds ya hay definidos, esto solo contempla específicos)
+    """
+    from tests.helpers.thresholds import Thresholds
+
+    thresholds = Thresholds(
+        min_tx=0.5,
+        max_tx=6,
+        min_rx=-25,
+        max_rx=-10,
+    )
+
+    dummy = dummy_factory(payload, opts, thresholds)
+
+    Para cuando se hagan los de integracion con la BD
+    thresholds = load_thresholds_from_db()
+
+    dummy = dummy_factory(payload, opts, thresholds)
+    """
     dummy = dummy_factory(payload, opts)
     out = CommonMixin._resultadosHuawei(dummy)
 
