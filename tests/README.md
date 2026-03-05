@@ -109,9 +109,11 @@ pytest test/integration
 ```
 
 ### 5) Ejecutar un archivo específico
-```
+```bash
 pytest test/unit/backend/test_wifi_logic.py
 py -m pytest tests/unit/test_sanity.py
+# Para ejecutar con mayor info:
+py -m pytest -vv -s
 ```
 
 ### 6) Ejecutar una prueba específica (por nombre)

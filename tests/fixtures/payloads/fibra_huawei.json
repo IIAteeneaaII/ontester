@@ -1,0 +1,31 @@
+{
+  "metadata": {
+    "host": "192.168.100.1",
+    "model": "HG8145V5",
+    "timestamp": "2026-02-26T13:31:24.421220",
+    "serial_number": "485754431BB9A2A2",
+    "model_ui": "HG8145V5"
+  },
+  "tests": {
+    "hw_device": {
+      "name": "hw_device",
+      "data": {
+        "model": "HG8145V5",
+        "serial_number": "485754431BB9A2A2",
+        "serial_raw": "485754431BB9A2A2 (HWTC1BB9A2A2)",
+        "software_version": "V5R022C00S292"
+      }
+    },
+    "hw_mac": {
+      "name": "hw_mac",
+      "data": "8C:E5:EF:FE:0A:75"
+    },
+    "hw_optical": {
+      "name": "hw_optical",
+      "data": {
+        "tx_optical_power": "-- dBm",
+        "rx_optical_power": "-- dBm"
+      }
+    }
+  }
+}

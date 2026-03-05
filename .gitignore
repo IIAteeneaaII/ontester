@@ -74,3 +74,6 @@ src/backend/sua_client/settings.py
 
 # Especificaciones de ejecutable
 *.spec
+
+# No ignorar los json de tests
+!tests/**/*.json
