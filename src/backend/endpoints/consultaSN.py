@@ -82,6 +82,44 @@ def _get_chromedriver_path() -> str:
         print(f"[DEBUG] chromedriver path = {driver_path}  exists={driver_path.exists()}")
         return str(driver_path)
 
+def _router_logout_best_effort_standalone(driver, base_url="http://192.168.100.1"):
+    """
+    Intenta cerrar la sesión activa del router FiberHome.
+    Versión standalone (sin depender de FiberMixin).
+    """
+    try:
+        logout_urls = [
+            f"{base_url}/",
+            f"{base_url}/html/main_inter.html",
+            f"{base_url}/html/index.html",
+        ]
+        for url in logout_urls:
+            try:
+                driver.get(url)
+                time.sleep(1)
+                driver.switch_to.default_content()
+                el = find_element_anywhere(driver, By.ID, "logout", desc="Logout", timeout=3)
+                if el:
+                    el.click()
+                    print("[LOGOUT] ✓ Sesión cerrada exitosamente")
+                    time.sleep(2)
+                    return True
+            except Exception:
+                continue
+
+        for path in ["/cgi-bin/do_logout", "/html/logout.html", "/logout"]:
+            try:
+                driver.get(f"{base_url}{path}")
+                time.sleep(1)
+            except Exception:
+                pass
+
+        print("[LOGOUT] No se pudo cerrar la sesión (botón logout no encontrado)")
+        return False
+    except Exception as e:
+        print(f"[LOGOUT] Error: {e}")
+        return False
+
 def login_fiber() -> str:
     headless = True
     base_url = "http://192.168.100.1"
@@ -154,8 +192,35 @@ def login_fiber() -> str:
 
     res = WebDriverWait(driver, 20).until(post_login_ok)
     if res == "BUSY":
-        print("[SELENIUM] Login bloqueado por sesión activa.")
-        return "APAGUE Y VUELVA A PRENDER EL EQUIPO"
+        print("[SELENIUM] Sesión activa detectada post-login. Intentando cerrar sesión...")
+        closed = _router_logout_best_effort_standalone(driver)
+        if closed:
+            print("[SELENIUM] Sesión cerrada. Reintentando login...")
+            driver.get(login_url)
+            time.sleep(1)
+            WebDriverWait(driver, 5).until(
+                EC.presence_of_element_located((By.ID, "user_name"))
+            )
+            u = driver.find_element(By.ID, "user_name")
+            p = driver.find_element(By.ID, "loginpp")
+            driver.execute_script("arguments[0].value = arguments[1];", u, USER)
+            driver.execute_script("arguments[0].value = arguments[1];", p, PASS)
+            driver.find_element(By.ID, "login_btn").click()
+            res = WebDriverWait(driver, 20).until(post_login_ok)
+            if res == "BUSY":
+                print("[SELENIUM] Login sigue bloqueado tras cerrar sesión.")
+                try:
+                    driver.quit()
+                except:
+                    pass
+                return "APAGUE Y VUELVA A PRENDER EL EQUIPO"
+        else:
+            print("[SELENIUM] No se pudo cerrar la sesión activa.")
+            try:
+                driver.quit()
+            except:
+                pass
+            return "APAGUE Y VUELVA A PRENDER EL EQUIPO"
 
     print("[SELENIUM] Login OK (salí de login o ya hay frames).")
 
@@ -755,7 +820,6 @@ def snFinal(out_q=None, stop_event=None) -> str:
         time.sleep(0.5)
     return ""
 
-
 # Funciones adicionales necesarias
 def _wait_not_busy_login_page(driver, login_url, max_wait=180):
         start = time.time()
@@ -766,6 +830,11 @@ def _wait_not_busy_login_page(driver, login_url, max_wait=180):
             if "already logged" not in html and "somebody has already logged in" not in html:
                 return True
             print("[SELENIUM] Router ocupado (sesión activa). Esperando 5s...")
+            # Intentar cerrar la sesión activa (solo una vez)
+            if not attempted_logout:
+                print("[SELENIUM] Intentando cerrar sesión activa...")
+                _router_logout_best_effort_standalone(driver)
+                attempted_logout = True
             time.sleep(5)
         return False
 

@@ -798,12 +798,13 @@ class TesterView(ctk.CTkFrame):
                 )
 
             finally:
-                self._unit_running = False
-                if self._unit_stop_event is unit_stop:
+                if self._unit_stop_event is unit_stop: # Si no se ha iniciado otra unitaria en paralelo, limpiar la referencia
                     self._unit_stop_event = None
 
-                if not unit_stop.is_set():
+                if not unit_stop.is_set(): # Si no se pidió stop, dejar que el monitor se reactive automáticamente
                     self.master.event_q.put(("resume_monitor", None))
+                else:
+                    self._unit_running = False
 
         threading.Thread(target=worker, daemon=True).start()
 
@@ -870,15 +871,25 @@ class TesterView(ctk.CTkFrame):
             # ejemplo: pintar resultados en tu UI
             info  = payload.get("info", {})
             # Detectar si viene de prueba unitaria usando el flag _unit_running
-            from_unit = getattr(self, '_unit_running', False)
+            from_unit = getattr(self, '_unit_running', False) or payload.get("_from_unit_test", False)
             self._render_resultados(payload, from_unit_test=from_unit)
             # guardar en DB
             from src.backend.sua_client.dao import insertar_operacion, extraer_by_id, existe_operacion_dia, validar_por_modo
             modo = self.modo_var.get()
             root = self.winfo_toplevel()
             user_id = int(getattr(root, "current_user_id", None))
+            # Validar que el SN venga en la payload
+            sn_registro = info.get("sn", "—")
+            if (sn_registro == "—" or sn_registro == None):
+                raw = self.snInfo.cget("text")         
+                sn_registro = raw.replace("SN:", "", 1).strip() # Leer el sn de la UI, Eliminar "SN: "
+                # Actualizar SN
+                info = payload.get("info") or {}
+                info["sn"] = sn_registro
+                payload["info"] = info
             # Antes de insertar hay que validar que el sn no esté ya registrado en ese MODO
-            registroAnterior = existe_operacion_dia(info.get("sn", "—"), modo)
+            print(f"SN FINAL A REGISTRAR: {sn_registro}")
+            registroAnterior = existe_operacion_dia(sn_registro, modo)
             if registroAnterior:
                 # Actualizar registro, pero emitir que se modificará la BD
                 def emit(kind, payload):
@@ -887,21 +898,22 @@ class TesterView(ctk.CTkFrame):
                 emit("log", "DISPOSITIVO YA REGISTRADO, MODIFICANDO INFORMACIÓN Y RESULTADOS")
                 from src.backend.sua_client.dao import actualizar_operacion
                 from src.backend.endpoints.conexion import is_bad_info
-                if (is_bad_info(info.get("sn"))):
+                if (is_bad_info(sn_registro)):
                     result = 0
                 else:
                     print("[TESTER] Llamando a update")
+                    
                     result = actualizar_operacion(payload, modo, user_id)
 
                 if result == 1:
                     emit("pruebas", "BD actualizada con el nuevo registro")
                 else:
                     emit("pruebas", "Error en la información")
-                validar_por_modo(info.get("sn","-"), modo)
+                validar_por_modo(sn_registro, modo)
             else:
                 id = insertar_operacion(payload, modo, user_id)
                 # Actualizar el campo de valido
-                validar_por_modo(info.get("sn","-"), modo)
+                validar_por_modo(sn_registro, modo)
                 payload_final = extraer_by_id(id, "operations")
             
             self.updatePruebas()
@@ -970,6 +982,7 @@ class TesterView(ctk.CTkFrame):
             #self._update_test(payload)
 
         elif kind == "resume_monitor":
+            self._unit_running = False
             modo = self.modo_var.get()
             auto = (modo in ("Testeo", "Retesteo"))
             self._start_loop(auto_test_on_detect=auto, start_in_monitor=True)

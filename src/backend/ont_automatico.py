@@ -28,6 +28,7 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 from datetime import datetime
 from pathlib import Path
+import traceback
 MAC_REGEX = re.compile(r"([0-9A-Fa-f]{2}(?:(?::|-)?[0-9A-Fa-f]{2}){5})")
 # Selenium para login automático
 try:
@@ -702,6 +703,14 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
                 self.test_results["tests"][result["name"]] = result
 
                 emit("test_individual", {"name": result.get("name",""), "status": result.get("status","FAIL")})
+
+        # Cerrar sesión FiberHome al finalizar diccionario de pruebas
+        if self.model in ("MOD001", "MOD008"):
+            try:
+                self._router_logout_best_effort()
+            except Exception as e:
+                print(f"[LOGOUT] Error cerrando sesión post-pruebas: {e}")
+
         return self.test_results
 
     def _generarCertificado(self):
@@ -1181,6 +1190,13 @@ def run_retest_mode(host: str, model: str = None, output: str = None):
             result = test_methods[test_name]()
             tester.test_results["tests"][result["name"]] = result
     
+    # Cerrar sesión FiberHome al finalizar retesteo
+    if tester.model in ("MOD001", "MOD008"):
+        try:
+            tester._router_logout_best_effort()
+        except Exception as e:
+            print(f"[LOGOUT] Error cerrando sesión post-retesteo: {e}")
+            
     # Mostrar reporte
     print("\n" + tester.generate_report())
     
@@ -1306,19 +1322,24 @@ def pruebaUnitariaONT(opcionesTest, out_q=None, modelo=None, stop_event=None):
         return
     
     # Emit por test usando lo que ya se almacenó en test_results
-    try:
-        for _, result in temp_tester.test_results.get("tests", {}).items():
-            # result típicamente: {"name": "...", "status": "PASS/FAIL", ...}
-            emit("test_individual", {"name": result.get("name", ""), "status": result.get("status", "FAIL")})
-    except Exception as e:
-        emit("log", f"[WARN] No se pudo emitir test_individual: {e}")
+    # try:
+    #     for _, result in temp_tester.test_results.get("tests", {}).items():
+    #         # result típicamente: {"name": "...", "status": "PASS/FAIL", ...}
+    #         emit("test_individual", {"name": result.get("name", ""), "status": result.get("status", "FAIL")})
+    # except Exception as e:
+    #     emit("log", f"[WARN] No se pudo emitir test_individual: {e}")
 
     # Emit final "resultados" igual que el main_loop
     try:
+        print(f"[ONT] Llegando al try de resultados en prueba unitaria")
         final = temp_tester._resultados_finales()
+        final["_from_unit_test"] = True
+        print(f"[ONT] Emitiendo resultados finales: {final}")
         emit("resultados", final)
     except Exception as e:
         emit("log", f"[WARN] No se pudo emitir resultados finales: {e}")
+        traceback.print_exc()
+        print(f"[ONT] se murió, excepcion: {e}")
 
     # Solo avisamos al loop principal para que SALTE FASE 2
     # si la prueba unitaria fue disruptiva (reset de fábrica o actualización).
