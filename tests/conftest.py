@@ -122,5 +122,7 @@ def dummy_factory():
         dummy._getMinWifi24SignalPercent = lambda: thresholds.min_wifi24
         dummy._getMinWifi5SignalPercent = lambda: thresholds.min_wifi5
 
+        from src.backend.mixins.common_mixin import CommonMixin
+        dummy._resultados_json_corto = CommonMixin._resultados_json_corto.__get__(dummy, CommonMixin)
         return dummy
     return _make
