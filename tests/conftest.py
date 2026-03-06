@@ -10,38 +10,38 @@ def huawei_base_payload():
     Payload base para los huawei (compartida entre todos los casos ∴ payload de etiqueta)
     """
     return {
-            "metadata": {
-                "host": "192.168.100.1",
-                "model": "HG8145V5",
-                "timestamp": "2026-03-05T11:56:29.585849",
-                "serial_number": "485754431BB9A2A2"
+        "metadata": {
+            "host": "192.168.100.1",
+            "model": "HG8145V5",
+            "timestamp": "2026-03-05T11:56:29.585849",
+            "serial_number": "485754431BB9A2A2"
+        },
+        "tests": {
+            "hw_device": {
+                "data": {
+                    "software_version": "V5R022C00S292"
+                }
             },
-            "tests": {
-                "hw_device": {
-                    "data": {
-                        "software_version": "V5R022C00S292"
-                    }
-                },
-                "hw_wifi24": {
-                    "data": {
-                        "ssid": "Totalplay-A2A2"
-                    }
-                },
-                "hw_wifi5": {
-                    "data": {
-                        "ssid": "Totalplay-A2A2-5G"
-                    }
-                },
-                "hw_mac": {
-                    "data": "8C:E5:EF:FE:0A:75"
-                },
-                "hw_wifi24_pass": {
-                    "data": {
-                        "password": "A2A20A754P2HZyPR"
-                    }
+            "hw_wifi24": {
+                "data": {
+                    "ssid": "Totalplay-A2A2"
+                }
+            },
+            "hw_wifi5": {
+                "data": {
+                    "ssid": "Totalplay-A2A2-5G"
+                }
+            },
+            "hw_mac": {
+                "data": "8C:E5:EF:FE:0A:75"
+            },
+            "hw_wifi24_pass": {
+                "data": {
+                    "password": "A2A20A754P2HZyPR"
                 }
             }
         }
+    }
 
 
 @pytest.fixture

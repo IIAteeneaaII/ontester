@@ -21,7 +21,8 @@ def wifi_raw(p24, p5, ssid24="Totalplay-A2A2", ssid5="Totalplay-A2A2-5G"):
     }}}
 
 # "name, modo, add_tests, expect",
-CASES_HUAWEI = [
+# Casos estándar + valores dentro de los límites máximos
+CASES_HUAWEI_BASE = [
     # ETIQUETA: solo ping => casi nada en tests
     pytest.param(
         "etiqueta_minimo", "ETIQUETA",
@@ -90,6 +91,38 @@ CASES_HUAWEI = [
     ),
 ]
 
+# Casos fuera de los límites
+CASES_HUAWEI_LIMITES = [
+    pytest.param(
+        "retest_fuera_limites_inferiores", "RETEST",
+        {**usb(True), **optical(0.99, -19.01), **sw_update(True), **wifi_raw(59, 59)},
+        {"sftU": True, "usb": True, "tx": False, "rx": False, "w24": False, "w5": False},
+        id="RETEST limites inferiores fuera de rango",
+    ),
+
+    pytest.param(
+        "retest_limites_superiores_fuera", "RETEST",
+        {**usb(True), **optical(5.01, -12.99), **sw_update(True), **wifi_raw(101, 101)},
+        {"sftU": True, "usb": True, "tx": False, "rx": False, "w24": True, "w5": True},
+        id="RETEST limites superiores fuera de rango",
+    ),
+
+    pytest.param(
+        "test_completo__fuera_limites I", "TEST",
+        {**factory_reset(True), **usb(True), **optical(0.99, -19.01), **sw_update(True)},
+        {"reset": "PASS", "usb": True, "tx": False, "rx": False, "sftU": True},
+        id="TEST INICIAL fuera de limites de valores I",
+    ),
+
+    pytest.param(
+        "test_completo__fuera_limites S", "TEST",
+        {**factory_reset(True), **usb(True), **optical(5.01, -12.99), **sw_update(True)},
+        {"reset": "PASS", "usb": True, "tx": False, "rx": False, "sftU": True},
+        id="TEST INICIAL fuera de limites de valores S",
+    ),
+]
+
+CASES_HUAWEI = CASES_HUAWEI_BASE + CASES_HUAWEI_LIMITES
 @pytest.mark.parametrize("name, modo, add_tests, expect", CASES_HUAWEI)
 def test_resultados_huawei_por_modo(name, modo, add_tests, expect,
                                    huawei_base_payload, opts_por_modo, payload_builder, dummy_factory):
