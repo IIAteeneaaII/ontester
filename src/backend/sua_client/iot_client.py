@@ -84,9 +84,12 @@ class IoTClient:
                 return False
             self._publish_presence("online")  # Publicar presencia online al conectar
             print(f"Conectado a AWS IoT como estación {self.station_id}")
+            
+            # Suscribirse a las actualizaciones
+            if self.connected:
+                self._subscribe_updates()
+            
             return True
-            
-            
         except Exception as e:
             print(f"Error conectando a AWS IoT: {e}")
             return False
