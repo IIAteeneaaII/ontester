@@ -686,7 +686,7 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
 
                 result = test_func()
                 self.test_results["tests"][result["name"]] = result
-        else:
+        elif (self.model == "MOD001" or self.model == "MOD008"):
             print(f"\n[*] Dispositivo ONT detectado - Ejecutando tests específicos ({len(ont_tests)} tests)...")
             for test_func in ont_tests:
                 if _cancelled():
