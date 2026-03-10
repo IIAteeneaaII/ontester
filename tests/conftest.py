@@ -5,6 +5,65 @@ import pytest
 from tests.helpers.tresholds import Thresholds
 
 @pytest.fixture
+def zte_base_payload():
+    """
+    Payload base para los ZTE (compartida entre todos los casos ∴ payload de etiqueta)
+    """
+    return {
+        "metadata": {
+            "host": "192.168.1.1",
+            "model": "F6600",
+            "timestamp": "2026-03-10T11:21:40.050582",
+            "serial_number": "ZTEGD12F34AE",
+        },
+        "tests": {
+            "basic": {
+                "name": "basic",
+                "status": True,
+                "details": {}
+            },
+            "lan": {
+                "name": "lan",
+                "status": True,
+                "details": {}
+            },
+            "wifi": {
+                "name": "wifi",
+                "status": True,
+                "details": {
+                    "WLANAP": [
+                        {"ESSID": "Totalplay-A2A2"},
+                        {"ESSID": "Totalplay-A2A2-5G"}
+                    ],
+                    "WLANSETTING": [
+                        {"RadioStatus": "1"},
+                        {"RadioStatus": "1"}
+                    ]
+                }
+            },
+            "mac": {
+                "name": "mac",
+                "status": True,
+                "details": {
+                    "WAN_COMFIG": [
+                        {
+                            "ConnTrigger": "AlwaysOn",
+                            "WorkIFMac": "8C:E5:EF:FE:0A:75"
+                        }
+                    ]
+                }
+            },
+            "Contraseña": {
+                "name": "Contraseña",
+                "status": True,
+                "details": {
+                    "password": "A2A20A754P2HZyPR"
+                }
+            }
+        }
+    }
+
+@pytest.fixture
 def huawei_base_payload():
     """
     Payload base para los huawei (compartida entre todos los casos ∴ payload de etiqueta)
@@ -87,13 +146,13 @@ def payload_builder():
     tests: dict con entradas a insertar en la payload["tests"]
     remove_keys: lista de keys a eliminar de payload["tests"]
     """
-    def _make(base: dict, add_tests=None, remove_keys=None):
+    def _make(base: dict, add_tests=None, remove_tests=None):
         p = copy.deepcopy(base)
         add_tests = add_tests or {}
-        remove_keys = remove_keys or []
+        remove_tests = remove_tests or []
         p.setdefault("tests", {})
         p["tests"].update(add_tests)
-        for k in remove_keys:
+        for k in remove_tests:
             p["tests"].pop(k, None)
         return p
     return _make
