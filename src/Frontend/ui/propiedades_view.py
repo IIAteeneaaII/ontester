@@ -1212,6 +1212,16 @@ class TesterMainView(ctk.CTkFrame):
 
     def actualizacion(self):
         print("SOLICITANDO ACTUALIZACION")
+        from src.backend.sua_client.actualizador import download_update_installer
+        # TODO implementar lógica de verificación de permisos
+        status, ruta = download_update_installer("version_prueba")
+        if(status):
+            print("[PROPIEDADES] Descarga exitosa")
+
+            # Lanzar el instalador
+            from src.backend.sua_client.actualizador import kill_processes_by_name, launch_inno_setup
+        else:
+            print("[PROPIEDADES] Descarga fallida")
 # =========================================================
 #                         TEST
 # =========================================================
