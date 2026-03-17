@@ -671,6 +671,28 @@ def upsert_enrollment_pendiente(enrollment_code: str) -> None:
             )
         con.commit()
 
+
+def get_station_activa() -> int | None:
+
+    """
+    Regresa el campo activo de la estación  (activa ssua=2)
+    """
+    with get_conn() as con:
+        row = con.execute(
+            "SELECT activo FROM stations where activo = 2 ORDER BY id DESC LIMIT 1;"
+        ).fetchone()
+        return row["activo"] if row else None
+
+def obtener_enrollment_code_activa() -> str | None:
+    """
+    Regresa enrollment_code si existe una estación activa con activo=1 (toma la última).
+    """
+    with get_conn() as con:
+        row = con.execute(
+            "SELECT descripcion FROM stations WHERE activo = 1 ORDER BY id DESC LIMIT 1;"
+        ).fetchone()
+        return row["descripcion"] if row and row["descripcion"] else None
+    
 def activar_station_key(station_key: str) -> None:
     """
     Reemplaza el valor que estaba en descripcion (enrollment_code) por station_key y pone activo=1.

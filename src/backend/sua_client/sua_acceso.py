@@ -4,6 +4,7 @@ import time
 import secrets
 from pathlib import Path
 from typing import Optional, Dict, Any
+from src.backend.endpoints.resources import get_pc_id_from_mac_suffix
 
 import requests
 
@@ -19,7 +20,7 @@ from src.backend.sua_client.dao import (
     get_station_key_activa,
     get_enrollment_code_pendiente,
     upsert_enrollment_pendiente,
-    activar_station_key,
+    activar_station_key, get_station_activa,obtener_enrollment_code_activa
 )
 
 TIMEOUT = 15
@@ -107,6 +108,15 @@ class SuaClient:
         print("[SUA] certificados descargados")
         return True
 
+def verificar_estado_estacion() -> bool:
+    station = get_station_activa()
+    if station and station == 2:
+        print("[SUA] Estación activa y con station_key")
+        return True
+    else: 
+        print("[SUA] Estación en proceso de enroll (activo=1). Esperando station_key...")
+        return False
+    
 
 def ensure_certs_from_sua(poll_interval_sec: int = 10, max_wait_sec: int = 30) -> bool:
     """
@@ -149,4 +159,30 @@ def get_url_certificados() -> bool:
         return True
     except Exception as e:
         print(f"[SUA] ERROR get_presigned_urls: {e}")
+        return False
+
+
+
+def reclamar_llave_sua() -> bool:
+    """
+    Intenta reclamar la station_key usando el enrollment_code activo.
+    Retorna True si tuvo éxito, False en caso de error.
+    """
+    try:
+        # 1. Crear cliente SUA
+        client = SuaClient(SUA_BASE_URL)
+        
+        # 2. Obtener enrollment_code activo (activo = 2)
+        enrollment = obtener_enrollment_code_activa()
+        if not enrollment:
+            print("No hay enrollment_code activo (activo=2)")
+            return False
+        
+        # 3. Llamar a claim_key (ya actualiza la BD internamente)
+        resultado = client.claim_key(STATION_ID, enrollment)
+        
+        
+        return True
+    except Exception as e:
+        print(f"Error en reclamar_llave_sua: {e}")
         return False

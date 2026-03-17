@@ -1,14 +1,17 @@
 # src/Frontend/ui/propiedades_view.py
-import customtkinter as ctk
-import tkinter as tk
 import sys
 from pathlib import Path
+
+# Agregar el directorio 'src' al path de Python (para poder importar backend)
+src_path = Path(__file__).parent.parent.parent  # sube: ui/ → Frontend/ → src/
+sys.path.insert(0, str(src_path))
+
+# Ahora sí, imports de terceros y propios
+import customtkinter as ctk
+import tkinter as tk
 from tkinter import messagebox
 
-# Para poder usar imports absolutos
-root_path = Path(__file__).parent.parent.parent.parent
-sys.path.insert(0, str(root_path))
-
+from backend.sua_client.sua_acceso import verificar_estado_estacion, reclamar_llave_sua
 from src.Frontend.ui.panel_pruebas_view import PanelPruebasConexion
 from src.Frontend.ui.menu_superior_view import MenuSuperiorDesplegable
 
@@ -23,7 +26,7 @@ def resource_path(relative_path: str) -> str:
     """
     if hasattr(sys, "_MEIPASS"):
         return str(Path(sys._MEIPASS) / relative_path)
-    return str(root_path / relative_path)
+    return str(src_path / relative_path)
 
 
 APP_ICON_REL = "src/Frontend/assets/icons/ont.ico"
@@ -1153,7 +1156,7 @@ class TesterMainView(ctk.CTkFrame):
         # BOTONES
         sol_acces = ctk.CTkButton(
             win, 
-            text="SOLICITAR ACCESO A SUA", 
+            text="SOLICITAR LLAVE A SUA", 
             command=lambda: self.acceso(), 
             font=ctk.CTkFont(size=12, weight="bold"), 
             width=140, height=38,
@@ -1174,41 +1177,17 @@ class TesterMainView(ctk.CTkFrame):
         actualizar.grid(row=2, column=1, pady=(20, 10), padx=20)
 
     def acceso(self):
-        print("SOLICITANDO ACCESO")
-
-        # 4) CLAIM-KEY (poll)
-        # start = _now()
-        # print("[SUA] esperando aprobación para claim-key...")
-        #while True:
-        # try:
-        #     resp = client.claim_key(STATION_ID, enrollment_code)
-        #     station_key = resp["station_key"]
-
-        #     # reemplaza enrollment_code por station_key y activo=1
-        #     activar_station_key(station_key)
-        #     print("[SUA] station_key recibida. SQLite actualizado (descripcion=station_key, activo=1).")
-        #     #break
-        # except Exception as e:
-        #     if max_wait_sec and (_now() - start) > max_wait_sec:
-        #         print("[SUA] Timeout esperando aprobación/claim-key")
-        #         return False
-        #     print(f"[SUA] claim-key aún no disponible. Reintento en {poll_interval_sec}s")
-            #time.sleep(poll_interval_sec)
-        # 5) TOKEN + PRESIGNED + DOWNLOAD
-        # try:
-        #     jwt_token = client.get_station_token(STATION_ID, station_key)
-        #     data = client.get_presigned_urls(jwt_token)
-        #     urls = data["urls"]
-
-        #     _download_file(urls["certificate"], Path(CERTIFICATE_PATH))
-        #     _download_file(urls["private_key"], Path(PRIVATE_KEY_PATH))
-        #     _download_file(urls["root_ca"], Path(ROOT_CA_PATH))
-
-        #     print("[SUA] certificados descargados en env/")
-        #     return True
-        # except Exception as e:
-        #     print(f"[SUA] ERROR token/presigned/download: {e}")
-        #     return False
+        print("SOLICITANDO LLAVE DE ACCESO")
+        ok = verificar_estado_estacion()
+        if ok: 
+            print("[SUA] estacion con llave de acceso ya activada")
+            return
+        
+        okey =reclamar_llave_sua()
+        if okey:
+            print("[SUA] llave de acceso reclamada exitosamente")  
+        else:
+            print("[SUA] Error al reclamar llave de acceso")
 
     def actualizacion(self):
         print("SOLICITANDO ACTUALIZACION")
