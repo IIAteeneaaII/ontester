@@ -42,8 +42,9 @@ class IoTClient:
         try:
             # Asegurar certs
             if not (CERTIFICATE_PATH.exists() and PRIVATE_KEY_PATH.exists() and ROOT_CA_PATH.exists()):
-                print("[BOOT] No hay certs locales. Bootstrapping con SUA...")
-                if not get_url_certificados:
+                print("[BOOT] No hay certs locales. solicitando con SUA...")
+                okis = get_url_certificados()
+                if not okis:
                     print("[BOOT] No se pudieron obtener certificados desde SUA.")
                     return False
             self.client = mqtt.Client(client_id=self.station_id)
