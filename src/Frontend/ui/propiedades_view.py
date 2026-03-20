@@ -962,7 +962,7 @@ class TesterMainView(ctk.CTkFrame):
         ctk.CTkLabel(self.btn4_frame, text="🔧", font=ctk.CTkFont(size=50)).pack(pady=(20, 10))
         self.btn4 = ctk.CTkButton(
             self.btn4_frame,
-            text="PRUEBA",
+            text="SSUA",
             command=self.on_prueba,
             font=ctk.CTkFont(size=14, weight="bold"),
             fg_color="transparent",
@@ -1167,7 +1167,7 @@ class TesterMainView(ctk.CTkFrame):
 
         actualizar = ctk.CTkButton(
             win, 
-            text="COMPROBAR ACTUALIZACION", 
+            text="SOLICITAR ACTUALIZACION", 
             command=lambda: self.actualizacion(), 
             font=ctk.CTkFont(size=12, weight="bold"), 
             width=140, height=38,
@@ -1191,16 +1191,25 @@ class TesterMainView(ctk.CTkFrame):
 
     def actualizacion(self):
         print("SOLICITANDO ACTUALIZACION")
-        from src.backend.sua_client.actualizador import download_update_installer
-        # TODO implementar lógica de verificación de permisos
-        status, ruta = download_update_installer("version_prueba")
-        if(status):
-            print("[PROPIEDADES] Descarga exitosa")
 
-            # Lanzar el instalador
-            from src.backend.sua_client.actualizador import kill_processes_by_name, launch_inno_setup
-        else:
-            print("[PROPIEDADES] Descarga fallida")
+        try:
+            from src.backend.sua_client.actualizador import (
+                download_update_installer,
+                kill_processes_by_name,
+                launch_inno_setup
+            )
+
+            status, ruta = download_update_installer()
+
+            if status:
+                print("[PROPIEDADES] Descarga exitosa")
+                kill_processes_by_name({"chromedriver.exe", "cmd.exe"})
+                launch_inno_setup(ruta)
+            else:
+                print("[PROPIEDADES] No fue necesario actualizar o falló la descarga")
+
+        except Exception as e:
+            print(f"[PROPIEDADES] Error al solicitar actualización: {e}")
 # =========================================================
 #                         TEST
 # =========================================================

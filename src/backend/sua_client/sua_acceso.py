@@ -186,3 +186,25 @@ def reclamar_llave_sua() -> bool:
     except Exception as e:
         print(f"Error en reclamar_llave_sua: {e}")
         return False
+
+
+def get_station_token_sua() -> str:
+    """
+    Obtiene un JWT válido para la estación usando la station_key activa.
+    """
+    station_key = get_station_key_activa()
+    if not station_key:
+        raise RuntimeError("No hay station_key activa disponible para obtener token SUA")
+
+    client = SuaClient(SUA_BASE_URL)
+    return client.get_station_token(STATION_ID, station_key)
+
+
+def get_auth_headers() -> dict:
+    """
+    Devuelve headers Authorization para llamadas autenticadas al backend SUA.
+    """
+    token = get_station_token_sua()
+    return {
+        "Authorization": f"Bearer {token}"
+    }
