@@ -10,7 +10,7 @@ from src.backend.sua_client.sua_acceso import get_auth_headers
 from src.backend.sua_client.settings import SUA_BASE_URL
 
 
-DOWNLOAD_DIR = Path("C:/Users/Admin/Documents/NextGen")
+DOWNLOAD_DIR = Path.home()/"Documents"/"NextGen"
 
 
 def download_update_installer_from_url(version: str, url: str, installer_name: str):
