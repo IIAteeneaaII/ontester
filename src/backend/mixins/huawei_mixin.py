@@ -110,85 +110,71 @@ class HuaweiMixin:
         try:
             # 1. Asegurarse de estar en la Home Page
             driver.switch_to.default_content()
+
+            # Asegurar que estamos en la Home Page principal
+            try:
+                current_url = (driver.current_url or "").lower()
+                if "index.asp" not in current_url:
+                    driver.get(self.base_url)
+                    time.sleep(2)
+            except Exception:
+                driver.get(self.base_url)
+                time.sleep(2)
             
             # 2. Buscar el botón inicial "RESET"
             print("[SELENIUM] Buscando botón RESET en Home Page...")
             reset_menu_btn = self.find_element_anywhere(
                 driver,
-                By.XPATH,
-                "//div[contains(text(), 'RESET')] | //span[contains(text(), 'RESET')] | //a[contains(text(), 'RESET')]",
-                desc="RESET Menu Button",
-                timeout=5
+                By.ID,
+                "RestartIcon",
+                desc="Huawei RestartIcon",
+                timeout=8
             )
             
             if not reset_menu_btn:
-                print("[WARN] No se encontró RESET por texto, intentando selectores alternativos...")
-                reset_menu_btn = self.find_element_anywhere(
-                    driver,
-                    By.CSS_SELECTOR,
-                    "div.reset-button, #reset_btn, .icon-reset", 
-                    desc="RESET Menu Button (Alt)",
-                    timeout=3
-                )
-
-            if not reset_menu_btn:
-                print("[ERROR] No se encontró el botón RESET")
+                print("[ERROR] No se encontró el botón RESET principal con id='RestartIcon'")
                 return False
 
-            # Hacer click para desplegar el menú
-            print("[SELENIUM] Click en botón RESET...")
+            print("[SELENIUM] Click en RestartIcon.")
             try:
                 reset_menu_btn.click()
-            except:
+            except Exception:
                 driver.execute_script("arguments[0].click();", reset_menu_btn)
-            
-            time.sleep(3) # Esperar a que se despliegue
 
-            # 3. Buscar el botón "Restore Defaults"
-            # Busqueda amplia por texto "Restore"
-            print("[SELENIUM] Buscando botón 'Restore Defaults'...")
-            
-            # Intentar varios selectores
-            restore_selectors = [
-                (By.XPATH, "//button[contains(text(), 'Restore Defaults')]"),
-                (By.XPATH, "//input[@value='Restore Defaults']"),
-                (By.XPATH, "//div[contains(text(), 'Restore Defaults')]"),
-                (By.XPATH, "//button[contains(text(), 'Restore')]"),
-                (By.ID, "RestoreDefaults"),
-                (By.ID, "RestoreDefault"),
-                (By.NAME, "RestoreDefaults")
-            ]
-            
-            restore_btn = None
-            
-            # Usar find_element_anywhere para cada selector
-            for by, sel in restore_selectors:
-                restore_btn = self.find_element_anywhere(driver, by, sel, desc=f"Restore Btn ({sel})", timeout=1)
-                if restore_btn:
-                    break
-            
-            if restore_btn:
-                print("[SELENIUM] Botón 'Restore Defaults' encontrado. Ejecutando reset...")
-                try:
-                    restore_btn.click()
-                except:
-                    driver.execute_script("arguments[0].click();", restore_btn)
-                
-                # 4. Manejar la alerta de confirmación
-                try:
-                    WebDriverWait(driver, 5).until(EC.alert_is_present())
-                    alert = driver.switch_to.alert
-                    print(f"[SELENIUM] Alerta de confirmación detectada: {alert.text}")
-                    alert.accept()
-                    print("[SELENIUM] Alerta aceptada. El dispositivo se está reiniciando a fábrica.")
-                    return True
-                except TimeoutException:
-                    print("[WARN] No apareció alerta de confirmación, verificando si la acción se ejecutó...")
-                    return True
-            else:
-                print("[ERROR] No se encontró el botón 'Restore Defaults' después de hacer click en RESET")
-                # Debug: Imprimir source del frame donde estaba RESET si es posible
+            time.sleep(2)
+
+            # 2) Click en Restore Defaults
+            print("[SELENIUM] Buscando botón Restore Defaults (id=btnRestoreDftCfg).")
+            restore_btn = self.find_element_anywhere(
+                driver,
+                By.ID,
+                "btnRestoreDftCfg",
+                desc="Huawei Restore Defaults Button",
+                timeout=8
+            )
+
+            if not restore_btn:
+                print("[ERROR] No se encontró el botón Restore Defaults con id='btnRestoreDftCfg'")
                 return False
+
+            print("[SELENIUM] Click en btnRestoreDftCfg.")
+            try:
+                restore_btn.click()
+            except Exception:
+                driver.execute_script("arguments[0].click();", restore_btn)
+
+            # 3) Aceptar alerta de Chrome
+            try:
+                WebDriverWait(driver, 5).until(EC.alert_is_present())
+                alert = driver.switch_to.alert
+                print(f"[SELENIUM] Alerta de confirmación detectada: {alert.text}")
+                alert.accept()
+                print("[SELENIUM] Alerta aceptada. El dispositivo se está reiniciando a fábrica.")
+                return True
+            except TimeoutException:
+                print("[ERROR] No apareció la alerta de confirmación tras btnRestoreDftCfg")
+                return False
+
         except Exception as e:
             print(f"[ERROR] Falló el proceso de Factory Reset: {e}")
             return False
