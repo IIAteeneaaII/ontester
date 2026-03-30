@@ -300,7 +300,8 @@ class IoTClient:
             )
 
             from src.backend.sua_client.dao import insertar_version
-            insertar_version(current_version)  # Guardar versión actual antes de actualizar
+            insertar_version(target_version)  # Guardar versión actual antes de actualizar
+            print(f"[UPDATE] Versión actual registrada en local DB: {target_version}")
 
 
             kill_processes_by_name({"chromedriver.exe", "cmd.exe"})
