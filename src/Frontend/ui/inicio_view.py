@@ -16,7 +16,7 @@ sys.path.insert(0, str(root_path))
 # importar helper de conexion
 from src.backend.endpoints.conexion import load_default_users, cargar_version
 from src.Frontend.telemetry.dispatcher import EventDispatcher
-from src.Frontend.theme_manager import ThemeManager  # ✅ Theme persistente
+from src.Frontend.theme_manager import ThemeManager  
 
 # Extraer la version actual para mostrarla en UI
 # versRow = extraer_ultimo("catalog_meta")
