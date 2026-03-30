@@ -86,7 +86,7 @@ def download_update_installer():
         version=version,
         url=installer_url,
         installer_name=installer_name
-    )
+    ), data
 
 def kill_processes_by_name(names: set[str]) -> None:
     normalized = {n.lower() for n in names}

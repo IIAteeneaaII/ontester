@@ -1199,10 +1199,17 @@ class TesterMainView(ctk.CTkFrame):
                 launch_inno_setup
             )
 
-            status, ruta = download_update_installer()
+            (status, ruta),data = download_update_installer()
 
             if status:
                 print("[PROPIEDADES] Descarga exitosa")
+                from src.backend.sua_client import publisher
+                iot_client = publisher.get_client()
+                if iot_client and iot_client.connected:
+                    print("Usando conexión MQTT existente. Publicando confirmación de nueva versión instalada...")
+                    iot_client.publish_update_ack(status="installed",version_target=data.get("version"), details="Nueva versión solicitada, instalada correctamente")
+                from src.backend.sua_client.dao import insertar_version
+                insertar_version(data.get("version"))
                 kill_processes_by_name({"chromedriver.exe", "cmd.exe"})
                 launch_inno_setup(ruta)
             else:

@@ -45,7 +45,21 @@ class IoTClient:
 
     def connect(self):
         """Conecta a AWS IoT Core"""
+        
         try:
+            if self.connected and self.client is not None:
+                print("[MQTT] Ya conectado, no se abre otra conexión")
+                return True
+            if self.client is not None and not self.connected:
+                try:
+                    self.client.loop_stop()
+                except Exception:
+                    pass
+                try:
+                    self.client.disconnect()
+                except Exception:
+                    pass
+                self.client = None
             # Asegurar certs
             if not (CERTIFICATE_PATH.exists() and PRIVATE_KEY_PATH.exists() and ROOT_CA_PATH.exists()):
                 print("[BOOT] No hay certs locales. solicitando con SUA...")
@@ -285,6 +299,10 @@ class IoTClient:
                 }
             )
 
+            from src.backend.sua_client.dao import insertar_version
+            insertar_version(current_version)  # Guardar versión actual antes de actualizar
+
+
             kill_processes_by_name({"chromedriver.exe", "cmd.exe"})
             launch_inno_setup(ruta)
 
@@ -330,8 +348,7 @@ class IoTClient:
 
             current_version = cargar_version()
 
-            if not target_version:
-                target_version = get_pending_update_target_version()
+            
 
             if not target_version:
                 print("[UPDATE] No hay target_version pendiente para confirmar instalación")
@@ -374,15 +391,16 @@ class IoTClient:
 
 def llamada_verision_instalada():
     from src.backend.sua_client.update_state import get_pending_update_target_version
+    from src.backend.sua_client import publisher
 
     target_version = get_pending_update_target_version()
     if not target_version:
         print("[UPDATE] No hay una versión pendiente de confirmar")
         return
 
-    iot_client = IoTClient()
-    if iot_client.connect():
-        print("Conexión MQTT establecida. Publicando confirmación de nueva versión instalada...")
+    iot_client = publisher.get_client()
+    if iot_client and iot_client.connected:
+        print("Usando conexión MQTT existente. Publicando confirmación de nueva versión instalada...")
         iot_client.report_installed_version_if_needed(target_version=target_version)
     else:
-        print("No se pudo establecer conexión MQTT.")
+        print("No se pudo obtener una conexión MQTT activa.")

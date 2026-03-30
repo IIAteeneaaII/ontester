@@ -394,6 +394,19 @@ def insertar_version(con, version: str) -> None:
         (version, now_local_iso())
     )
 
+def insertar_version_si_no_existe(con, version: str) -> None:
+    row = con.execute(
+        "SELECT COUNT(*) AS total FROM catalog_meta;"
+    ).fetchone()
+
+    total = row["total"] if row is not None else 0
+
+    if total == 0:
+        con.execute(
+            "INSERT INTO catalog_meta (version, updated_at) VALUES (?, ?);",
+            (version, now_local_iso())
+        )
+
 def existe_valor_en_campo(table_name: str, campo: str, valor) -> bool:
     with get_conn() as con:
         # 1) validar que la tabla exista

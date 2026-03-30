@@ -68,11 +68,9 @@ class AwsBridge:
 
                 if ok:
                     print("[AWS-PUBLISH]", kind)
-            except Exception:
+
                 # Si algo falla (red), desconecta y espera un poco.
                 # La siguiente iteración reconecta vía get_client()
-                try:
-                    publisher.disconnect()
-                except Exception:
-                    pass
+            except Exception as e:
+                print(f"[AWS-BRIDGE] Error publicando {kind}: {e}")
                 time.sleep(0.8)

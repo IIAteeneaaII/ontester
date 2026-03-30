@@ -9,9 +9,15 @@ _iot_client = None
 def get_client():
     """Obtiene el cliente IoT (singleton)"""
     global _iot_client
+
     if _iot_client is None:
         _iot_client = IoTClient()
         _iot_client.connect()
+        return _iot_client
+
+    if not _iot_client.connected:
+        _iot_client.connect()
+
     return _iot_client
 
 def publish_event(event_type, data=None):

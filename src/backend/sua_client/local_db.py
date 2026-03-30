@@ -29,9 +29,9 @@ def init_db() -> None:
         conn.executescript(sql)
         # verificar que no esté vacía la tabla de settings y cargar datos iniciales
         registros_iniciales(conn)
-        # Registrar version actual
-        from src.backend.sua_client.dao import insertar_version
-        insertar_version(conn, "1.7.1.1")
+        # Registrar versión actual solo si catalog_meta está vacía
+        from src.backend.sua_client.dao import insertar_version_si_no_existe
+        insertar_version_si_no_existe(conn, "1.7.2")
         conn.commit()
 
 def registros_iniciales(con: sqlite3.Connection):
@@ -59,10 +59,7 @@ def registros_iniciales(con: sqlite3.Connection):
             (0, 0, 0, 2)
         ]
 
-        # id || version || updated_at
-        catalog = [
-            (0, "1.4.3.2", now)
-        ]
+
 
         # id || descripcion || activo || update_at || id_settings || created_at
         stations = [
@@ -218,10 +215,6 @@ def registros_iniciales(con: sqlite3.Connection):
             settings
         )
 
-        con.executemany(
-            "INSERT OR IGNORE INTO catalog_meta (id, version, updated_at) VALUES (?, ?, ?);",
-            catalog
-        )
 
         con.executemany(
             "INSERT OR IGNORE INTO stations (id, descripcion, activo, update_at, id_settings, created_at) VALUES (?, ?, ?, ?, ?, ?);",
