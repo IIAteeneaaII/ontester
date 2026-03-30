@@ -440,7 +440,7 @@ class InicioView(ctk.CTkFrame):
         """Carga logo desde assets/icons/logo_tester.png (si existe)."""
         try:
             assets_dir = Path(__file__).parent.parent / "assets" / "icons"
-            logo_path = assets_dir / "logo_tester.png"
+            logo_path = assets_dir / "logo_tester_sua.png"
             img = Image.open(logo_path)
             self.logo_image = ctk.CTkImage(light_image=img, dark_image=img, size=(150, 150))
             self._logo_label.configure(image=self.logo_image)
