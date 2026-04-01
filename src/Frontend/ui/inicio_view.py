@@ -18,6 +18,7 @@ from src.backend.endpoints.conexion import load_default_users, cargar_version
 from src.Frontend.telemetry.dispatcher import EventDispatcher
 from src.Frontend.theme_manager import ThemeManager  
 
+
 # Extraer la version actual para mostrarla en UI
 # versRow = extraer_ultimo("catalog_meta")
 # version = versRow["version"]
@@ -206,6 +207,8 @@ class InicioView(ctk.CTkFrame):
         root = self.winfo_toplevel()
         if hasattr(root, "theme"):
             self.apply_theme(root.theme.palette())
+
+        
 
     # =========================================================
     #                    THEME / TOGGLE
@@ -593,6 +596,9 @@ def run_app():
 
     # Crear dispatcher + queue
     app.event_q = queue.Queue()
+    from src.backend.sua_client.publisher import configure_event_queue
+    #app.event_q = queue.Queue()
+    configure_event_queue(app.event_q)
     app.aws_bridge = AwsBridge()
     app.dispatcher = EventDispatcher(
         root=app,

@@ -3,15 +3,23 @@ M√≥dulo simplificado para publicar eventos desde cualquier parte de la aplicaci√
 """
 from .iot_client import IoTClient
 
-# Cliente global
 _iot_client = None
+_event_q = None
+
+
+def configure_event_queue(event_q):
+    global _event_q
+    _event_q = event_q
+
 
 def get_client():
-    """Obtiene el cliente IoT (singleton)"""
     global _iot_client
 
+    if _event_q is None:
+        raise RuntimeError("publisher.py no ha sido configurado con event_q")
+
     if _iot_client is None:
-        _iot_client = IoTClient()
+        _iot_client = IoTClient(event_q=_event_q)
         _iot_client.connect()
         return _iot_client
 

@@ -10,6 +10,7 @@ import json
 import time
 
 from src.Frontend.ui.panel_pruebas_view import PanelPruebasConexion
+from src.Frontend.ui.update_progress_overlay_controller import UpdateProgressOverlayController
 
 # Agregar la raíz del proyecto al path para poder usar imports absolutos
 root_path = Path(__file__).parent.parent.parent.parent
@@ -352,6 +353,16 @@ class TesterView(ctk.CTkFrame):
                 self.apply_theme(root.theme.palette())
             except Exception:
                 pass
+        
+        # Inicializar la barra de progreso
+        self.update_overlay_controller = UpdateProgressOverlayController(
+            root,
+            outline_image_path="logo_tester_vacio.png",
+            full_image_path="logo_tester_completo.png",
+            width=320,
+            height=260,
+            auto_close_on_done=False,
+        )
 
     # ==================================================
     # THEME
@@ -849,6 +860,7 @@ class TesterView(ctk.CTkFrame):
         super().destroy()
 
     def on_event(self, kind, payload):
+        
         if kind == "log":
             self.panel_pruebas.set_texto_superior(payload)
 
@@ -869,6 +881,10 @@ class TesterView(ctk.CTkFrame):
                 self.panel_pruebas.actualizar_estado_conexion(True)
 
         elif kind == "resultados":
+            # validar si es unitaria
+            esUnitaria = False
+            # id para enviar a SSUA
+            id_ssua_final = -1
             # ejemplo: pintar resultados en tu UI
             info  = payload.get("info", {})
             # Detectar si viene de prueba unitaria usando el flag _unit_running
@@ -897,7 +913,7 @@ class TesterView(ctk.CTkFrame):
                     if self.master.event_q:
                         self.master.event_q.put((kind, payload))
                 emit("log", "DISPOSITIVO YA REGISTRADO, MODIFICANDO INFORMACIÓN Y RESULTADOS")
-                from src.backend.sua_client.dao import actualizar_operacion
+                from src.backend.sua_client.dao import actualizar_operacion, extraer_id_sn_modo
                 from src.backend.endpoints.conexion import is_bad_info
                 if (is_bad_info(sn_registro)):
                     result = 0
@@ -911,16 +927,20 @@ class TesterView(ctk.CTkFrame):
                 else:
                     emit("pruebas", "Error en la información")
                 validar_por_modo(sn_registro, modo)
+                id_ssua_final = extraer_id_sn_modo(sn_registro, modo) # Extraer id por sn y modo
             else:
                 id = insertar_operacion(payload, modo, user_id)
                 # Actualizar el campo de valido
                 validar_por_modo(sn_registro, modo)
                 payload_final = extraer_by_id(id, "operations")
+                if id == -1:
+                    esUnitaria = True
+                id_ssua_final = id
             
             self.updatePruebas()
             # publicar a IOT
-            if id != -1: # -1 -> prueba unitaria, no mandar
-                payload_final = extraer_by_id(id, "operations")
+            if not esUnitaria and id_ssua_final != -1: # -1 -> prueba unitaria, no mandar
+                payload_final = extraer_by_id(id_ssua_final, "operations")
                 pay = dict(payload_final)
                 print(f"[PRE AWS] La payload a enviar será: {pay}")
                 def emit(kind, payload):
@@ -994,6 +1014,10 @@ class TesterView(ctk.CTkFrame):
             modo = self.modo_var.get()
             auto = (modo in ("Testeo", "Retesteo"))
             self._start_loop(auto_test_on_detect=auto, start_in_monitor=True)
+        
+        # nuevo kind para barra de actualizacion
+        elif kind == "barra":
+            self.update_overlay_controller.on_event(payload)
 
     def _limpiezaElementos(self):
         self.snInfo.configure(text="SN: ")

@@ -8,18 +8,19 @@ import requests
 from src.backend.endpoints.conexion import cargar_version
 from src.backend.sua_client.sua_acceso import get_auth_headers
 from src.backend.sua_client.settings import SUA_BASE_URL
+from typing import Any
 
 
 DOWNLOAD_DIR = Path.home()/"Documents"/"NextGen"
 
 
-def download_update_installer_from_url(version: str, url: str, installer_name: str):
+def download_update_installer_from_url(version: str, url: str, installer_name: str, queue: Any):
     """
     Descarga instalador desde URL presignada.
     """
     from src.backend.sua_client.update_state import set_pending_update_target_version
 
-    ver_actual = cargar_version()
+    ver_actual = "1.6" #cargar_version()
     if ver_actual == version:
         print(f"[ACTUALIZADOR] Ya está en versión {version}")
         return False, ""
@@ -37,10 +38,33 @@ def download_update_installer_from_url(version: str, url: str, installer_name: s
 
     with requests.get(url, stream=True, timeout=30) as r:
         r.raise_for_status()
+        #print("Obteniendo los headers")
+        #print(r.headers)
+        total_size = int(r.headers.get("Content-Length", 0))
+        downloaded = 0
+        last_percent = -1
         with open(dest_file, "wb") as f:
-            for chunk in r.iter_content(8192):
-                if chunk:
-                    f.write(chunk)
+            for chunk in r.iter_content(1024 * 64):
+                if not chunk:
+                    continue
+
+                f.write(chunk)
+                downloaded += len(chunk)
+
+                if total_size > 0:
+                    download_percent = int(downloaded * 100 / total_size)
+                    # Mapear descarga real al rango 15..100
+                    total_progress = 15 + int(download_percent * 0.85)
+                    total_progress = min(100, total_progress)
+
+                    if total_progress != last_percent:
+                        last_percent = total_progress
+                        queue.put((
+                            "barra",
+                            {
+                            "status": "Descargando instalador...",
+                            "progress": total_progress,
+                        }))
 
     return True, str(dest_file)
 

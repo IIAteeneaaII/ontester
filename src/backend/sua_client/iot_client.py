@@ -14,12 +14,13 @@ TOPIC_UPDATES_STATION = "ontester/updates/{station_id}"
 TOPIC_UPDATES_ACK = "ontester/updates/ack/{station_id}"
 
 class IoTClient:
-    def __init__(self, station_id=None):
+    def __init__(self, station_id=None, event_q = None):
         self.station_id = station_id or STATION_ID
         self.client = None
         self.connected = False
         self.heartbeat_timer = None
         self.update_lock = threading.Lock()
+        self.event_q = event_q
 
     def _on_connect(self, client, userdata, flags, rc):
         """Callback cuando se establece conexión con AWS IoT"""
@@ -219,6 +220,7 @@ class IoTClient:
             result, mid = self.client.subscribe(topic, qos=qos)
             print(f"[MQTT] subscribe topic={topic} result={result} mid={mid}")
 
+    # ACTUALIZACION DESDE SSUA
     def _handle_update_message(self, topic, payload):
         if not self.update_lock.acquire(blocking=False):
             print("[UPDATE] Ya hay una actualización en curso, se ignora este mensaje")
@@ -226,13 +228,15 @@ class IoTClient:
 
         try:
             msg_type = payload.get("type")
+
+            if msg_type != "update_available":
+                return
+            
             target_version = payload.get("version")
             installer_url = payload.get("installer_url")
             installer_name = payload.get("installer_name", "ONTTesterSetup.exe")
 
-            if msg_type != "update_available":
-                return
-
+            # Error por parte del mensaje recibido, no de descarga
             if not target_version or not installer_url:
                 self.publish_update_ack(
                     status="failed",
@@ -242,8 +246,9 @@ class IoTClient:
                 return
 
             from src.backend.endpoints.conexion import cargar_version
-            current_version = cargar_version()
+            current_version = "1.6"#cargar_version()
 
+            # Ya actualizado -> Succes
             if current_version == target_version:
                 print(f"[UPDATE] Ya estoy en versión {current_version}")
                 self.publish_update_ack(
@@ -258,6 +263,15 @@ class IoTClient:
 
             from src.backend.sua_client.update_state import set_pending_update_target_version
 
+            # Barra de progreso al 0%, comenzar instalación
+            self.event_q.put((
+                "barra",
+                {
+                    "show": True,
+                    "status": "Actualización disponible",
+                    "progress": 5,
+                }
+            ))
             set_pending_update_target_version(
                 version=target_version,
                 installer_name=installer_name
@@ -275,12 +289,15 @@ class IoTClient:
                 launch_inno_setup
             )
 
+            # Comenzando proceso de descarga -> Avance al 30% (?)
             ok, ruta = download_update_installer_from_url(
                 version=target_version,
                 url=installer_url,
-                installer_name=installer_name
+                installer_name=installer_name,
+                queue=self.event_q
             )
 
+            # Falla en la descarga -> Fail por culpa del ONT
             if not ok:
                 self.publish_update_ack(
                     status="failed",
@@ -289,6 +306,7 @@ class IoTClient:
                 )
                 return
 
+            # Descarga exitosa -> Avance completo
             self.publish_update_ack(
                 status="downloaded",
                 version_target=target_version,

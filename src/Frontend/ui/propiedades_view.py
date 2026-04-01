@@ -1189,6 +1189,7 @@ class TesterMainView(ctk.CTkFrame):
         else:
             print("[SUA] Error al reclamar llave de acceso")
 
+    # PEDIR ACTUALIZACION
     def actualizacion(self):
         print("SOLICITANDO ACTUALIZACION")
 

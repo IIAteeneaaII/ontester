@@ -457,6 +457,27 @@ def existe_operacion_dia(sn: str, modo: str) -> bool:
         """, (sn, dia, modo)).fetchone()
         return row is not None
 
+# Funcion para extraer id por sn + modo
+def extraer_id_sn_modo(sn: str, modo: str) -> int:
+    dia = now_local_iso()[:10]
+    modo = modo.upper()
+    # Cambiar el nombre de RETESTEO al enum de la bd
+    if(modo == "RETESTEO"):
+        modo = "RETEST"
+    # Comprobar que no viene de una unitaria
+    if (modo not in  {"ETIQUETA", "TESTEO", "RETEST"}):
+        return False
+    with get_conn() as con:
+        row = con.execute("""
+            SELECT id
+            FROM operations
+            WHERE sn = ?
+            AND substr(fecha_test, 1, 10) = ?
+            AND tipo = ?
+            LIMIT 1;
+        """, (sn, dia, modo)).fetchone()
+        return row is not None
+
 def validar_por_modo(sn: str, modo: str):
     # El modo solo sirve para hacer update en el registro de ese modo
     # Traer row por sn y modo
