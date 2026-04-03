@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from src.frontend.ui.progress_overlay import FloatingProgressOverlay
+from src.Frontend.ui.progress_overlay import FloatingProgressOverlay
 
 
 class UpdateProgressOverlayController:

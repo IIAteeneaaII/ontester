@@ -59,12 +59,13 @@ def download_update_installer_from_url(version: str, url: str, installer_name: s
 
                     if total_progress != last_percent:
                         last_percent = total_progress
-                        queue.put((
-                            "barra",
-                            {
-                            "status": "Descargando instalador...",
-                            "progress": total_progress,
-                        }))
+                        if queue is not None:
+                            queue.put((
+                                "barra",
+                                {
+                                "status": "Descargando instalador...",
+                                "progress": total_progress,
+                            }))
 
     return True, str(dest_file)
 

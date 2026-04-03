@@ -264,14 +264,15 @@ class IoTClient:
             from src.backend.sua_client.update_state import set_pending_update_target_version
 
             # Barra de progreso al 0%, comenzar instalación
-            self.event_q.put((
-                "barra",
-                {
-                    "show": True,
-                    "status": "Actualización disponible",
-                    "progress": 5,
-                }
-            ))
+            if self.event_q is not None:
+                self.event_q.put((
+                    "barra",
+                    {
+                        "show": True,
+                        "status": "Actualización disponible",
+                        "progress": 5,
+                    }
+                ))
             set_pending_update_target_version(
                 version=target_version,
                 installer_name=installer_name

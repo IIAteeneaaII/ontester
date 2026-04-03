@@ -15,13 +15,14 @@ def configure_event_queue(event_q):
 def get_client():
     global _iot_client
 
-    if _event_q is None:
-        raise RuntimeError("publisher.py no ha sido configurado con event_q")
-
     if _iot_client is None:
         _iot_client = IoTClient(event_q=_event_q)
         _iot_client.connect()
         return _iot_client
+
+    # Si el cliente ya existe pero aún no tenía event_q y ahora ya existe, se la inyectamos
+    if getattr(_iot_client, "event_q", None) is None and _event_q is not None:
+        _iot_client.event_q = _event_q
 
     if not _iot_client.connected:
         _iot_client.connect()
