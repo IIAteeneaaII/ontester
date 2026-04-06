@@ -246,7 +246,7 @@ class IoTClient:
                 return
 
             from src.backend.endpoints.conexion import cargar_version
-            current_version = "1.6"#cargar_version()
+            current_version = cargar_version()
 
             # Ya actualizado -> Succes
             if current_version == target_version:

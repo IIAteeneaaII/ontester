@@ -16,6 +16,8 @@ from .settings import (
     ROOT_CA_PATH,
 )
 
+
+
 from src.backend.sua_client.dao import (
     get_station_key_activa,
     get_enrollment_code_pendiente,
@@ -112,7 +114,17 @@ def verificar_estado_estacion() -> bool:
     station = get_station_activa()
     if station and station == 2:
         print("[SUA] Estación activa y con station_key")
-        return True
+        from src.backend.sua_client.publisher import get_client
+        if _certs_exist():
+            try:
+                client_sua = get_client()
+                if client_sua.connected:
+                    print("[SUA] estacion ya autenticada y certificados presentes validos")
+                return True
+            except Exception as e:
+                print(f"[SUA] Existen certificados pero ya no estan dados de alta: {e}. La estacion fue eliminada por ssua ")
+        print("[SUA] no hay certificados")
+        return False
     else: 
         print("[SUA] Estación en proceso de enroll (activo=1). Esperando station_key...")
         return False
@@ -124,8 +136,17 @@ def ensure_certs_from_sua(poll_interval_sec: int = 10, max_wait_sec: int = 30) -
     - stations.activo=2 => descripcion=station_key
     - stations.activo=1 => descripcion=enrollment_code
     """
+    from src.backend.sua_client.publisher import get_client
     if _certs_exist():
-        return True
+        try:
+            client_sua = get_client()
+            if client_sua.connected:
+                print("[SUA] estacion ya autenticada y certificados presentes validos")
+            return None
+        except Exception as e:
+            print(f"[SUA] Existen certificados pero ya no estan dados de alta: {e}. La estacion fue eliminada por ssua, siguiendo con peticion de alta de la estacion ")
+            
+           
 
     client = SuaClient(SUA_BASE_URL)
 

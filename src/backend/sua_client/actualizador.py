@@ -20,7 +20,7 @@ def download_update_installer_from_url(version: str, url: str, installer_name: s
     """
     from src.backend.sua_client.update_state import set_pending_update_target_version
 
-    ver_actual = "1.6" #cargar_version()
+    ver_actual = cargar_version()
     if ver_actual == version:
         print(f"[ACTUALIZADOR] Ya está en versión {version}")
         return False, ""
