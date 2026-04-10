@@ -93,6 +93,7 @@ class HuaweiMixin:
                 print("[INFO] No se detectó ningún paso del wizard de configuración inicial.")
                 # Debug adicional: imprimir URL actual
                 print(f"[DEBUG] URL actual: {driver.current_url}")
+                # Si llego aquí al hacer "login" no encontró wizard 
                 return False
 
         except Exception as e:
@@ -1454,8 +1455,20 @@ class HuaweiMixin:
             print("[INFO] No se actualizará software")
             return False
 
-    def _login_huawei(self) -> bool:
+    def _login_huawei(self, reintento=0) -> bool:
+        print(f"[DEBUG-LOGIN] Estamos en el reintento: {reintento}")
         #  función de inicio de sesión para huawei
+        if reintento > 2:
+            # Definición del emit
+            def emit(kind, payload):
+                if self.out_q:
+                    self.out_q.put((kind, payload))
+            # emitir a la UI que 
+            emit("error_ont", "error_login")
+            # matar el hilo
+            return False
+        else:
+            reintento += 1
         if SELENIUM_AVAILABLE:
             #login con selenium
             driver = None
@@ -1645,6 +1658,13 @@ class HuaweiMixin:
                     # after_path.write_text(driver.page_source, encoding="utf-8")
                     # print(f"[SELENIUM] HTML tras login guardado en {after_path}")
                     # return False
+                    # Para validar que no sea porque hay wizard verificamos si tiene aun el boton de login
+                    page_html = driver.page_source
+                    if 'id="loginbutton"' in page_html and "loginbutton" in page_html:
+                        # Con la presencia de estos elementos se confirma que no se hizo login
+                        # Reintentar el login una vez 
+                        reintento += 1
+                        return self._login_huawei(reintento) # Bandera para solo hacerlo 1 vez
 
                 # return True
                 # Esperar a que cargue la página principal (varios indicadores posibles)
