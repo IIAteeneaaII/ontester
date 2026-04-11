@@ -24,6 +24,7 @@ from src.Frontend.navigation.botones import (
 
 from src.Frontend.ui.menu_superior_view import MenuSuperiorDesplegable
 
+error_login_path = Path(__file__).parent.parent / "assets" / "error_login.png"
 
 class TesterView(ctk.CTkFrame):
     def __init__(self, parent, mdebug=None, viewmodel=None, **kwargs):
@@ -986,6 +987,39 @@ class TesterView(ctk.CTkFrame):
             modo = self.modo_var.get()
             auto = (modo in ("Testeo", "Retesteo"))
             self._start_loop(auto_test_on_detect=auto, start_in_monitor=True)
+        
+        elif kind == "error_ont":
+            if payload in "error_login":
+                # mostrar modal de aviso de necesidad de desconexión de equipos.
+                win = ctk.CTkToplevel(self)
+                win.title("ERROR EN EL LOGIN")
+                # Centrar ventana
+                width = 500
+                height = 500
+
+                win.update_idletasks()
+                screen_width = win.winfo_screenwidth()
+                screen_height = win.winfo_screenheight()
+
+                x = int((screen_width / 2) - (width / 2))
+                y = int((screen_height / 2) - (height / 2))
+
+                win.geometry(f"{width}x{height}+{x}+{y}")
+
+                # label = ctk.CTkLabel(win, text="El dispositivo ONT tiene credenciales cambiadas, requiere reinicio de fábrica manual", font=ctk.CTkFont(size=16, weight="bold"))
+                # label.pack(pady=20)
+                img_error_login = ctk.CTkImage(
+                    light_image=Image.open(error_login_path),
+                    dark_image=Image.open(error_login_path),
+                    size=(500, 500),
+                )
+
+                labelAux = ctk.CTkLabel(win, text="", image=img_error_login)
+                labelAux.pack()
+
+                win.grab_set()
+                win.focus_set()
+                win.wait_window()
 
     def _limpiezaElementos(self):
         self.snInfo.configure(text="SN: ")
