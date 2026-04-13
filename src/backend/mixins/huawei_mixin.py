@@ -294,11 +294,22 @@ class HuaweiMixin:
                 By.XPATH, f"//td[@bindtext='{bindtext_value}']",
                 desc="TX and RX"
             )
+            if td_title is None:
+                return None
             td_val = td_title.find_element(By.XPATH, "following-sibling::td[1]")
             return td_val.text.strip()
 
-        tx = get_optical("amp_optic_txpower")   # "-- dBm" ó " -20.5 dBm", etc.
-        rx = get_optical("amp_optic_rxpower")
+        # TX y RX se leen de forma independiente: si uno falla, el otro se preserva
+        tx = None
+        rx = None
+        try:
+            tx = get_optical("amp_optic_txpower")
+        except Exception as e:
+            print(f"[WARN] Error leyendo TX óptico: {type(e).__name__} - {e}")
+        try:
+            rx = get_optical("amp_optic_rxpower")
+        except Exception as e:
+            print(f"[WARN] Error leyendo RX óptico: {type(e).__name__} - {e}")
 
         return {
             "tx_optical_power": tx,
@@ -393,7 +404,10 @@ class HuaweiMixin:
             "wlan_ssidinfo_table_0_1",
             desc=f"SSID {band_label}",
         )
-        ssid = ssid_el.text.strip()
+        if ssid_el is None:
+            # Si es full locked, comprobe_locked levantará RuntimeError("wifi_full_locked")
+            self.comprobe_locked(driver, timeout=1)
+            raise RuntimeError(f"No se encontró SSID para {band_label}")
 
         # 2) Intento 1: status por id=LANStatusVal
         try:
@@ -661,7 +675,7 @@ class HuaweiMixin:
         )
 
         # Esperar a que el submenú de System Information se expanda
-        #time.sleep(2)
+        time.sleep(0.5)
 
         self.click_anywhere(
             driver,
@@ -729,7 +743,9 @@ class HuaweiMixin:
                 # (By.XPATH, "//div[contains(@class,'SecondMenuTitle') and normalize-space(.)='WLAN']"),
             ],
             "Huawei WLAN (menú WLAN)",
-        )    
+        )
+
+        self.comprobe_locked(driver, timeout=8)    
 
     def nav_hw_wifi_5(self, driver):
         """System Information -> WLAN (5 GHz)"""
@@ -763,6 +779,74 @@ class HuaweiMixin:
             ],
             "Huawei WLAN 5G (radio)",
         )
+
+    def comprobe_locked(self, driver, timeout=3):
+        """
+        Detecta routers Huawei full locked en la vista WLAN.
+        Criterio: aparece errorImg o el texto de errorMsg con "Cannot perform the operation".
+        Emite error_ont para que UI muestre modal.
+        """
+        expected_msg = "Error: Cannot perform the operation. Check whether the input parameters are correct."
+
+        def emit(kind, payload):
+            if self.out_q:
+                self.out_q.put((kind, payload))
+
+        def _read_locked_error():
+            err_img = self.find_element_anywhere(
+                driver, By.ID, "errorImg", desc="Huawei errorImg", timeout=1
+            )
+            err_msg = self.find_element_anywhere(
+                driver, By.ID, "errorMsg", desc="Huawei errorMsg", timeout=1
+            )
+
+            msg_txt = ""
+            if err_msg is not None:
+                try:
+                    msg_txt = (err_msg.text or "").strip()
+                except Exception:
+                    msg_txt = ""
+
+            # Si hay icono de error, ya cuenta como locked (aunque el texto no cargue)
+            is_locked = (err_img is not None) or ("cannot perform the operation" in msg_txt.lower())
+            return is_locked, (msg_txt or expected_msg)
+
+        try:
+            # 1) Revisión previa por si ya cayó en pantalla de error
+            is_locked, msg = _read_locked_error()
+            if is_locked:
+                if not getattr(self, "_hw_locked_modal_emitted", False):
+                    emit("error_ont", "wifi_full_locked")
+                    self._hw_locked_modal_emitted = True
+                raise RuntimeError("wifi_full_locked")
+
+            # 2) Intentar interacción con checkbox de habilitar WLAN (genera el error en full locked)
+            wl_enbl = self.find_element_anywhere(
+                driver, By.ID, "wlEnbl", desc="Huawei wlEnbl", timeout=timeout
+            )
+            if wl_enbl is not None:
+                try:
+                    driver.execute_script("arguments[0].click();", wl_enbl)
+                except Exception:
+                    wl_enbl.click()
+                time.sleep(0.7)
+
+            # 3) Revisión posterior al click
+            is_locked, msg = _read_locked_error()
+            if is_locked:
+                if not getattr(self, "_hw_locked_modal_emitted", False):
+                    emit("error_ont", "wifi_full_locked")
+                    self._hw_locked_modal_emitted = True
+                print(f"[SELENIUM] Huawei full locked detectado: {msg}")
+                raise RuntimeError("wifi_full_locked")
+
+            return False
+
+        except RuntimeError:
+            raise
+        except Exception as e:
+            print(f"[WARN] Error en comprobe_locked: {type(e).__name__} - {e}")
+            return False
 
     def nav_hw_mac(self, driver):
         """System Information -> Home Network (tabla de MAC / clientes)"""
@@ -1071,13 +1155,17 @@ class HuaweiMixin:
         for name, nav_func, parse_func in tests:
             try:
                 emit("pruebas", f"Ejecutando: {name}")
-                nav_func(driver)             # hace los clicks
-                data = parse_func(driver)    # lee sólo lo que nos interesa
-                self.test_results["tests"][name] = { # Pasar al test_results
+                nav_func(driver)
+                data = parse_func(driver)
+                self.test_results["tests"][name] = {
                     "name": name,
                     "data": data,
                 }
             except Exception as e:
+                if str(e) == "wifi_full_locked":
+                    print("[ERROR] Full locked detectado en Huawei. Abortando flujo de pruebas Huawei.")
+                    raise
+
                 print(f"[WARN] Error en extracción de {name}: {type(e).__name__} - {e}")
                 self.test_results["tests"][name] = {
                     "name": name,
@@ -1737,6 +1825,16 @@ class HuaweiMixin:
  
                 driver.quit()
                 return True
+            except RuntimeError as e:
+                if str(e) == "wifi_full_locked":
+                    print("[ERROR] Flujo abortado: router Huawei full locked.")
+                    if driver:
+                        try:
+                            driver.quit()
+                        except Exception:
+                            pass
+                    return False
+                raise
             except Exception as e:
                 print(f"[ERROR] Selenium login falló: {type(e).__name__} - {e}")
                 if driver:

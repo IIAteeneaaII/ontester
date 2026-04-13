@@ -600,8 +600,10 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
 
         if not login_ok:
             print("[!] Error: No se pudo autenticar")
-            if(self.model == "MOD001"):
-                return self.test_results
+            self.test_results.setdefault("metadata", {})["flow_aborted"] = True
+            # if(self.model == "MOD001"):
+            #     return self.test_results
+            return self.test_results
         # Determinar qué tests ejecutar según el tipo de dispositivo
         device_type = self.test_results['metadata'].get('device_type', 'ONT')
         
@@ -1497,6 +1499,11 @@ def main_loop(opciones, out_q = None, stop_event = None, auto_test_on_detect = T
                 emit("pruebas", "Autenticando dispositivo")
                 tester.run_all_tests()
 
+                if tester.test_results.get("metadata", {}).get("flow_aborted", False):
+                    emit("log", "Flujo abortado por full locked/login.")
+                    print("[*] Flujo abortado por full locked/login.")
+                    break
+
                 resultados = tester._resultados_finales()
                 # Guardar para base diaria y global
                 tester.saveBDiaria(resultados)
@@ -1535,6 +1542,11 @@ def main_loop(opciones, out_q = None, stop_event = None, auto_test_on_detect = T
 
                 emit("pruebas", "Extrayendo datos de etiqueta")
                 et.run_all_tests()
+
+                if et.test_results.get("metadata", {}).get("flow_aborted", False):
+                    emit("log", "Flujo abortado por full locked/login.")
+                    print("[*] Flujo abortado por full locked/login.")
+                    break
 
                 resultados = et._resultados_finales()
                 # Guardar para base diaria y global

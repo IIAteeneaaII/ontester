@@ -25,6 +25,7 @@ from src.Frontend.navigation.botones import (
 from src.Frontend.ui.menu_superior_view import MenuSuperiorDesplegable
 
 error_login_path = Path(__file__).parent.parent / "assets" / "error_login.png"
+error_wifi_locked_path = Path(__file__).parent.parent / "assets" / "error_wifi_locked.png"
 
 class TesterView(ctk.CTkFrame):
     def __init__(self, parent, mdebug=None, viewmodel=None, **kwargs):
@@ -1016,6 +1017,36 @@ class TesterView(ctk.CTkFrame):
 
                 labelAux = ctk.CTkLabel(win, text="", image=img_error_login)
                 labelAux.pack()
+
+                win.grab_set()
+                win.focus_set()
+                win.wait_window()
+
+            elif payload in "wifi_full_locked":
+                # modal para full locked (imagen la pondrás tú)
+                win = ctk.CTkToplevel(self)
+                win.title("ROUTER FULL LOCKED")
+                width = 500
+                height = 500
+
+                win.update_idletasks()
+                screen_width = win.winfo_screenwidth()
+                screen_height = win.winfo_screenheight()
+
+                x = int((screen_width / 2) - (width / 2))
+                y = int((screen_height / 2) - (height / 2))
+
+                win.geometry(f"{width}x{height}+{x}+{y}")
+
+                img_error_locked = ctk.CTkImage(
+                    light_image=Image.open(error_wifi_locked_path),
+                    dark_image=Image.open(error_wifi_locked_path),
+                    size=(500, 500),
+                )
+
+                labelAux = ctk.CTkLabel(win, text="", image=img_error_locked)
+                labelAux.pack()
+                labelAux.image = img_error_locked
 
                 win.grab_set()
                 win.focus_set()

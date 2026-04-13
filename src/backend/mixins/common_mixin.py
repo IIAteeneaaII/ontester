@@ -1583,9 +1583,12 @@ class CommonMixin:
             hw_optical_test = self.test_results.get('tests', {}).get('hw_optical')
             if hw_optical_test is not None:
                 hw_optical_data = hw_optical_test.get('data')
-                if hw_optical_data: # Si se detectó fibra óptica
-                    tx = hw_optical_data.get('tx_optical_power')
-                    rx = hw_optical_data.get('rx_optical_power')
+                if hw_optical_data:
+                    # TX y RX se tratan de forma individual: si uno no se leyó, el otro se preserva
+                    raw_tx = hw_optical_data.get('tx_optical_power')
+                    raw_rx = hw_optical_data.get('rx_optical_power')
+                    tx = raw_tx if raw_tx is not None else "-- dBm"
+                    rx = raw_rx if raw_rx is not None else "-- dBm"
                 else: # Si no hay fibra, asignar valores por defecto para evitar errores
                     tx = "-- dBm"
                     rx = "-- dBm"
