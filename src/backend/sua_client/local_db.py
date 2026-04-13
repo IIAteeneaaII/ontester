@@ -31,7 +31,7 @@ def init_db() -> None:
         registros_iniciales(conn)
         # Registrar versión actual solo si catalog_meta está vacía
         from src.backend.sua_client.dao import insertar_version_si_no_existe
-        insertar_version_si_no_existe(conn, "1.7.2")
+        insertar_version_si_no_existe(conn, "1.7.2.1")
         conn.commit()
 
 def registros_iniciales(con: sqlite3.Connection):
