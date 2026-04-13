@@ -73,7 +73,7 @@ class HuaweiMixin:
                         try:
                             element.click()
                         except:
-                            driver.execute_script("arguments[0].click();", element)
+                            driver.execute_script("guide_pre(arguments[0]);", element)
                             
                         time.sleep(2) # Esperar un poco más entre pasos
                     else:
@@ -98,7 +98,6 @@ class HuaweiMixin:
 
         except Exception as e:
             print(f"[WARN] Error general en hw_maybe_skip_initial_guide: {e}")
-            return False
             return False
     
     def _reset_factory_huawei(self, driver) -> bool:
