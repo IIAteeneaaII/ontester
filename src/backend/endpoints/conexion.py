@@ -368,67 +368,65 @@ def iniciar_pruebaUnitariaConexion(resetFabrica, sftU, usb, fibra, wifi, model, 
     # Solo emitir "Prueba unitaria terminada" si no fue cancelado
     if not (stop_event and stop_event.is_set()):
         emit("log", "Prueba unitaria terminada.")
-    
-def generaEtiquetaTxt(payload):
-    print("[CONEXION] Generando etiqueta")
-    info  = payload.get("info", {})
 
-    # Obtener el modelo para variaciones de nombres de redes
+# Impresion de etiquetas con Zebra
+def construir_datos_etiqueta(payload: dict) -> dict:
+    info = payload.get("info", {})
+
     modelo = info.get("modelo", "DESCONOCIDO").upper()
+    sn = info.get("sn", "")
+    mac = info.get("mac", "").replace(":", "").upper()
 
-    # Extraer valores para la banda 2.4 GHz
     wifi24_limpio = info.get("wifi24", "")[-4:] if info.get("wifi24") else ""
 
-    # Extraer valores para la banda 5 GHz (ZTE usa un SSID distinto)
-    es_fiber = "FIBER" in modelo.upper() or "HG6145" in modelo.upper()
+    es_fiber = "FIBER" in modelo or "HG6145" in modelo
 
     if not es_fiber:
         wifi5_raw = info.get("wifi5", "")
-
-        # Formato del resto de dispositivos: "Totalplay-XXXX-5G", se debe extrear "XXXX"
         partes = wifi5_raw.split("-") if wifi5_raw else []
         wifi5_limpio = partes[1] if len(partes) >= 2 else ""
     else:
-        # Formato de dispositivos Fiber: "Totalplay-5G-XXXX", se debe extraer "XXXX
         wifi5_limpio = info.get("wifi5", "")[-4:] if info.get("wifi5") else ""
 
-    # Filtrar valores para txt
+    pass_wifi = info.get("passWifi", "")
+
+    modelo_seguro = modelo.replace("/", "-").replace("\\", "-").replace(" ", "_")
+
+    return {
+        "modelo": modelo,
+        "modelo_seguro": modelo_seguro,
+        "sn": sn,
+        "mac": mac,
+        "wifi24": wifi24_limpio,
+        "wifi5": wifi5_limpio,
+        "pass_wifi": pass_wifi,
+    }
+
+def guardar_txt_etiqueta(datos: dict) -> None:
     valores = [
-        info.get("sn", ""),
-        info.get("mac", "").replace(":", "").upper(), # MAC sin guiones y mayúsculas
-        wifi24_limpio, # últimos 4 caracteres
-        info.get("passWifi", ""),
-        wifi5_limpio,
-        info.get("passWifi", "")
+        datos["sn"],
+        datos["mac"],
+        datos["wifi24"],
+        datos["pass_wifi"],
+        datos["wifi5"],
+        datos["pass_wifi"],
     ]
 
-    # Crear línea CSV (sin espacios)
     linea_csv = ",".join(valores)
 
-    # Obtener modelo y limpiar caracteres inválidos para nombre de archivo
-    modelo = info.get("modelo", "DESCONOCIDO").upper()
-    modelo_seguro = modelo.replace("/", "-").replace("\\", "-").replace(" ", "_")
-    
-    # Crear directorio etiquetas si no existe
     directorio_etiquetas = Path(r"C:\ONT\etiquetas")
     directorio_etiquetas.mkdir(parents=True, exist_ok=True)
-    
-    # Crear directorio de históricos si no existe
+
     directorio_historicos = directorio_etiquetas / "historicos"
     directorio_historicos.mkdir(parents=True, exist_ok=True)
 
-    # Fecha para histórico
     today = date.today().isoformat()
-    
-    # Ruta del archivo actual (solo 1 registro, en carpeta principal)
-    ruta_txt = directorio_etiquetas / f"etiqueta_{modelo_seguro}.txt"
-    # Ruta del histórico (en subcarpeta historicos)
-    ruta_historico = directorio_historicos / f"historico_etiqueta_{modelo_seguro}_{today}.txt"
 
-    # Formato de cabecera para Bartender
+    ruta_txt = directorio_etiquetas / f"etiqueta_{datos['modelo_seguro']}.txt"
+    ruta_historico = directorio_historicos / f"historico_etiqueta_{datos['modelo_seguro']}_{today}.txt"
+
     cabecera = "GPON SN,MAC,SSID,KEY,SSID5g,KEY5g\n"
-    
-    # 1) Sobrescribir el archivo "etiqueta_[modelo].txt" con SOLO el último registro
+
     try:
         with ruta_txt.open("w", encoding="utf-8") as f:
             f.write(cabecera)
@@ -436,7 +434,6 @@ def generaEtiquetaTxt(payload):
     except Exception as e:
         print(f"[TXT] Error escribiendo {ruta_txt}: {e}")
 
-    # 2) Agregar al histórico "historico_etiqueta_[modelo].txt"
     try:
         escribir_cabecera_hist = not ruta_historico.exists() or ruta_historico.stat().st_size == 0
         with ruta_historico.open("a", encoding="utf-8") as f:
@@ -448,3 +445,18 @@ def generaEtiquetaTxt(payload):
 
     print(f"[TXT] Etiqueta actual guardada en: {ruta_txt}")
     print(f"[TXT] Registro añadido a histórico: {ruta_historico}")
+
+def generaEtiquetaTxt(payload):
+    print("[CONEXION] Generando etiqueta")
+
+    datos = construir_datos_etiqueta(payload)
+
+    # guardar_txt_etiqueta(datos)
+    from impresion import imprimir_etiqueta_zebra
+    try:
+        imprimir_etiqueta_zebra(
+            datos=datos,
+            printer_name="ZDesigner ZD621-300dpi ZPL"
+        )
+    except Exception as e:
+        print(f"[ZEBRA] Error imprimiendo etiqueta: {e}")
