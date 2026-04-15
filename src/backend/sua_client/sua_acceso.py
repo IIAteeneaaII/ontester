@@ -201,8 +201,14 @@ def reclamar_llave_sua() -> bool:
         
         # 3. Llamar a claim_key (ya actualiza la BD internamente)
         resultado = client.claim_key(STATION_ID, enrollment)
-        
-        
+        from src.backend.sua_client.publisher import get_client
+        try:
+            client_sua = get_client()
+            if client_sua.connected:
+                print("[SUA] Estacion conectada")
+                return True
+        except Exception as e:
+            print(f"[SUA] No se pudo conectar la estacion al servicio ssua : {e}. ")
         return True
     except Exception as e:
         print(f"Error en reclamar_llave_sua: {e}")
