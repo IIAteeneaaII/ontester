@@ -597,7 +597,6 @@ def run_app():
     # Crear dispatcher + queue
     app.event_q = queue.Queue()
     from src.backend.sua_client.publisher import configure_event_queue
-    #app.event_q = queue.Queue()
     configure_event_queue(app.event_q)
     app.aws_bridge = AwsBridge()
     app.dispatcher = EventDispatcher(

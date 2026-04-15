@@ -14,13 +14,15 @@ from typing import Any
 DOWNLOAD_DIR = Path.home()/"Documents"/"NextGen"
 
 
-def download_update_installer_from_url(version: str, url: str, installer_name: str, queue: Any):
+def download_update_installer_from_url(version: str, url: str, installer_name: str, queue: Any = None) -> tuple[bool, str]:
     """
     Descarga instalador desde URL presignada.
     """
+    print(f"[ACTUALIZADOR] from_url queue = {queue is not None}")
+    print(f"[ACTUALIZADOR] from_url queue id = {id(queue) if queue is not None else None}")
     from src.backend.sua_client.update_state import set_pending_update_target_version
 
-    ver_actual = cargar_version()
+    ver_actual = "1.7.2.2" #cargar_version()
     if ver_actual == version:
         print(f"[ACTUALIZADOR] Ya está en versión {version}")
         return False, ""
@@ -32,6 +34,10 @@ def download_update_installer_from_url(version: str, url: str, installer_name: s
         version=version,
         installer_name=installer_name
     )
+
+    print(f"[ACTUALIZADOR] queue recibida: {queue is not None}")
+    print(f"[ACTUALIZADOR] installer_name={installer_name}")
+    print(f"[ACTUALIZADOR] url={url}")
 
     DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
     dest_file = DOWNLOAD_DIR / installer_name
@@ -59,13 +65,18 @@ def download_update_installer_from_url(version: str, url: str, installer_name: s
 
                     if total_progress != last_percent:
                         last_percent = total_progress
+                        print(f"[ACTUALIZADOR] progreso calculado: {total_progress}%")
+
                         if queue is not None:
+                            print(f"[ACTUALIZADOR] enviando evento 'barra' a queue: {total_progress}%")
                             queue.put((
                                 "barra",
                                 {
                                 "status": "Descargando instalador...",
                                 "progress": total_progress,
                             }))
+                        else:
+                            print("[ACTUALIZADOR] queue es None, no se envía evento")
 
     return True, str(dest_file)
 
@@ -83,13 +94,15 @@ def request_latest_update_info():
     return r.json()
 
 
-def download_update_installer():
+def download_update_installer(queue: Any = None):
     """
     Flujo manual:
     1. pide a SSUA la info del último instalador
     2. guarda la target_version pendiente
     3. descarga el exe
     """
+    print(f"[ACTUALIZADOR] download_update_installer queue = {queue is not None}")
+    print(f"[ACTUALIZADOR] download_update_installer queue id = {id(queue) if queue is not None else None}")
     from src.backend.sua_client.update_state import set_pending_update_target_version
 
     data = request_latest_update_info()
@@ -106,11 +119,12 @@ def download_update_installer():
         version=version,
         installer_name=installer_name
     )
-
+    print(f"[ACTUALIZADOR] reenviando queue a download_update_installer_from_url = {queue is not None}")
     return download_update_installer_from_url(
         version=version,
         url=installer_url,
-        installer_name=installer_name
+        installer_name=installer_name,
+        queue=queue
     ), data
 
 def kill_processes_by_name(names: set[str]) -> None:

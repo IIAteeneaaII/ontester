@@ -1017,7 +1017,9 @@ class TesterView(ctk.CTkFrame):
         
         # nuevo kind para barra de actualizacion
         elif kind == "barra":
-            self.update_overlay_controller.on_event(payload)
+            print(f"[TESTER_VIEW] evento barra recibido: {payload}")
+            print(f"[TESTER_VIEW] controller existe: {hasattr(self, 'update_overlay_controller')}")
+            self.update_overlay_controller.on_event(self.update_overlay_controller.EVENT_KIND, payload)
 
     def _limpiezaElementos(self):
         self.snInfo.configure(text="SN: ")

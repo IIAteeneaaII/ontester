@@ -57,6 +57,8 @@ class UpdateProgressOverlayController:
         """
         Punto de entrada para integrarse con EventDispatcher.
         """
+        print(f"[OVERLAY_CONTROLLER] kind={kind}, payload={payload}")
+
         if kind != self.EVENT_KIND:
             return
 
@@ -92,6 +94,8 @@ class UpdateProgressOverlayController:
                 self._schedule_close()
 
     def show(self) -> None:
+        print("[OVERLAY_CONTROLLER] show() llamado")
+
         if self._overlay_exists():
             return
 
@@ -106,6 +110,7 @@ class UpdateProgressOverlayController:
         )
         self.overlay.set_status("Preparando descarga...")
         self.overlay.set_progress(0)
+        print(f"[OVERLAY_CONTROLLER] overlay creado: {self.overlay}")
 
     def hide(self) -> None:
         self._cancel_scheduled_close()
@@ -120,6 +125,7 @@ class UpdateProgressOverlayController:
             self.overlay.set_status(text)
 
     def set_progress(self, percent: int) -> None:
+        print(f"[OVERLAY_CONTROLLER] set_progress({percent})")
         if self._overlay_exists():
             self.overlay.set_progress(percent)
 

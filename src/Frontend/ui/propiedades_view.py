@@ -858,6 +858,7 @@ class TesterMainView(ctk.CTkFrame):
 
         self.viewmodel = viewmodel
         from src.backend.endpoints.conexion import cargarConfig
+        from src.Frontend.ui.update_progress_overlay_controller import UpdateProgressOverlayController
 
         config = cargarConfig()
         general = config.get("general", {}) or {}
@@ -975,11 +976,27 @@ class TesterMainView(ctk.CTkFrame):
         self.panel_pruebas = PanelPruebasConexion(self, self.modelo)
         self.panel_pruebas.grid(row=2, column=0, sticky="ew", padx=15, pady=(0, 10))
 
+        assets_dir = Path(__file__).parent.parent / "assets" / "icons"
         root = self.winfo_toplevel()
+        self.update_overlay_controller = UpdateProgressOverlayController(
+            root,
+            outline_image_path=assets_dir / "logo_tester_vacio.png",
+            full_image_path=assets_dir / "logo_tester_completo.png",
+            width=320,
+            height=260,
+            auto_close_on_done=False,
+        )
         user_id = int(getattr(root, "current_user_id", 0) or 0)
         self.userConsumible = user_id
 
         self.apply_theme(_palette(self))
+
+    def on_event(self, kind, payload):
+        print(f"[TESTER_MAIN_VIEW] on_event kind={kind}, payload={payload}")
+
+        if kind == "barra":
+            print("[TESTER_MAIN_VIEW] procesando barra")
+            self.update_overlay_controller.on_event("update_progress", payload)
 
     def apply_theme(self, p: dict):
         bg = p.get("bg", "#E8F4F8")
@@ -1193,31 +1210,63 @@ class TesterMainView(ctk.CTkFrame):
     def actualizacion(self):
         print("SOLICITANDO ACTUALIZACION")
 
-        try:
-            from src.backend.sua_client.actualizador import (
-                download_update_installer,
-                kill_processes_by_name,
-                launch_inno_setup
-            )
+        import threading
 
-            (status, ruta),data = download_update_installer()
+        root = self.winfo_toplevel()
+        dispatcher = getattr(root, "dispatcher", None)
+        target = getattr(dispatcher, "_target", None) if dispatcher else None
 
-            if status:
-                print("[PROPIEDADES] Descarga exitosa")
-                from src.backend.sua_client import publisher
-                iot_client = publisher.get_client()
-                if iot_client and iot_client.connected:
-                    print("Usando conexión MQTT existente. Publicando confirmación de nueva versión instalada...")
-                    iot_client.publish_update_ack(status="installed",version_target=data.get("version"), details="Nueva versión solicitada, instalada correctamente")
-                from src.backend.sua_client.dao import insertar_version
-                insertar_version(data.get("version"))
-                kill_processes_by_name({"chromedriver.exe", "cmd.exe"})
-                launch_inno_setup(ruta)
-            else:
-                print("[PROPIEDADES] No fue necesario actualizar o falló la descarga")
+        print("[PROPIEDADES] self:", type(self).__name__)
+        print("[PROPIEDADES] dispatcher target:", type(target).__name__ if target else None)
+        print("[PROPIEDADES] queue disponible:", self.q is not None)
+        print(f"[PROPIEDADES] self.q id = {id(self.q) if self.q is not None else None}")
 
-        except Exception as e:
-            print(f"[PROPIEDADES] Error al solicitar actualización: {e}")
+        def worker():
+            try:
+                from src.backend.sua_client.actualizador import (
+                    download_update_installer,
+                    kill_processes_by_name,
+                    launch_inno_setup
+                )
+
+                (status, ruta), data = download_update_installer(queue=self.q)
+
+                if status:
+                    print("[PROPIEDADES] Descarga exitosa")
+
+                    from src.backend.sua_client import publisher
+                    iot_client = publisher.get_client()
+                    if iot_client and iot_client.connected:
+                        print("Usando conexión MQTT existente. Publicando confirmación de nueva versión instalada...")
+                        iot_client.publish_update_ack(
+                            status="installed",
+                            version_target=data.get("version"),
+                            details="Nueva versión solicitada, instalada correctamente"
+                        )
+
+                    from src.backend.sua_client.dao import insertar_version
+                    insertar_version(data.get("version"))
+
+                    # opcional: mandar evento final a la UI
+                    if self.q is not None:
+                        self.q.put((
+                            "barra",
+                            {
+                                "status": "Descarga completada",
+                                "progress": 100,
+                                "done": True,
+                            }
+                        ))
+
+                    kill_processes_by_name({"chromedriver.exe", "cmd.exe"})
+                    launch_inno_setup(ruta)
+                else:
+                    print("[PROPIEDADES] No fue necesario actualizar o falló la descarga")
+
+            except Exception as e:
+                print(f"[PROPIEDADES] Error al solicitar actualización: {e}")
+
+        threading.Thread(target=worker, daemon=True).start()
 # =========================================================
 #                         TEST
 # =========================================================

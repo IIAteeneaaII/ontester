@@ -36,6 +36,10 @@ class FloatingProgressOverlay(ctk.CTkToplevel):
         self._position_window()
         self._redraw()
 
+        print("[FLOATING_OVERLAY] init")
+        print(f"[FLOATING_OVERLAY] outline={self.outline_image_path}")
+        print(f"[FLOATING_OVERLAY] full={self.full_image_path}")
+
     def _build_window(self) -> None:
         self.overrideredirect(True)
         self.attributes("-topmost", True)
@@ -49,8 +53,11 @@ class FloatingProgressOverlay(ctk.CTkToplevel):
             pass
 
     def _load_assets(self) -> None:
+        print("[FLOATING_OVERLAY] cargando assets...")
         self.outline_image_original = Image.open(self.outline_image_path).convert("RGBA")
+        print("[FLOATING_OVERLAY] assets cargados correctamente")
         self.full_image_original = Image.open(self.full_image_path).convert("RGBA")
+        print("[FLOATING_OVERLAY] assets cargados correctamente")
 
         self.outline_image = self.outline_image_original.resize(
             (self.image_width, self.image_height),
@@ -96,6 +103,7 @@ class FloatingProgressOverlay(ctk.CTkToplevel):
         self.percent_label.pack()
 
     def _position_window(self) -> None:
+        print(f"[FLOATING_OVERLAY] geometry={self.geometry()}")
         self.update_idletasks()
 
         screen_w = self.winfo_screenwidth()
