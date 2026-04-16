@@ -607,8 +607,7 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
             self.test_results.setdefault("metadata", {})["flow_aborted"] = True
             # if(self.model == "MOD001"):
             #     return self.test_results
-            return self.test_results
-            print("[!] Error: No se pudo autenticar")
+            #print("[!] Error: No se pudo autenticar")
             # if(self.model == "MOD001"):
             #     return self.test_results
             return {'error': 'CREDENCIALES'}
@@ -1512,11 +1511,7 @@ def main_loop(opciones, out_q = None, stop_event = None, auto_test_on_detect = T
                     emit("log", "Flujo abortado por full locked/login.")
                     print("[*] Flujo abortado por full locked/login.")
                     break
-
-                resultados = tester._resultados_finales()
-                # Guardar para base diaria y global
-                tester.saveBDiaria(resultados)
-                emit("resultados", resultados)
+                
                 if not pruebas.get("error") == "CREDENCIALES":
                     resultados = tester._resultados_finales()
                     # Guardar para base diaria y global
@@ -1567,15 +1562,12 @@ def main_loop(opciones, out_q = None, stop_event = None, auto_test_on_detect = T
                     print("[*] Flujo abortado por full locked/login.")
                     break
 
-                resultados = et._resultados_finales()
-                # Guardar para base diaria y global
-                et.saveBDiaria(resultados)
-                emit("resultados", resultados)
                 if not pruebas.get("error") == "CREDENCIALES":
                     resultados = et._resultados_finales()
                     # Guardar para base diaria y global
                     et.saveBDiaria(resultados)
                     emit("resultados", resultados)
+                    
                 if (et.model == "MOD001" or et.model == "MOD008"):
                     if isinstance(pruebas, dict) and pruebas.get("error") == "CREDENCIALES":
                         # Significa error de credenciales en fiberhome
