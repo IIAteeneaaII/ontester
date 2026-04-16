@@ -599,7 +599,11 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
         login_ok = self.login()
 
         if not login_ok:
-            print("[!] Error: No se pudo autenticar")
+            reason = self.test_results.get("metadata", {}).get("abort_reason", "login")
+            if reason == "full_locked":
+                print("[!] Router full locked. Flujo de pruebas abortado.")
+            else:
+                print("[!] Error: No se pudo autenticar")
             self.test_results.setdefault("metadata", {})["flow_aborted"] = True
             # if(self.model == "MOD001"):
             #     return self.test_results

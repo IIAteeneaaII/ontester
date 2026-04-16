@@ -407,7 +407,14 @@ class HuaweiMixin:
         if ssid_el is None:
             # Si es full locked, comprobe_locked levantará RuntimeError("wifi_full_locked")
             self.comprobe_locked(driver, timeout=1)
-            raise RuntimeError(f"No se encontró SSID para {band_label}")
+            # Si comprobe_locked no lo detectó, SSID ausente = full locked de todas formas
+            def emit(kind, payload):
+                if self.out_q:
+                    self.out_q.put((kind, payload))
+            if not getattr(self, "_hw_locked_modal_emitted", False):
+                emit("error_ont", "wifi_full_locked")
+                self._hw_locked_modal_emitted = True
+            raise RuntimeError("wifi_full_locked")
 
         # 2) Intento 1: status por id=LANStatusVal
         try:
@@ -558,11 +565,25 @@ class HuaweiMixin:
                 return mac_value
 
             print("[SELENIUM] No se pudo obtener una MAC distinta de 00:00:00:00:00:00 en Home Network.")
-            return None
+            def emit(kind, payload):
+                if self.out_q:
+                    self.out_q.put((kind, payload))
+            if not getattr(self, "_hw_mac_locked_modal_emitted", False):
+                emit("error_ont", "mac_locked")
+                self._hw_mac_locked_modal_emitted = True
+            raise RuntimeError("mac_locked")
 
+        except RuntimeError:
+            raise
         except Exception as e:
             print(f"[SELENIUM] Error leyendo MAC en Home Network: {e}")
-            return None
+            def emit(kind, payload):
+                if self.out_q:
+                    self.out_q.put((kind, payload))
+            if not getattr(self, "_hw_mac_locked_modal_emitted", False):
+                emit("error_ont", "mac_locked")
+                self._hw_mac_locked_modal_emitted = True
+            raise RuntimeError("mac_locked")
         finally:
             # Volver al documento principal por si el flujo sigue
             try:
@@ -1162,8 +1183,8 @@ class HuaweiMixin:
                     "data": data,
                 }
             except Exception as e:
-                if str(e) == "wifi_full_locked":
-                    print("[ERROR] Full locked detectado en Huawei. Abortando flujo de pruebas Huawei.")
+                if str(e) in ("wifi_full_locked", "mac_locked"):
+                    print(f"[ERROR] {str(e)} detectado en Huawei. Abortando flujo de pruebas Huawei.")
                     raise
 
                 print(f"[WARN] Error en extracción de {name}: {type(e).__name__} - {e}")
@@ -1557,6 +1578,8 @@ class HuaweiMixin:
             return False
         else:
             reintento += 1
+        self._hw_locked_modal_emitted = False
+        self._hw_mac_locked_modal_emitted = False
         if SELENIUM_AVAILABLE:
             #login con selenium
             driver = None
@@ -1826,13 +1849,24 @@ class HuaweiMixin:
                 driver.quit()
                 return True
             except RuntimeError as e:
-                if str(e) == "wifi_full_locked":
-                    print("[ERROR] Flujo abortado: router Huawei full locked.")
+                if str(e) in ("wifi_full_locked", "mac_locked"):
+                    print(f"[ERROR] Flujo abortado: router Huawei {str(e)}.")
+                    self.test_results.setdefault("metadata", {})["abort_reason"] = "full_locked"
+                    def emit_abort(kind, payload):
+                        if self.out_q:
+                            self.out_q.put((kind, payload))
+                    emit_abort("pruebas", "Full locked detectado.")
                     if driver:
                         try:
-                            driver.quit()
+                            driver.delete_all_cookies()
+                            time.sleep(0.5)
                         except Exception:
                             pass
+                        finally:
+                            try:
+                                driver.quit()
+                            except Exception:
+                                pass
                     return False
                 raise
             except Exception as e:
