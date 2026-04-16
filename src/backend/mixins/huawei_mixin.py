@@ -416,6 +416,8 @@ class HuaweiMixin:
                 self._hw_locked_modal_emitted = True
             raise RuntimeError("wifi_full_locked")
 
+        ssid = ssid_el.text.strip()
+
         # 2) Intento 1: status por id=LANStatusVal
         try:
             status_el = self.find_element_anywhere(
@@ -461,13 +463,17 @@ class HuaweiMixin:
                 "hidewlWpaPsk",  # id correcto para mostrar la contraseña
                 desc="Checkbox de mostrar contraseña 2.4GHz"
             )
-            driver.execute_script("arguments[0].click();", show_pass_el)
+            if show_pass_el is not None:
+                driver.execute_script("arguments[0].click();", show_pass_el)
+            else:
+                print("[SELENIUM] Checkbox hidewlWpaPsk no encontrado para 2.4GHz, intentando leer campo directamente")
 
             # Esperar el campo de contraseña
-            pwd_el = WebDriverWait(driver, 10).until(
-                EC.visibility_of_element_located((By.ID, "twlWpaPsk"))
-            )
-            password = pwd_el.get_attribute("value").strip()
+            pwd_el = self.find_element_anywhere(driver, By.ID, "twlWpaPsk", desc="Campo contraseña 2.4GHz", timeout=10)
+            if pwd_el is None:
+                print("[SELENIUM] No se pudo encontrar campo twlWpaPsk para 2.4GHz")
+                return {"band": "2.4GHz", "password": "N/A"}
+            password = (pwd_el.get_attribute("value") or "").strip()
 
             return {
                 "band": "2.4GHz",
@@ -489,13 +495,17 @@ class HuaweiMixin:
                 "hidewlWpaPsk",  # id correcto para mostrar la contraseña
                 desc="Checkbox de mostrar contraseña 5GHz"
             )
-            driver.execute_script("arguments[0].click();", show_pass_el)
+            if show_pass_el is not None:
+                driver.execute_script("arguments[0].click();", show_pass_el)
+            else:
+                print("[SELENIUM] Checkbox hidewlWpaPsk no encontrado para 5GHz, intentando leer campo directamente")
 
             # Esperar el campo de contraseña
-            pwd_el = WebDriverWait(driver, 10).until(
-                EC.visibility_of_element_located((By.ID, "twlWpaPsk"))
-            )
-            password = pwd_el.get_attribute("value").strip()
+            pwd_el = self.find_element_anywhere(driver, By.ID, "twlWpaPsk", desc="Campo contraseña 5GHz", timeout=10)
+            if pwd_el is None:
+                print("[SELENIUM] No se pudo encontrar campo twlWpaPsk para 5GHz")
+                return {"band": "5GHz", "password": "N/A"}
+            password = (pwd_el.get_attribute("value") or "").strip()
 
             return {
                 "band": "5GHz",
