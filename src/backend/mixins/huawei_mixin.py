@@ -73,7 +73,7 @@ class HuaweiMixin:
                         try:
                             element.click()
                         except:
-                            driver.execute_script("arguments[0].click();", element)
+                            driver.execute_script("guide_pre(arguments[0]);", element)
                             
                         time.sleep(2) # Esperar un poco más entre pasos
                     else:

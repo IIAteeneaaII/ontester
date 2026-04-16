@@ -699,10 +699,21 @@ class CommonMixin:
         
         return result
 
-    def _login_ont_standard(self) -> bool:
+    def _login_ont_standard(self, reintento=0) -> bool:
         """Login estándar para ONTs via AJAX"""
         selenium_success = False
         
+        #  función de inicio de sesión para FIBER
+        if reintento > 2:
+            # Definición del emit
+            def emit(kind, payload):
+                if self.out_q:
+                    self.out_q.put((kind, payload))
+            # emitir a la UI que 
+            emit("error_ont", "error_login")
+            # matar el hilo
+            return False
+
         # ESTRATEGIA 1: Intentar Selenium para login automático (método más confiable)
         if SELENIUM_AVAILABLE:
             print("[AUTH] Intentando login automático con Selenium...")
@@ -712,6 +723,9 @@ class CommonMixin:
                 # NO retornar aquí - continuar para extraer info del dispositivo
             else:
                 print("[AUTH] WARNING - Selenium fallo, intentando metodos alternativos...")
+                # Recursión con 1 reintento sino gg
+                reintento += 1
+                return self._login_ont_standard(reintento)
         else:
             print("[AUTH] WARNING - Selenium no disponible (pip install selenium webdriver-manager)")
         

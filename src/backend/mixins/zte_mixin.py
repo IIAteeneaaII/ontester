@@ -1599,6 +1599,12 @@ class ZTEMixin:
                         driver.quit()
                     except:
                         pass
+                # Asumiendo que el error siempre es por login fallido, mandar el reset desde aqui
+                def emit(kind, payload):
+                        if self.out_q:
+                            self.out_q.put((kind, payload))
+                    # emitir a la UI que 
+                emit("error_ont", "error_login")
                 return False
     
     def _login_zte_super(self, driver):
