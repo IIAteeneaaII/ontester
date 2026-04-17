@@ -1,54 +1,99 @@
-# Archivo pensado para servir como monitoreo a una IP especifica en el backend
+# ping_service.py
 import time
 import threading
-from src.backend.ont_automatico import _ping_once  
+from src.backend.ont_automatico import _ping_once
 
-def control_monitoreo(ip_buscada, out_q=None, stop_event=None):
-    # arrancar desde hilo, no normal para no evitar la ejecución
-    def worker():
-        iniciar_monitoreo(ip_buscada, out_q)
-    t = threading.Thread(target=worker, daemon=True)
-    t.start()
-    return t # regresar el hilo 
+class DisconnectMonitor:
+    def __init__(self, ip_buscada, out_q=None, stop_event=None):
+        self.ip_buscada = ip_buscada
+        self.out_q = out_q
+        self.stop_event = stop_event
 
-def iniciar_monitoreo(ip_buscada, out_q=None, stop_event=None):
-    def emit(kind, payload):
-        if out_q:
-            out_q.put((kind, payload))
+        self.last_state = None
+        self.current_ip = None
+        self.consecutivosPass = 0
+        self.consecutivosFail = 0
 
-    # emit("log", "[MON] Iniciando monitoreo...")
-    print(f"[MONITOREO_NEW] Llegando a monitoreo con ip {ip_buscada}")
-    last_state = None
-    current_ip = None
+        self.expected_disconnect = False
+        self.abort_main_run = threading.Event()
 
-    while True:
-        if stop_event and stop_event.is_set():
-            # emit("log", "[MON] Monitoreo cancelado por cambio de modo")
+    def emit(self, kind, payload):
+        if self.out_q:
+            self.out_q.put((kind, payload))
+
+    def recibir_eventos_desconexion(self, kind, payload):
+        if kind != "prueba_monitor":
             return
 
-        # 1) detectar si hay equipo (ping a IPs)
-        found_ip = None
-        if _ping_once(ip_buscada, timeout_ms=500):
-            found_ip = ip_buscada
+        print(f"[MONITOREO_NEW] Recepción exitosa del paquete: {payload}")
 
-        # 2) estado
-        connected = found_ip is not None
+        accion = payload.get("accion")
 
-        # 3) emitir solo si cambia el estado (anti-spam)
-        if connected and (last_state != "connected" or current_ip != found_ip):
-            current_ip = found_ip
-            last_state = "connected"
-            print(f"[MONITOREO_NEW] Dispositivo encontrado: {current_ip}")
-            #emit("con", "Dispositivo Conectado")
-            # Marcar PING como PASS automáticamente al detectar conexión
-            #emit("individual_show", {"name": "ping", "status": "PASS"})
-            #emit("log", f"[MON] Conectado: {current_ip}")
+        if accion == "expected_disconnect_on":
+            self.expected_disconnect = True
 
-        if (not connected) and last_state != "disconnected":
-            current_ip = None
-            last_state = "disconnected"
-            #emit("con", "DESCONECTADO")
-            #emit("log", "[MON] Desconectado")
-            print("[MONITOREO_NEW] Dispositivo desconectado")
+        elif accion == "expected_disconnect_off":
+            self.expected_disconnect = False
 
-        time.sleep(0.5)
+    def loop(self):
+        print(f"[MONITOREO_NEW] Llegando a monitoreo con ip {self.ip_buscada}")
+
+        while True:
+            if self.stop_event and self.stop_event.is_set():
+                return
+
+            found_ip = None
+            if _ping_once(self.ip_buscada, timeout_ms=500):
+                found_ip = self.ip_buscada
+
+            connected = found_ip is not None
+
+            if connected and (self.last_state != "connected" or self.current_ip != found_ip):
+                self.consecutivosPass += 1
+                if self.consecutivosFail != 0:
+                    self.consecutivosFail = 0
+
+                if self.consecutivosPass > 2:
+                    self.current_ip = found_ip
+                    self.last_state = "connected"
+                    self.consecutivosPass = 0
+                    print(f"[MONITOREO_NEW] Dispositivo encontrado: {self.current_ip}")
+
+            if (not connected) and self.last_state != "disconnected":
+                # Aumentar el numero de errores consecutivos
+                self.consecutivosFail += 1
+                # Si hay errores entonces limpiar los buenos
+                if self.consecutivosPass != 0:
+                    self.consecutivosPass = 0
+
+                # Si da 3 errores consecutivos entonces es desconexion
+                if self.consecutivosFail > 2:
+                    self.current_ip = None
+                    self.last_state = "disconnected"
+                    self.consecutivosFail = 0
+
+                    print("[MONITOREO_NEW] Dispositivo desconectado")
+
+                    if not self.expected_disconnect:
+                        print("[MONITOREO_NEW] Desconexión inesperada detectada")
+                        self.abort_main_run.set()
+                        # self.emit("log", "Desconexión inesperada detectada por monitor")
+                    else:
+                        print("[MONITOREO_NEW] Desconexión esperada, no se aborta")
+
+            time.sleep(0.5)
+
+
+def control_monitoreo(ip_buscada, dispatcher=None, out_q=None, stop_event=None):
+    monitor = DisconnectMonitor(
+        ip_buscada=ip_buscada,
+        out_q=out_q,
+        stop_event=stop_event,
+    )
+
+    if dispatcher is not None:
+        dispatcher.set_monitor(monitor)
+
+    t = threading.Thread(target=monitor.loop, daemon=True)
+    t.start()
+    return monitor, t

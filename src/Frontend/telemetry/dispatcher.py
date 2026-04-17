@@ -10,9 +10,16 @@ class EventDispatcher:
 
         self._polling = False
         self._target = None  # 1 vista activa (tu caso)
+        self._monitor = None
 
     def set_target(self, view):
         self._target = view
+
+    def set_monitor(self, monitor):
+        self._monitor = monitor
+
+    def clear_monitor(self):
+        self._monitor = None
 
     def start(self):
         if self._polling:
@@ -43,6 +50,14 @@ class EventDispatcher:
                     self.aws_bridge.enqueue(kind, payload, ctx={
                         "pc_id": getattr(self.root, "pc_id", "UNKNOWN"),
                     })
+                
+                # 3) Monitor backend
+                if (
+                    self._monitor
+                    and kind == "prueba_monitor"
+                    and hasattr(self._monitor, "recibir_eventos_desconexion")
+                ):
+                    self._monitor.recibir_eventos_desconexion(kind, payload)
 
         except queue.Empty:
             pass

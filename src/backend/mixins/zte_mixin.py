@@ -727,6 +727,11 @@ class ZTEMixin:
                         break
                 
                 print("[INFO] Esperando reinicio del dispositivo (80 segundos adicionales)...")
+                #time.sleep(15)
+                def emit(kind, payload):
+                        if self.out_q:
+                            self.out_q.put((kind, payload))
+                emit(("prueba_monitor", {"accion": "expected_disconnect_on", "motivo": "factory_reset"}))
                 time.sleep(80)  # Esperar 1min 20s para el reinicio
                 
                 # Intentar verificar si el dispositivo está de nuevo online

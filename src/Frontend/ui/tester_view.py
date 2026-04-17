@@ -750,7 +750,7 @@ class TesterView(ctk.CTkFrame):
 
         self.tester_thread = threading.Thread(
             target=iniciar_testerConexion,
-            args=(resetFabrica, usb, fibra, wifi, self.master.event_q, self.stop_event),
+            args=(resetFabrica, usb, fibra, wifi, self.master.event_q, self.stop_event,self.master.dispatcher),
             kwargs={
                 "auto_test_on_detect": auto_test_on_detect,
                 "start_in_monitor": start_in_monitor,
