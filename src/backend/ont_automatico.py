@@ -1464,7 +1464,9 @@ def main_loop(opciones, out_q = None, stop_event = None, auto_test_on_detect = T
             # Marcar PING como PASS automáticamente (conexión confirmada por _scan_for_device)
             emit("test_individual", {"name": "ping", "status": "PASS"})
             last_tested_ip = ip
-
+            # Aqui es donde hay que empezar a monitorear la IP
+            from src.backend.utils.ping_service import control_monitoreo
+            control_monitoreo(last_tested_ip, out_q)
             # Mostrar modelo en UI
             nombre = temp_tester._get_model_display_name(detected_model)
             emit("logSuper", nombre if detected_model else "Por confirmar...")
