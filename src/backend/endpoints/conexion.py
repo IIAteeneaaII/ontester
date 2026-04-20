@@ -452,11 +452,11 @@ def generaEtiquetaTxt(payload):
     datos = construir_datos_etiqueta(payload)
 
     # guardar_txt_etiqueta(datos)
-    from impresion import imprimir_etiqueta_zebra
+    from src.backend.endpoints.impresion import imprimir_etiqueta_zebra
     try:
         imprimir_etiqueta_zebra(
             datos=datos,
-            printer_name="ZDesigner ZD621-300dpi ZPL"
+            printer_name="ZDesigner GC420t"#"ZDesigner ZD621-300dpi ZPL"
         )
     except Exception as e:
         print(f"[ZEBRA] Error imprimiendo etiqueta: {e}")

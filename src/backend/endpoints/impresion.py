@@ -13,7 +13,7 @@ TEMPLATE_BY_MODEL = {
     "HG6145F": "R:HG6145F.ZPL",
     "RP2811": "R:RP2811.ZPL",
     "F670": "R:F670.ZPL",
-    "DESCONOCIDO": "R:DEFAULT.ZPL",
+    "DESCONOCIDO": "R:Etiqueta_prueba.ZPL",
 }
 
 # modelo -> archivo local que instala la plantilla
@@ -21,7 +21,7 @@ TEMPLATE_FILE_BY_MODEL = {
     "HG6145F": BASE_DIR / "HG6145F_store.zpl",
     "RP2811": BASE_DIR / "RP2811_store.zpl",
     "F670": BASE_DIR / "F670_store.zpl",
-    "DESCONOCIDO": BASE_DIR / "zte_prueba_pan.zpl",
+    "DESCONOCIDO": BASE_DIR / "fabricante_prueba_pan.prn",
 }
 
 # Control simple en memoria para no reinstalar en cada impresión
@@ -52,7 +52,7 @@ def obtener_template_path(modelo: str) -> str:
 
 
 def obtener_template_file(modelo: str) -> Path:
-    modelo = (modelo or "DESCONOCIDO").upper()
+    modelo = "DESCONOCIDO"#(modelo or "DESCONOCIDO").upper()
     return TEMPLATE_FILE_BY_MODEL.get(modelo, TEMPLATE_FILE_BY_MODEL["DESCONOCIDO"])
 
 def instalar_template(printer_name: str, template_file: Path) -> None:
