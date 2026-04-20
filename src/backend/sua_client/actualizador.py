@@ -22,7 +22,7 @@ def download_update_installer_from_url(version: str, url: str, installer_name: s
     print(f"[ACTUALIZADOR] from_url queue id = {id(queue) if queue is not None else None}")
     from src.backend.sua_client.update_state import set_pending_update_target_version
 
-    ver_actual = "1.7.2.2" #cargar_version()
+    ver_actual = cargar_version()
     if ver_actual == version:
         print(f"[ACTUALIZADOR] Ya está en versión {version}")
         return False, ""
