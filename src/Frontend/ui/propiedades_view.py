@@ -978,14 +978,14 @@ class TesterMainView(ctk.CTkFrame):
 
         assets_dir = Path(__file__).parent.parent / "assets" / "icons"
         root = self.winfo_toplevel()
-        self.update_overlay_controller = UpdateProgressOverlayController(
-            root,
-            outline_image_path=assets_dir / "logo_tester_vacio.png",
-            full_image_path=assets_dir / "logo_tester_completo.png",
-            width=320,
-            height=260,
-            auto_close_on_done=False,
-        )
+        # self.update_overlay_controller = UpdateProgressOverlayController(
+        #     root,
+        #     outline_image_path=assets_dir / "logo_tester_vacio.png",
+        #     full_image_path=assets_dir / "logo_tester_completo.png",
+        #     width=320,
+        #     height=260,
+        #     auto_close_on_done=False,
+        # )
         user_id = int(getattr(root, "current_user_id", 0) or 0)
         self.userConsumible = user_id
 
@@ -994,9 +994,9 @@ class TesterMainView(ctk.CTkFrame):
     def on_event(self, kind, payload):
         print(f"[TESTER_MAIN_VIEW] on_event kind={kind}, payload={payload}")
 
-        if kind == "barra":
-            print("[TESTER_MAIN_VIEW] procesando barra")
-            self.update_overlay_controller.on_event("update_progress", payload)
+        # if kind == "barra":
+        #     print("[TESTER_MAIN_VIEW] procesando barra")
+        #     self.update_overlay_controller.on_event("update_progress", payload)
 
     def apply_theme(self, p: dict):
         bg = p.get("bg", "#E8F4F8")

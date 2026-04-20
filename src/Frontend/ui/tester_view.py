@@ -355,14 +355,14 @@ class TesterView(ctk.CTkFrame):
                 pass
         
         # Inicializar la barra de progreso
-        self.update_overlay_controller = UpdateProgressOverlayController(
-            root,
-            outline_image_path="logo_tester_vacio.png",
-            full_image_path="logo_tester_completo.png",
-            width=320,
-            height=260,
-            auto_close_on_done=False,
-        )
+        # self.update_overlay_controller = UpdateProgressOverlayController(
+        #     root,
+        #     outline_image_path="logo_tester_vacio.png",
+        #     full_image_path="logo_tester_completo.png",
+        #     width=320,
+        #     height=260,
+        #     auto_close_on_done=False,
+        # )
 
     # ==================================================
     # THEME
@@ -1016,10 +1016,10 @@ class TesterView(ctk.CTkFrame):
             self._start_loop(auto_test_on_detect=auto, start_in_monitor=True)
         
         # nuevo kind para barra de actualizacion
-        elif kind == "barra":
-            print(f"[TESTER_VIEW] evento barra recibido: {payload}")
-            print(f"[TESTER_VIEW] controller existe: {hasattr(self, 'update_overlay_controller')}")
-            self.update_overlay_controller.on_event(self.update_overlay_controller.EVENT_KIND, payload)
+        # elif kind == "barra":
+        #     print(f"[TESTER_VIEW] evento barra recibido: {payload}")
+        #     print(f"[TESTER_VIEW] controller existe: {hasattr(self, 'update_overlay_controller')}")
+        #     self.update_overlay_controller.on_event(self.update_overlay_controller.EVENT_KIND, payload)
 
     def _limpiezaElementos(self):
         self.snInfo.configure(text="SN: ")

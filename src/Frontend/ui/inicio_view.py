@@ -565,13 +565,44 @@ class InicioView(ctk.CTkFrame):
         self._swap_view(TesterView, viewmodel=self.viewmodel)
 
 
-def run_app():
-    # ✅ Theme manager global + persistencia
+def run_app(event_q=None):
     theme = ThemeManager(config_path="config_ui.json")
     theme.apply()
 
     app = ctk.CTk()
     app.theme = theme
+
+    app.event_q = event_q or queue.Queue()
+
+    from src.backend.sua_client.publisher import configure_event_queue, get_client
+    configure_event_queue(app.event_q)
+
+    client = get_client()
+    if client is not None:
+        client.event_q = app.event_q
+
+    app.aws_bridge = AwsBridge()
+    app.dispatcher = EventDispatcher(
+        root=app,
+        event_q=app.event_q,
+        aws_bridge=app.aws_bridge,
+        interval_ms=20,
+        max_per_tick=200,
+    )
+
+    from pathlib import Path
+    from src.Frontend.ui.update_progress_overlay_controller import UpdateProgressOverlayController
+
+    assets_dir = Path(__file__).parent.parent / "assets" / "icons"
+
+    app.update_overlay_controller = UpdateProgressOverlayController(
+        app,
+        outline_image_path=assets_dir / "logo_tester_vacio.png",
+        full_image_path=assets_dir / "logo_tester_completo.png",
+        width=320,
+        height=260,
+        auto_close_on_done=False,
+    )
 
     def refresh_theme():
         p = app.theme.palette()
@@ -580,7 +611,6 @@ def run_app():
         except Exception:
             pass
 
-        # refrescar vista activa (dispatcher target)
         view = getattr(app.dispatcher, "_target", None)
         if view and hasattr(view, "apply_theme"):
             try:
@@ -594,24 +624,11 @@ def run_app():
     app.geometry("1200x650")
     app.minsize(900, 550)
 
-    # Crear dispatcher + queue
-    app.event_q = queue.Queue()
-    from src.backend.sua_client.publisher import configure_event_queue
-    configure_event_queue(app.event_q)
-    app.aws_bridge = AwsBridge()
-    app.dispatcher = EventDispatcher(
-        root=app,
-        event_q=app.event_q,
-        aws_bridge=app.aws_bridge,
-        interval_ms=20,
-        max_per_tick=200,
-    )
     app.dispatcher.start()
 
     view = InicioView(app)
     view.pack(fill="both", expand=True)
 
-    # ✅ aplicar tema al primer render
     try:
         view.apply_theme(app.theme.palette())
     except Exception:
@@ -623,7 +640,6 @@ def run_app():
     except Exception:
         pass
 
-    # Poner target en el dispatcher
     app.dispatcher.set_target(view)
 
     def on_close():

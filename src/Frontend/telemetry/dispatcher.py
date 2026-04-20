@@ -35,6 +35,15 @@ class EventDispatcher:
                 print(f"[DISPATCHER] evento recibido -> kind={kind}, payload={payload}")
                 processed += 1
 
+                # 0) Overlay global de actualización
+                if kind == "barra" and hasattr(self.root, "update_overlay_controller"):
+                    print(f"[DISPATCHER] barra global -> {payload}")
+                    try:
+                        self.root.update_overlay_controller.on_event("update_progress", payload)
+                    except Exception as e:
+                        print(f"[DISPATCHER] error en overlay global: {e}")
+                    continue
+
                 # 1) UI: entregar a la vista activa
                 if self._target:
                     print(f"[DISPATCHER] target actual -> {type(self._target).__name__}")

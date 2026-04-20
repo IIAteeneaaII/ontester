@@ -9,9 +9,14 @@ from src.backend.sua_client.iot_client import llamada_verision_instalada
 import sys
 import tkinter as tk
 from tkinter import messagebox
+import queue
+from src.backend.sua_client.publisher import configure_event_queue
+
 
 if __name__ == "__main__":
     try:
+        ui_event_q = queue.Queue()
+        configure_event_queue(ui_event_q)
         # Iniciar la db
         init_db()
         # Hacer la petición a SUA para que registre mi ID station (el de la mac)
@@ -40,7 +45,7 @@ if __name__ == "__main__":
             from src.Frontend.ui.inicio_view import run_app
             # Reportar versión instalada al arranque si es el caso
             llamada_verision_instalada()
-            run_app()
+            run_app(event_q=ui_event_q)
 
         else:
             root = tk.Tk()
