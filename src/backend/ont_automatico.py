@@ -599,9 +599,19 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
         login_ok = self.login()
 
         if not login_ok:
-            print("[!] Error: No se pudo autenticar")
-            if(self.model == "MOD001"):
-                return self.test_results
+            reason = self.test_results.get("metadata", {}).get("abort_reason", "login")
+            if reason == "full_locked":
+                print("[!] Router full locked. Flujo de pruebas abortado.")
+            else:
+                print("[!] Error: No se pudo autenticar")
+            self.test_results.setdefault("metadata", {})["flow_aborted"] = True
+            # if(self.model == "MOD001"):
+            #     return self.test_results
+            #print("[!] Error: No se pudo autenticar")
+            # if(self.model == "MOD001"):
+            #     return self.test_results
+            return {'error': 'CREDENCIALES'}
+            
         # Determinar qué tests ejecutar según el tipo de dispositivo
         device_type = self.test_results['metadata'].get('device_type', 'ONT')
         
@@ -1495,18 +1505,29 @@ def main_loop(opciones, out_q = None, stop_event = None, auto_test_on_detect = T
 
                 print("Las opciones elegidas son: " + str(opciones))
                 emit("pruebas", "Autenticando dispositivo")
-                tester.run_all_tests()
+                pruebas = tester.run_all_tests()
 
-                resultados = tester._resultados_finales()
-                # Guardar para base diaria y global
-                tester.saveBDiaria(resultados)
-                emit("resultados", resultados)
+                if tester.test_results.get("metadata", {}).get("flow_aborted", False):
+                    emit("log", "Flujo abortado por full locked/login.")
+                    print("[*] Flujo abortado por full locked/login.")
+                    break
+                
+                if not pruebas.get("error") == "CREDENCIALES":
+                    resultados = tester._resultados_finales()
+                    # Guardar para base diaria y global
+                    tester.saveBDiaria(resultados)
+                    emit("resultados", resultados)
 
                 # print("[RESULTADOS] El modelo es: "+str(tester.model))
                 if (tester.model == "MOD001" or tester.model == "MOD008"):
-                    print("[RESULTADOS] Entrando a opción guardar resultados")
-                    print("\n" + tester.generate_report())
-                    tester.save_results2("test_mod001_mod008")
+                    # Verificar que la payload no contenga el mensaje de error
+                    if isinstance(pruebas, dict) and pruebas.get("error") == "CREDENCIALES":
+                        # Significa error de credenciales en fiberhome
+                        print("[ERROR DE CREDENCIALES] Sin guardar nada")
+                    else:
+                        print("[RESULTADOS] Entrando a opción guardar resultados")
+                        print("\n" + tester.generate_report())
+                        tester.save_results2("test_mod001_mod008")
 
                 todo_tests_on = all(tester.opcionesTest["tests"].values())
                 if todo_tests_on:
@@ -1534,16 +1555,27 @@ def main_loop(opciones, out_q = None, stop_event = None, auto_test_on_detect = T
                 et.opcionesTest = copy.deepcopy(opciones)
 
                 emit("pruebas", "Extrayendo datos de etiqueta")
-                et.run_all_tests()
+                pruebas = et.run_all_tests()
 
-                resultados = et._resultados_finales()
-                # Guardar para base diaria y global
-                et.saveBDiaria(resultados)
-                emit("resultados", resultados)
+                if et.test_results.get("metadata", {}).get("flow_aborted", False):
+                    emit("log", "Flujo abortado por full locked/login.")
+                    print("[*] Flujo abortado por full locked/login.")
+                    break
+
+                if not pruebas.get("error") == "CREDENCIALES":
+                    resultados = et._resultados_finales()
+                    # Guardar para base diaria y global
+                    et.saveBDiaria(resultados)
+                    emit("resultados", resultados)
+                    
                 if (et.model == "MOD001" or et.model == "MOD008"):
-                    print("[RESULTADOS] Entrando a opción guardar resultados")
-                    print("\n" + et.generate_report())
-                    et.save_results2("test_mod001_mod008")
+                    if isinstance(pruebas, dict) and pruebas.get("error") == "CREDENCIALES":
+                        # Significa error de credenciales en fiberhome
+                        print("[ERROR DE CREDENCIALES] Sin guardar nada")
+                    else:
+                        print("[RESULTADOS] Entrando a opción guardar resultados")
+                        print("\n" + et.generate_report())
+                        et.save_results2("test_mod001_mod008")
                 emit("log", "Etiqueta completada")
                 emit("pruebas", "Fin etiqueta")
 
