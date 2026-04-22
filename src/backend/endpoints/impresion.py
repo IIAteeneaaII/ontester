@@ -13,7 +13,9 @@ TEMPLATE_BY_MODEL = {
     "HG6145F": "R:HG6145F.ZPL",
     "RP2811": "R:RP2811.ZPL",
     "F670": "R:F670.ZPL",
-    "DESCONOCIDO": "R:Etiqueta_prueba.ZPL",
+    "HG8145X6-10": "R:x6-10.ZPL",
+    "HG8145V5": "R:V5.ZPL",
+    "DESCONOCIDO": "R:x6-10.ZPL",
 }
 
 # modelo -> archivo local que instala la plantilla
@@ -21,7 +23,9 @@ TEMPLATE_FILE_BY_MODEL = {
     "HG6145F": BASE_DIR / "HG6145F_store.zpl",
     "RP2811": BASE_DIR / "RP2811_store.zpl",
     "F670": BASE_DIR / "F670_store.zpl",
-    "DESCONOCIDO": BASE_DIR / "fabricante_prueba_pan.prn",
+    "HG8145X6-10": BASE_DIR / "x6-10.prn",
+    "HG8145V5": BASE_DIR / "V5.prn",
+    "DESCONOCIDO": BASE_DIR / "x6-10.prn",
 }
 
 # Control simple en memoria para no reinstalar en cada impresión
@@ -47,12 +51,12 @@ def send_raw_to_printer(printer_name: str, zpl: str) -> None:
         win32print.ClosePrinter(hprinter)
 
 def obtener_template_path(modelo: str) -> str:
-    modelo = "DESCONOCIDO" #(modelo or "DESCONOCIDO").upper()
+    modelo = (modelo or "DESCONOCIDO").upper()
     return TEMPLATE_BY_MODEL.get(modelo, TEMPLATE_BY_MODEL["DESCONOCIDO"])
 
 
 def obtener_template_file(modelo: str) -> Path:
-    modelo = "DESCONOCIDO"#(modelo or "DESCONOCIDO").upper()
+    modelo = (modelo or "DESCONOCIDO").upper()
     return TEMPLATE_FILE_BY_MODEL.get(modelo, TEMPLATE_FILE_BY_MODEL["DESCONOCIDO"])
 
 def instalar_template(printer_name: str, template_file: Path) -> None:
@@ -76,13 +80,19 @@ def asegurar_template_instalado(printer_name: str, modelo: str) -> str:
     return template_path
 
 def construir_recall_zpl(datos: dict, template_path: str) -> str:
-    sn = escape_zpl(datos.get("sn", ""))
     mac = escape_zpl(datos.get("mac", ""))
+    sn = escape_zpl(datos.get("sn", ""))
+    password = escape_zpl(datos.get("pass_wifi", ""))
+    wifi24 = escape_zpl(datos.get("wifi24", ""))
+    wifi5 = escape_zpl(datos.get("wifi5", ""))
 
     return f"""^XA
 ^XF{template_path}^FS
-^CI27^FN1^FH\\^FD{sn}^FS
-^CI27^FN2^FH\\^FD{mac}^FS
+^CI27^FN1^FH\\^FD{mac}^FS
+^CI27^FN2^FH\\^FD{sn}^FS
+^CI27^FN3^FH\\^FD{password}^FS
+^CI27^FN4^FH\\^FD{wifi24}^FS
+^CI27^FN5^FH\\^FD{wifi5}^FS
 ^PQ1,0,1
 ^XZ"""
 
