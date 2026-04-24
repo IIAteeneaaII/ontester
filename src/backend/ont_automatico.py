@@ -1506,6 +1506,10 @@ def main_loop(opciones, out_q = None, stop_event = None, dispatcher = None, auto
                 emit("pruebas", "Autenticando dispositivo")
                 pruebas = tester.run_all_tests()
 
+                if stop_event and stop_event.is_set():
+                    emit("log", "Ejecución cancelada por desconexión inesperada.")
+                    break
+
                 if not pruebas.get("error") == "CREDENCIALES":
                     resultados = tester._resultados_finales()
                     # Guardar para base diaria y global
@@ -1550,6 +1554,10 @@ def main_loop(opciones, out_q = None, stop_event = None, dispatcher = None, auto
 
                 emit("pruebas", "Extrayendo datos de etiqueta")
                 pruebas = et.run_all_tests()
+
+                if stop_event and stop_event.is_set():
+                    emit("log", "Extracción cancelada por desconexión inesperada.")
+                    break
 
                 if not pruebas.get("error") == "CREDENCIALES":
                     resultados = et._resultados_finales()

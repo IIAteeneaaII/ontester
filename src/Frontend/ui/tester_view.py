@@ -25,6 +25,7 @@ from src.Frontend.navigation.botones import (
 from src.Frontend.ui.menu_superior_view import MenuSuperiorDesplegable
 
 error_login_path = Path(__file__).parent.parent / "assets" / "error_login.png"
+desconexion_path = Path(__file__).parent.parent / "assets" / "desconexion.png"
 
 class TesterView(ctk.CTkFrame):
     def __init__(self, parent, mdebug=None, viewmodel=None, **kwargs):
@@ -750,8 +751,9 @@ class TesterView(ctk.CTkFrame):
 
         self.tester_thread = threading.Thread(
             target=iniciar_testerConexion,
-            args=(resetFabrica, usb, fibra, wifi, self.master.event_q, self.stop_event,self.master.dispatcher),
+            args=(resetFabrica, usb, fibra, wifi, self.master.event_q, self.stop_event),
             kwargs={
+                "dispatcher": self.master.dispatcher,
                 "auto_test_on_detect": auto_test_on_detect,
                 "start_in_monitor": start_in_monitor,
             },
@@ -862,7 +864,9 @@ class TesterView(ctk.CTkFrame):
 
         elif kind == "con":
             payload_lower = str(payload).lower()
-            if "desconectado" in payload_lower:
+            if "desconectado2" in payload_lower:
+                self.panel_pruebas.actualizar_estado_conexion(False)
+            elif "desconectado" in payload_lower:
                 self.panel_pruebas.actualizar_estado_conexion(False)
                 self._limpiezaElementos()
             else:
@@ -1015,6 +1019,37 @@ class TesterView(ctk.CTkFrame):
                 )
 
                 labelAux = ctk.CTkLabel(win, text="", image=img_error_login)
+                labelAux.pack()
+
+                win.grab_set()
+                win.focus_set()
+                win.wait_window()
+            
+            if payload in "desconexion":
+                win = ctk.CTkToplevel(self)
+                win.title("DESCONEXION INESPERADA")
+                # Centrar ventana
+                width = 500
+                height = 500
+
+                win.update_idletasks()
+                screen_width = win.winfo_screenwidth()
+                screen_height = win.winfo_screenheight()
+
+                x = int((screen_width / 2) - (width / 2))
+                y = int((screen_height / 2) - (height / 2))
+
+                win.geometry(f"{width}x{height}+{x}+{y}")
+
+                # label = ctk.CTkLabel(win, text="El dispositivo ONT tiene credenciales cambiadas, requiere reinicio de fábrica manual", font=ctk.CTkFont(size=16, weight="bold"))
+                # label.pack(pady=20)
+                img_desconexion = ctk.CTkImage(
+                    light_image=Image.open(desconexion_path),
+                    dark_image=Image.open(desconexion_path),
+                    size=(500, 500),
+                )
+
+                labelAux = ctk.CTkLabel(win, text="", image=img_desconexion)
                 labelAux.pack()
 
                 win.grab_set()

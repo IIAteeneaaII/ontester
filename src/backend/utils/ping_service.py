@@ -58,6 +58,8 @@ class DisconnectMonitor:
                     self.last_state = "connected"
                     self.consecutivosPass = 0
                     print(f"[MONITOREO_NEW] Dispositivo encontrado: {self.current_ip}")
+                    # emitir a UI
+                    self.emit("con", "CONECTADO")
 
             if (not connected) and self.last_state != "disconnected":
                 # Aumentar el numero de errores consecutivos
@@ -77,9 +79,23 @@ class DisconnectMonitor:
                     if not self.expected_disconnect:
                         print("[MONITOREO_NEW] Desconexión inesperada detectada")
                         self.abort_main_run.set()
-                        # self.emit("log", "Desconexión inesperada detectada por monitor")
+                        self.emit("log", "Desconexión inesperada detectada por monitor")
+                        # 1) para limpiar la UI:
+                        self.emit("con", "DESCONECTADO")
+
+                        # 2) marcar aborto lógico
+                        self.abort_main_run.set()
+
+                        # 3) cortar ejecución principal
+                        if self.stop_event:
+                            self.stop_event.set()
+
+                        # emit para la UI y mostrar mensaje de error
+                        self.emit("error_ont", "desconexion")
                     else:
                         print("[MONITOREO_NEW] Desconexión esperada, no se aborta")
+                        # Mandar nuevo emit de desconexion pero sin limpiar lo demas
+                        self.emit("con", "DESCONECTADO2")
 
             time.sleep(0.5)
 

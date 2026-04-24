@@ -1505,6 +1505,15 @@ class FiberMixin:
 
             if self._reset_factory_fiberhome():
                 print("[TEST] Reset enviado. Esperando reinicio (aprox 120s)...")
+                # definir los emits
+                def emit(kind, payload):
+                    if self.out_q:
+                        self.out_q.put((kind, payload))
+                # emitir que se desconectará
+                emit("prueba_monitor", {
+                    "accion": "expected_disconnect_on",
+                    "motivo": "factory_reset",
+                })
                 time.sleep(60) # Esperar a que baje la interfaz
                 
                 # Esperar a que vuelva el ping
@@ -1521,7 +1530,11 @@ class FiberMixin:
                         time.sleep(30)
                         break
                     time.sleep(5)
-                
+                # aqui volvió
+                emit("prueba_monitor", {
+                    "accion": "expected_disconnect_off",
+                    "motivo": "factory_reset",
+                })
                 # Re-login y Skip Wizard
                 print("[TEST] Intentando re-login y skip wizard...")
                 if self.login():
@@ -2168,7 +2181,7 @@ class FiberMixin:
         except:
             pass
 
-        # Si quieres, aquí puedes esperar un poco y guardar evidencia
+        # Esperar un poco
         time.sleep(1)
     # Función para actualizar software
     def test_sft_update(self):
@@ -2206,10 +2219,21 @@ class FiberMixin:
                 time.sleep(10)
             if login_ok:
                 print("[*] Enviando firmware al router por formulario (Selenium)...")
+                def emit(kind, payload):
+                    if self.out_q:
+                        self.out_q.put((kind, payload))
+                emit("prueba_monitor", {
+                    "accion": "expected_disconnect_on",
+                    "motivo": "software_update",
+                })
                 self._upload_firmware_via_form(archivo)
 
                 print("[*] Firmware enviado. Esperando reinicio...")
-                self.wait_for_router()  # o tu método equivalente
+                self.wait_for_router()  # esperar a vuelta
+                emit("prueba_monitor", {
+                    "accion": "expected_disconnect_off",
+                    "motivo": "factory_reset",
+                })
                 completada = True
             else:
                 print("[ERROR] No se pudo hacer el login de Super Admin")

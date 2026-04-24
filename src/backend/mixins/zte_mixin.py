@@ -731,7 +731,9 @@ class ZTEMixin:
                 def emit(kind, payload):
                         if self.out_q:
                             self.out_q.put((kind, payload))
-                emit(("prueba_monitor", {"accion": "expected_disconnect_on", "motivo": "factory_reset"}))
+                emit("prueba_monitor", 
+                      {"accion": "expected_disconnect_on", "motivo": "software_update"}
+                )
                 time.sleep(80)  # Esperar 1min 20s para el reinicio
                 
                 # Intentar verificar si el dispositivo está de nuevo online
@@ -742,7 +744,10 @@ class ZTEMixin:
                     print("[SUCCESS] Dispositivo accesible después de actualización")
                 except Exception as e:
                     print(f"[WARNING] Dispositivo no responde aún: {e}")
-                
+                emit("prueba_monitor", {
+                    "accion": "expected_disconnect_off",
+                    "motivo": "software_update",
+                })
                 # Hacer login con usuario normal para continuar con las pruebas
                 print("[INFO] Haciendo login con credenciales normales post-actualización...")
                 try:
@@ -959,6 +964,12 @@ class ZTEMixin:
                 return False
 
             print("[SELENIUM] Factory Reset enviado exitosamente. El equipo empezará a reiniciarse.")
+            def emit(kind, payload):
+                if self.out_q:
+                    self.out_q.put((kind, payload))
+            emit("prueba_monitor", 
+                {"accion": "expected_disconnect_on", "motivo": "factory_reset"}
+            )
             return True
 
         except Exception as e:
@@ -1492,6 +1503,11 @@ class ZTEMixin:
                         resetZTE = self._reset_factory_zte(driver)
                         print("[INFO] Esperando a que el ZTE reinicie tras Factory Reset...")
                         time.sleep(110)  # espera
+                        # independientemente de si se hizo o no, volverá en linea
+                        emit("prueba_monitor", {
+                            "accion": "expected_disconnect_off",
+                            "motivo": "factory_reset",
+                        })
                         if (resetZTE):
                             # Guardar resultado PASS
                             self.test_results.setdefault("tests", {})["factory_reset"] = {
