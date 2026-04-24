@@ -599,7 +599,15 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
         login_ok = self.login()
 
         if not login_ok:
-            print("[!] Error: No se pudo autenticar")
+            reason = self.test_results.get("metadata", {}).get("abort_reason", "login")
+            if reason == "full_locked":
+                print("[!] Router full locked. Flujo de pruebas abortado.")
+            else:
+                print("[!] Error: No se pudo autenticar")
+            self.test_results.setdefault("metadata", {})["flow_aborted"] = True
+            # if(self.model == "MOD001"):
+            #     return self.test_results
+            #print("[!] Error: No se pudo autenticar")
             # if(self.model == "MOD001"):
             #     return self.test_results
             return {'error': 'CREDENCIALES'}
@@ -1510,6 +1518,11 @@ def main_loop(opciones, out_q = None, stop_event = None, dispatcher = None, auto
                     emit("log", "Ejecución cancelada por desconexión inesperada.")
                     break
 
+                if tester.test_results.get("metadata", {}).get("flow_aborted", False):
+                    emit("log", "Flujo abortado por full locked/login.")
+                    print("[*] Flujo abortado por full locked/login.")
+                    break
+                
                 if not pruebas.get("error") == "CREDENCIALES":
                     resultados = tester._resultados_finales()
                     # Guardar para base diaria y global
@@ -1557,6 +1570,9 @@ def main_loop(opciones, out_q = None, stop_event = None, dispatcher = None, auto
 
                 if stop_event and stop_event.is_set():
                     emit("log", "Extracción cancelada por desconexión inesperada.")
+                if et.test_results.get("metadata", {}).get("flow_aborted", False):
+                    emit("log", "Flujo abortado por full locked/login.")
+                    print("[*] Flujo abortado por full locked/login.")
                     break
 
                 if not pruebas.get("error") == "CREDENCIALES":
@@ -1564,6 +1580,7 @@ def main_loop(opciones, out_q = None, stop_event = None, dispatcher = None, auto
                     # Guardar para base diaria y global
                     et.saveBDiaria(resultados)
                     emit("resultados", resultados)
+                    
                 if (et.model == "MOD001" or et.model == "MOD008"):
                     if isinstance(pruebas, dict) and pruebas.get("error") == "CREDENCIALES":
                         # Significa error de credenciales en fiberhome
