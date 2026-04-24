@@ -1485,8 +1485,21 @@ class HuaweiMixin:
                 print("[SELENIUM] Confirmación reboot:", alert.text)
                 alert.accept()
                 print("[SELENIUM] Confirmación aceptada. Reiniciando...")
+                # definicion del emit
+                def emit(kind, payload):
+                    if self.out_q:
+                        self.out_q.put((kind, payload))
+                # emitir que se reiniciará el equipo
+                emit("prueba_monitor", {
+                    "accion": "expected_disconnect_on",
+                    "motivo": "software_update",
+                })
                 time.sleep(120)  # Esperar 2 minutos para el reinicio completo
-                
+                # emitir que volvió aunque haya fallado
+                emit("prueba_monitor", {
+                    "accion": "expected_disconnect_off",
+                    "motivo": "software_update",
+                })
                 # Intentar hacer login post-actualización para obtener nueva versión
                 print("[INFO] Verificando nueva versión de firmware...")
                 new_version = "N/A (no se pudo verificar)"
@@ -1821,8 +1834,17 @@ class HuaweiMixin:
 
                     emit("pruebas", "Ejecutando Reinicio de Fabrica")
                     reset_ok = self._reset_factory_huawei(driver)
+                    # Emitir que se hará el disconnectd expected
+                    emit("prueba_monitor", {
+                        "accion": "expected_disconnect_on",
+                        "motivo": "factory_reset",
+                    })
                     time.sleep(110)
-
+                    # el equipo está en linea, independientemente de si pasó o no
+                    emit("prueba_monitor", {
+                        "accion": "expected_disconnect_off",
+                        "motivo": "factory_reset",
+                    })
                     if reset_ok:
                         # Guardar y emitir resultado
                         self.test_results.setdefault("tests", {})["factory_reset"] = {
