@@ -1007,175 +1007,48 @@ class TesterView(ctk.CTkFrame):
         
         elif kind == "error_ont":
             if payload in "error_login":
-                # mostrar modal de aviso de necesidad de desconexión de equipos.
-                win = ctk.CTkToplevel(self)
-                win.title("ERROR EN EL LOGIN")
-                width = 500
-                height = 500
-
-                win.update_idletasks()
-                screen_width = win.winfo_screenwidth()
-                screen_height = win.winfo_screenheight()
-
-                x = int((screen_width / 2) - (width / 2))
-                y = int((screen_height / 2) - (height / 2))
-
-                win.geometry(f"{width}x{height}+{x}+{y}")
-                win.attributes("-topmost", True)
-                win.lift()
-
-                img_error_login = ctk.CTkImage(
-                    light_image=Image.open(error_login_path),
-                    dark_image=Image.open(error_login_path),
-                    size=(500, 500),
-                )
-
-                labelAux = ctk.CTkLabel(win, text="", image=img_error_login)
-                labelAux.pack()
-
-                win.grab_set()
-                win.focus_force()
-                win.wait_window()
+                self._alerta_error("ERROR EN EL LOGIN", error_login_path)
 
             elif payload in "wifi_full_locked":
-                win = ctk.CTkToplevel(self)
-                win.title("ROUTER FULL LOCKED")
-                width = 500
-                height = 500
-
-                win.update_idletasks()
-                screen_width = win.winfo_screenwidth()
-                screen_height = win.winfo_screenheight()
-
-                x = int((screen_width / 2) - (width / 2))
-                y = int((screen_height / 2) - (height / 2))
-
-                win.geometry(f"{width}x{height}+{x}+{y}")
-                win.attributes("-topmost", True)
-                win.lift()
-
-                try:
-                    img_error_wifi_locked = ctk.CTkImage(
-                        light_image=Image.open(error_wifi_locked_path),
-                        dark_image=Image.open(error_wifi_locked_path),
-                        size=(500, 500),
-                    )
-                    labelAux = ctk.CTkLabel(win, text="", image=img_error_wifi_locked)
-                    labelAux.image = img_error_wifi_locked
-                    labelAux.pack()
-                except Exception:
-                    label = ctk.CTkLabel(
-                        win,
-                        text="ONT BLOQUEADO\n\nEl dispositivo está bloqueado (full locked).\nNo se pueden realizar más pruebas.\nDesconecte el equipo y presione reinicio.",
-                        font=ctk.CTkFont(size=18, weight="bold"),
-                        wraplength=460,
-                    )
-                    label.pack(expand=True, padx=20, pady=20)
-
-                win.grab_set()
-                win.focus_force()
-                win.wait_window()
+                self._alerta_error("ROUTER FULL LOCKED", error_wifi_locked_path)
 
             elif payload == "mac_locked":
-                win = ctk.CTkToplevel(self)
-                win.title("MAC BLOQUEADA")
-                width = 500
-                height = 500
-
-                win.update_idletasks()
-                screen_width = win.winfo_screenwidth()
-                screen_height = win.winfo_screenheight()
-
-                x = int((screen_width / 2) - (width / 2))
-                y = int((screen_height / 2) - (height / 2))
-
-                win.geometry(f"{width}x{height}+{x}+{y}")
-                win.attributes("-topmost", True)
-                win.lift()
-
-                try:
-                    img_error_mac = ctk.CTkImage(
-                        light_image=Image.open(error_mac_locked_path),
-                        dark_image=Image.open(error_mac_locked_path),
-                        size=(500, 500),
-                    )
-                    labelAux = ctk.CTkLabel(win, text="", image=img_error_mac)
-                    labelAux.image = img_error_mac
-                    labelAux.pack()
-                except Exception:
-                    label = ctk.CTkLabel(
-                        win,
-                        text="MAC BLOQUEADA\n\nEl ISP bloqueó el acceso a la MAC del dispositivo.\nNo se pueden realizar más pruebas.\nDesconecte el equipo y presione reinicio.",
-                        font=ctk.CTkFont(size=18, weight="bold"),
-                        wraplength=460,
-                    )
-                    label.pack(expand=True, padx=20, pady=20)
-
-                win.grab_set()
-                win.focus_force()
-                win.wait_window()
+                self._alerta_error("MAC BLOQUEADA", error_mac_locked_path)
             
             if payload in "desconexion":
-                win = ctk.CTkToplevel(self)
-                win.title("DESCONEXION INESPERADA")
-                # Centrar ventana
-                width = 500
-                height = 500
-
-                win.update_idletasks()
-                screen_width = win.winfo_screenwidth()
-                screen_height = win.winfo_screenheight()
-
-                x = int((screen_width / 2) - (width / 2))
-                y = int((screen_height / 2) - (height / 2))
-
-                win.geometry(f"{width}x{height}+{x}+{y}")
-
-                # label = ctk.CTkLabel(win, text="El dispositivo ONT tiene credenciales cambiadas, requiere reinicio de fábrica manual", font=ctk.CTkFont(size=16, weight="bold"))
-                # label.pack(pady=20)
-                img_desconexion = ctk.CTkImage(
-                    light_image=Image.open(desconexion_path),
-                    dark_image=Image.open(desconexion_path),
-                    size=(500, 500),
-                )
-
-                labelAux = ctk.CTkLabel(win, text="", image=img_desconexion)
-                labelAux.pack()
-
-                win.grab_set()
-                win.focus_set()
-                win.wait_window()
+                self._alerta_error("DESCONEXION INESPERADA", desconexion_path)
 
             if payload in "error_pass_wifi":
-                win = ctk.CTkToplevel(self)
-                win.title("ERROR EN CONTRASEÑA WIFI")
-                # Centrar ventana
-                width = 500
-                height = 500
+                self._alerta_error("ERROR EN CONTRASEÑA WIFI", error_pass_wifi__path)
 
-                win.update_idletasks()
-                screen_width = win.winfo_screenwidth()
-                screen_height = win.winfo_screenheight()
+    def _alerta_error(self, titulo, img_path):
+        win = ctk.CTkToplevel(self)
+        win.title(titulo)
+        # Centrar ventana
+        width = 500
+        height = 500
 
-                x = int((screen_width / 2) - (width / 2))
-                y = int((screen_height / 2) - (height / 2))
+        win.update_idletasks()
+        screen_width = win.winfo_screenwidth()
+        screen_height = win.winfo_screenheight()
 
-                win.geometry(f"{width}x{height}+{x}+{y}")
+        x = int((screen_width / 2) - (width / 2))
+        y = int((screen_height / 2) - (height / 2))
 
-                # label = ctk.CTkLabel(win, text="El dispositivo ONT tiene credenciales cambiadas, requiere reinicio de fábrica manual", font=ctk.CTkFont(size=16, weight="bold"))
-                # label.pack(pady=20)
-                img_wifi = ctk.CTkImage(
-                    light_image=Image.open(error_pass_wifi__path),
-                    dark_image=Image.open(error_pass_wifi__path),
-                    size=(500, 500),
-                )
+        win.geometry(f"{width}x{height}+{x}+{y}")
 
-                labelAux = ctk.CTkLabel(win, text="", image=img_wifi)
-                labelAux.pack()
+        img_error = ctk.CTkImage(
+            light_image=Image.open(img_path),
+            dark_image=Image.open(img_path),
+            size=(500, 500),
+        )
 
-                win.grab_set()
-                win.focus_set()
-                win.wait_window()
+        labelAux = ctk.CTkLabel(win, text="", image=img_error)
+        labelAux.pack()
+
+        win.grab_set()
+        win.focus_set()
+        win.wait_window()
 
     def _limpiezaElementos(self):
         self.snInfo.configure(text="SN: ")
