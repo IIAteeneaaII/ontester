@@ -27,6 +27,7 @@ from src.Frontend.ui.menu_superior_view import MenuSuperiorDesplegable
 error_login_path = Path(__file__).parent.parent / "assets" / "error_login.png"
 desconexion_path = Path(__file__).parent.parent / "assets" / "desconexion.png"
 error_wifi_locked_path = Path(__file__).parent.parent / "assets" / "error_wifi_locked.png"
+error_pass_wifi__path = Path(__file__).parent.parent / "assets" / "error_pass_wifi.png"
 error_mac_locked_path = Path(__file__).parent.parent / "assets" / "error_mac_locked.png"
 
 class TesterView(ctk.CTkFrame):
@@ -875,7 +876,17 @@ class TesterView(ctk.CTkFrame):
                 self.panel_pruebas.actualizar_estado_conexion(True)
 
         elif kind == "resultados":
-            # ejemplo: pintar resultados en tu UI
+            # Validar que la contraseña no venga con valores extraños (1-9 or N/A)
+            info = payload.get("info", {})
+            passWi = info.get("passWifi", "—")
+            print(f"LA PASS WIFI ES: {passWi}")
+            if any(valor in passWi for valor in ("N/A", "n/a", "12345678", "-")):
+                def emit(kind, payload):
+                    if self.master.event_q:
+                        self.master.event_q.put((kind, payload))
+                # hacer emit para avisar al usuario que hay un error con las contraseñas wifi
+                emit("error_ont", "error_pass_wifi")
+            # pintar resultados en tu UI
             info  = payload.get("info", {})
             # Detectar si viene de prueba unitaria usando el flag _unit_running
             from_unit = getattr(self, '_unit_running', False) or payload.get("_from_unit_test", False)
@@ -1129,6 +1140,37 @@ class TesterView(ctk.CTkFrame):
                 )
 
                 labelAux = ctk.CTkLabel(win, text="", image=img_desconexion)
+                labelAux.pack()
+
+                win.grab_set()
+                win.focus_set()
+                win.wait_window()
+
+            if payload in "error_pass_wifi":
+                win = ctk.CTkToplevel(self)
+                win.title("ERROR EN CONTRASEÑA WIFI")
+                # Centrar ventana
+                width = 500
+                height = 500
+
+                win.update_idletasks()
+                screen_width = win.winfo_screenwidth()
+                screen_height = win.winfo_screenheight()
+
+                x = int((screen_width / 2) - (width / 2))
+                y = int((screen_height / 2) - (height / 2))
+
+                win.geometry(f"{width}x{height}+{x}+{y}")
+
+                # label = ctk.CTkLabel(win, text="El dispositivo ONT tiene credenciales cambiadas, requiere reinicio de fábrica manual", font=ctk.CTkFont(size=16, weight="bold"))
+                # label.pack(pady=20)
+                img_wifi = ctk.CTkImage(
+                    light_image=Image.open(error_pass_wifi__path),
+                    dark_image=Image.open(error_pass_wifi__path),
+                    size=(500, 500),
+                )
+
+                labelAux = ctk.CTkLabel(win, text="", image=img_wifi)
                 labelAux.pack()
 
                 win.grab_set()
