@@ -111,85 +111,71 @@ class HuaweiMixin:
         try:
             # 1. Asegurarse de estar en la Home Page
             driver.switch_to.default_content()
+
+            # Asegurar que estamos en la Home Page principal
+            try:
+                current_url = (driver.current_url or "").lower()
+                if "index.asp" not in current_url:
+                    driver.get(self.base_url)
+                    time.sleep(2)
+            except Exception:
+                driver.get(self.base_url)
+                time.sleep(2)
             
             # 2. Buscar el botón inicial "RESET"
             print("[SELENIUM] Buscando botón RESET en Home Page...")
             reset_menu_btn = self.find_element_anywhere(
                 driver,
-                By.XPATH,
-                "//div[contains(text(), 'RESET')] | //span[contains(text(), 'RESET')] | //a[contains(text(), 'RESET')]",
-                desc="RESET Menu Button",
-                timeout=5
+                By.ID,
+                "RestartIcon",
+                desc="Huawei RestartIcon",
+                timeout=8
             )
             
             if not reset_menu_btn:
-                print("[WARN] No se encontró RESET por texto, intentando selectores alternativos...")
-                reset_menu_btn = self.find_element_anywhere(
-                    driver,
-                    By.CSS_SELECTOR,
-                    "div.reset-button, #reset_btn, .icon-reset", 
-                    desc="RESET Menu Button (Alt)",
-                    timeout=3
-                )
-
-            if not reset_menu_btn:
-                print("[ERROR] No se encontró el botón RESET")
+                print("[ERROR] No se encontró el botón RESET principal con id='RestartIcon'")
                 return False
 
-            # Hacer click para desplegar el menú
-            print("[SELENIUM] Click en botón RESET...")
+            print("[SELENIUM] Click en RestartIcon.")
             try:
                 reset_menu_btn.click()
-            except:
+            except Exception:
                 driver.execute_script("arguments[0].click();", reset_menu_btn)
-            
-            time.sleep(3) # Esperar a que se despliegue
 
-            # 3. Buscar el botón "Restore Defaults"
-            # Busqueda amplia por texto "Restore"
-            print("[SELENIUM] Buscando botón 'Restore Defaults'...")
-            
-            # Intentar varios selectores
-            restore_selectors = [
-                (By.XPATH, "//button[contains(text(), 'Restore Defaults')]"),
-                (By.XPATH, "//input[@value='Restore Defaults']"),
-                (By.XPATH, "//div[contains(text(), 'Restore Defaults')]"),
-                (By.XPATH, "//button[contains(text(), 'Restore')]"),
-                (By.ID, "RestoreDefaults"),
-                (By.ID, "RestoreDefault"),
-                (By.NAME, "RestoreDefaults")
-            ]
-            
-            restore_btn = None
-            
-            # Usar find_element_anywhere para cada selector
-            for by, sel in restore_selectors:
-                restore_btn = self.find_element_anywhere(driver, by, sel, desc=f"Restore Btn ({sel})", timeout=1)
-                if restore_btn:
-                    break
-            
-            if restore_btn:
-                print("[SELENIUM] Botón 'Restore Defaults' encontrado. Ejecutando reset...")
-                try:
-                    restore_btn.click()
-                except:
-                    driver.execute_script("arguments[0].click();", restore_btn)
-                
-                # 4. Manejar la alerta de confirmación
-                try:
-                    WebDriverWait(driver, 5).until(EC.alert_is_present())
-                    alert = driver.switch_to.alert
-                    print(f"[SELENIUM] Alerta de confirmación detectada: {alert.text}")
-                    alert.accept()
-                    print("[SELENIUM] Alerta aceptada. El dispositivo se está reiniciando a fábrica.")
-                    return True
-                except TimeoutException:
-                    print("[WARN] No apareció alerta de confirmación, verificando si la acción se ejecutó...")
-                    return True
-            else:
-                print("[ERROR] No se encontró el botón 'Restore Defaults' después de hacer click en RESET")
-                # Debug: Imprimir source del frame donde estaba RESET si es posible
+            time.sleep(2)
+
+            # 2) Click en Restore Defaults
+            print("[SELENIUM] Buscando botón Restore Defaults (id=btnRestoreDftCfg).")
+            restore_btn = self.find_element_anywhere(
+                driver,
+                By.ID,
+                "btnRestoreDftCfg",
+                desc="Huawei Restore Defaults Button",
+                timeout=8
+            )
+
+            if not restore_btn:
+                print("[ERROR] No se encontró el botón Restore Defaults con id='btnRestoreDftCfg'")
                 return False
+
+            print("[SELENIUM] Click en btnRestoreDftCfg.")
+            try:
+                restore_btn.click()
+            except Exception:
+                driver.execute_script("arguments[0].click();", restore_btn)
+
+            # 3) Aceptar alerta de Chrome
+            try:
+                WebDriverWait(driver, 5).until(EC.alert_is_present())
+                alert = driver.switch_to.alert
+                print(f"[SELENIUM] Alerta de confirmación detectada: {alert.text}")
+                alert.accept()
+                print("[SELENIUM] Alerta aceptada. El dispositivo se está reiniciando a fábrica.")
+                return True
+            except TimeoutException:
+                print("[ERROR] No apareció la alerta de confirmación tras btnRestoreDftCfg")
+                return False
+
         except Exception as e:
             print(f"[ERROR] Falló el proceso de Factory Reset: {e}")
             return False
@@ -308,11 +294,22 @@ class HuaweiMixin:
                 By.XPATH, f"//td[@bindtext='{bindtext_value}']",
                 desc="TX and RX"
             )
+            if td_title is None:
+                return None
             td_val = td_title.find_element(By.XPATH, "following-sibling::td[1]")
             return td_val.text.strip()
 
-        tx = get_optical("amp_optic_txpower")   # "-- dBm" ó " -20.5 dBm", etc.
-        rx = get_optical("amp_optic_rxpower")
+        # TX y RX se leen de forma independiente: si uno falla, el otro se preserva
+        tx = None
+        rx = None
+        try:
+            tx = get_optical("amp_optic_txpower")
+        except Exception as e:
+            print(f"[WARN] Error leyendo TX óptico: {type(e).__name__} - {e}")
+        try:
+            rx = get_optical("amp_optic_rxpower")
+        except Exception as e:
+            print(f"[WARN] Error leyendo RX óptico: {type(e).__name__} - {e}")
 
         return {
             "tx_optical_power": tx,
@@ -407,6 +404,18 @@ class HuaweiMixin:
             "wlan_ssidinfo_table_0_1",
             desc=f"SSID {band_label}",
         )
+        if ssid_el is None:
+            # Si es full locked, comprobe_locked levantará RuntimeError("wifi_full_locked")
+            self.comprobe_locked(driver, timeout=1)
+            # Si comprobe_locked no lo detectó, SSID ausente = full locked de todas formas
+            def emit(kind, payload):
+                if self.out_q:
+                    self.out_q.put((kind, payload))
+            if not getattr(self, "_hw_locked_modal_emitted", False):
+                emit("error_ont", "wifi_full_locked")
+                self._hw_locked_modal_emitted = True
+            raise RuntimeError("wifi_full_locked")
+
         ssid = ssid_el.text.strip()
 
         # 2) Intento 1: status por id=LANStatusVal
@@ -454,13 +463,17 @@ class HuaweiMixin:
                 "hidewlWpaPsk",  # id correcto para mostrar la contraseña
                 desc="Checkbox de mostrar contraseña 2.4GHz"
             )
-            driver.execute_script("arguments[0].click();", show_pass_el)
+            if show_pass_el is not None:
+                driver.execute_script("arguments[0].click();", show_pass_el)
+            else:
+                print("[SELENIUM] Checkbox hidewlWpaPsk no encontrado para 2.4GHz, intentando leer campo directamente")
 
             # Esperar el campo de contraseña
-            pwd_el = WebDriverWait(driver, 10).until(
-                EC.visibility_of_element_located((By.ID, "twlWpaPsk"))
-            )
-            password = pwd_el.get_attribute("value").strip()
+            pwd_el = self.find_element_anywhere(driver, By.ID, "twlWpaPsk", desc="Campo contraseña 2.4GHz", timeout=10)
+            if pwd_el is None:
+                print("[SELENIUM] No se pudo encontrar campo twlWpaPsk para 2.4GHz")
+                return {"band": "2.4GHz", "password": "N/A"}
+            password = (pwd_el.get_attribute("value") or "").strip()
 
             return {
                 "band": "2.4GHz",
@@ -482,13 +495,17 @@ class HuaweiMixin:
                 "hidewlWpaPsk",  # id correcto para mostrar la contraseña
                 desc="Checkbox de mostrar contraseña 5GHz"
             )
-            driver.execute_script("arguments[0].click();", show_pass_el)
+            if show_pass_el is not None:
+                driver.execute_script("arguments[0].click();", show_pass_el)
+            else:
+                print("[SELENIUM] Checkbox hidewlWpaPsk no encontrado para 5GHz, intentando leer campo directamente")
 
             # Esperar el campo de contraseña
-            pwd_el = WebDriverWait(driver, 10).until(
-                EC.visibility_of_element_located((By.ID, "twlWpaPsk"))
-            )
-            password = pwd_el.get_attribute("value").strip()
+            pwd_el = self.find_element_anywhere(driver, By.ID, "twlWpaPsk", desc="Campo contraseña 5GHz", timeout=10)
+            if pwd_el is None:
+                print("[SELENIUM] No se pudo encontrar campo twlWpaPsk para 5GHz")
+                return {"band": "5GHz", "password": "N/A"}
+            password = (pwd_el.get_attribute("value") or "").strip()
 
             return {
                 "band": "5GHz",
@@ -558,11 +575,25 @@ class HuaweiMixin:
                 return mac_value
 
             print("[SELENIUM] No se pudo obtener una MAC distinta de 00:00:00:00:00:00 en Home Network.")
-            return None
+            def emit(kind, payload):
+                if self.out_q:
+                    self.out_q.put((kind, payload))
+            if not getattr(self, "_hw_mac_locked_modal_emitted", False):
+                emit("error_ont", "mac_locked")
+                self._hw_mac_locked_modal_emitted = True
+            raise RuntimeError("mac_locked")
 
+        except RuntimeError:
+            raise
         except Exception as e:
             print(f"[SELENIUM] Error leyendo MAC en Home Network: {e}")
-            return None
+            def emit(kind, payload):
+                if self.out_q:
+                    self.out_q.put((kind, payload))
+            if not getattr(self, "_hw_mac_locked_modal_emitted", False):
+                emit("error_ont", "mac_locked")
+                self._hw_mac_locked_modal_emitted = True
+            raise RuntimeError("mac_locked")
         finally:
             # Volver al documento principal por si el flujo sigue
             try:
@@ -675,7 +706,7 @@ class HuaweiMixin:
         )
 
         # Esperar a que el submenú de System Information se expanda
-        #time.sleep(2)
+        time.sleep(0.5)
 
         self.click_anywhere(
             driver,
@@ -743,7 +774,9 @@ class HuaweiMixin:
                 # (By.XPATH, "//div[contains(@class,'SecondMenuTitle') and normalize-space(.)='WLAN']"),
             ],
             "Huawei WLAN (menú WLAN)",
-        )    
+        )
+
+        self.comprobe_locked(driver, timeout=8)    
 
     def nav_hw_wifi_5(self, driver):
         """System Information -> WLAN (5 GHz)"""
@@ -777,6 +810,74 @@ class HuaweiMixin:
             ],
             "Huawei WLAN 5G (radio)",
         )
+
+    def comprobe_locked(self, driver, timeout=3):
+        """
+        Detecta routers Huawei full locked en la vista WLAN.
+        Criterio: aparece errorImg o el texto de errorMsg con "Cannot perform the operation".
+        Emite error_ont para que UI muestre modal.
+        """
+        expected_msg = "Error: Cannot perform the operation. Check whether the input parameters are correct."
+
+        def emit(kind, payload):
+            if self.out_q:
+                self.out_q.put((kind, payload))
+
+        def _read_locked_error():
+            err_img = self.find_element_anywhere(
+                driver, By.ID, "errorImg", desc="Huawei errorImg", timeout=1
+            )
+            err_msg = self.find_element_anywhere(
+                driver, By.ID, "errorMsg", desc="Huawei errorMsg", timeout=1
+            )
+
+            msg_txt = ""
+            if err_msg is not None:
+                try:
+                    msg_txt = (err_msg.text or "").strip()
+                except Exception:
+                    msg_txt = ""
+
+            # Si hay icono de error, ya cuenta como locked (aunque el texto no cargue)
+            is_locked = (err_img is not None) or ("cannot perform the operation" in msg_txt.lower())
+            return is_locked, (msg_txt or expected_msg)
+
+        try:
+            # 1) Revisión previa por si ya cayó en pantalla de error
+            is_locked, msg = _read_locked_error()
+            if is_locked:
+                if not getattr(self, "_hw_locked_modal_emitted", False):
+                    emit("error_ont", "wifi_full_locked")
+                    self._hw_locked_modal_emitted = True
+                raise RuntimeError("wifi_full_locked")
+
+            # 2) Intentar interacción con checkbox de habilitar WLAN (genera el error en full locked)
+            wl_enbl = self.find_element_anywhere(
+                driver, By.ID, "wlEnbl", desc="Huawei wlEnbl", timeout=timeout
+            )
+            if wl_enbl is not None:
+                try:
+                    driver.execute_script("arguments[0].click();", wl_enbl)
+                except Exception:
+                    wl_enbl.click()
+                time.sleep(0.7)
+
+            # 3) Revisión posterior al click
+            is_locked, msg = _read_locked_error()
+            if is_locked:
+                if not getattr(self, "_hw_locked_modal_emitted", False):
+                    emit("error_ont", "wifi_full_locked")
+                    self._hw_locked_modal_emitted = True
+                print(f"[SELENIUM] Huawei full locked detectado: {msg}")
+                raise RuntimeError("wifi_full_locked")
+
+            return False
+
+        except RuntimeError:
+            raise
+        except Exception as e:
+            print(f"[WARN] Error en comprobe_locked: {type(e).__name__} - {e}")
+            return False
 
     def nav_hw_mac(self, driver):
         """System Information -> Home Network (tabla de MAC / clientes)"""
@@ -908,7 +1009,8 @@ class HuaweiMixin:
             wait.until(EC.frame_to_be_available_and_switch_to_it((By.ID, "menuIframe")))
             print("[SELENIUM] iframe 'menuIframe' disponible para USB Application.")
 
-            # 5) Esperar el select de USB
+            # 5) Esperar el select de USB (dar tiempo a que cargue el contenido dentro del iframe)
+            time.sleep(1)
             wait.until(EC.presence_of_element_located((By.ID, "SrvClDevType")))
             print("[SELENIUM] Select USB 'SrvClDevType' encontrado en página USB Application.")
 
@@ -1085,13 +1187,17 @@ class HuaweiMixin:
         for name, nav_func, parse_func in tests:
             try:
                 emit("pruebas", f"Ejecutando: {name}")
-                nav_func(driver)             # hace los clicks
-                data = parse_func(driver)    # lee sólo lo que nos interesa
-                self.test_results["tests"][name] = { # Pasar al test_results
+                nav_func(driver)
+                data = parse_func(driver)
+                self.test_results["tests"][name] = {
                     "name": name,
                     "data": data,
                 }
             except Exception as e:
+                if str(e) in ("wifi_full_locked", "mac_locked"):
+                    print(f"[ERROR] {str(e)} detectado en Huawei. Abortando flujo de pruebas Huawei.")
+                    raise
+
                 print(f"[WARN] Error en extracción de {name}: {type(e).__name__} - {e}")
                 self.test_results["tests"][name] = {
                     "name": name,
@@ -1379,8 +1485,21 @@ class HuaweiMixin:
                 print("[SELENIUM] Confirmación reboot:", alert.text)
                 alert.accept()
                 print("[SELENIUM] Confirmación aceptada. Reiniciando...")
+                # definicion del emit
+                def emit(kind, payload):
+                    if self.out_q:
+                        self.out_q.put((kind, payload))
+                # emitir que se reiniciará el equipo
+                emit("prueba_monitor", {
+                    "accion": "expected_disconnect_on",
+                    "motivo": "software_update",
+                })
                 time.sleep(120)  # Esperar 2 minutos para el reinicio completo
-                
+                # emitir que volvió aunque haya fallado
+                emit("prueba_monitor", {
+                    "accion": "expected_disconnect_off",
+                    "motivo": "software_update",
+                })
                 # Intentar hacer login post-actualización para obtener nueva versión
                 print("[INFO] Verificando nueva versión de firmware...")
                 new_version = "N/A (no se pudo verificar)"
@@ -1483,6 +1602,8 @@ class HuaweiMixin:
             return False
         else:
             reintento += 1
+        self._hw_locked_modal_emitted = False
+        self._hw_mac_locked_modal_emitted = False
         if SELENIUM_AVAILABLE:
             #login con selenium
             driver = None
@@ -1713,8 +1834,17 @@ class HuaweiMixin:
 
                     emit("pruebas", "Ejecutando Reinicio de Fabrica")
                     reset_ok = self._reset_factory_huawei(driver)
+                    # Emitir que se hará el disconnectd expected
+                    emit("prueba_monitor", {
+                        "accion": "expected_disconnect_on",
+                        "motivo": "factory_reset",
+                    })
                     time.sleep(110)
-
+                    # el equipo está en linea, independientemente de si pasó o no
+                    emit("prueba_monitor", {
+                        "accion": "expected_disconnect_off",
+                        "motivo": "factory_reset",
+                    })
                     if reset_ok:
                         # Guardar y emitir resultado
                         self.test_results.setdefault("tests", {})["factory_reset"] = {
@@ -1751,6 +1881,27 @@ class HuaweiMixin:
  
                 driver.quit()
                 return True
+            except RuntimeError as e:
+                if str(e) in ("wifi_full_locked", "mac_locked"):
+                    print(f"[ERROR] Flujo abortado: router Huawei {str(e)}.")
+                    self.test_results.setdefault("metadata", {})["abort_reason"] = "full_locked"
+                    def emit_abort(kind, payload):
+                        if self.out_q:
+                            self.out_q.put((kind, payload))
+                    emit_abort("pruebas", "Full locked detectado.")
+                    if driver:
+                        try:
+                            driver.delete_all_cookies()
+                            time.sleep(0.5)
+                        except Exception:
+                            pass
+                        finally:
+                            try:
+                                driver.quit()
+                            except Exception:
+                                pass
+                    return False
+                raise
             except Exception as e:
                 print(f"[ERROR] Selenium login falló: {type(e).__name__} - {e}")
                 if driver:

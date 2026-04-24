@@ -25,6 +25,9 @@ from src.Frontend.navigation.botones import (
 from src.Frontend.ui.menu_superior_view import MenuSuperiorDesplegable
 
 error_login_path = Path(__file__).parent.parent / "assets" / "error_login.png"
+desconexion_path = Path(__file__).parent.parent / "assets" / "desconexion.png"
+error_wifi_locked_path = Path(__file__).parent.parent / "assets" / "error_wifi_locked.png"
+error_mac_locked_path = Path(__file__).parent.parent / "assets" / "error_mac_locked.png"
 
 class TesterView(ctk.CTkFrame):
     def __init__(self, parent, mdebug=None, viewmodel=None, **kwargs):
@@ -752,6 +755,7 @@ class TesterView(ctk.CTkFrame):
             target=iniciar_testerConexion,
             args=(resetFabrica, usb, fibra, wifi, self.master.event_q, self.stop_event),
             kwargs={
+                "dispatcher": self.master.dispatcher,
                 "auto_test_on_detect": auto_test_on_detect,
                 "start_in_monitor": start_in_monitor,
             },
@@ -862,7 +866,9 @@ class TesterView(ctk.CTkFrame):
 
         elif kind == "con":
             payload_lower = str(payload).lower()
-            if "desconectado" in payload_lower:
+            if "desconectado2" in payload_lower:
+                self.panel_pruebas.actualizar_estado_conexion(False)
+            elif "desconectado" in payload_lower:
                 self.panel_pruebas.actualizar_estado_conexion(False)
                 self._limpiezaElementos()
             else:
@@ -993,6 +999,114 @@ class TesterView(ctk.CTkFrame):
                 # mostrar modal de aviso de necesidad de desconexión de equipos.
                 win = ctk.CTkToplevel(self)
                 win.title("ERROR EN EL LOGIN")
+                width = 500
+                height = 500
+
+                win.update_idletasks()
+                screen_width = win.winfo_screenwidth()
+                screen_height = win.winfo_screenheight()
+
+                x = int((screen_width / 2) - (width / 2))
+                y = int((screen_height / 2) - (height / 2))
+
+                win.geometry(f"{width}x{height}+{x}+{y}")
+                win.attributes("-topmost", True)
+                win.lift()
+
+                img_error_login = ctk.CTkImage(
+                    light_image=Image.open(error_login_path),
+                    dark_image=Image.open(error_login_path),
+                    size=(500, 500),
+                )
+
+                labelAux = ctk.CTkLabel(win, text="", image=img_error_login)
+                labelAux.pack()
+
+                win.grab_set()
+                win.focus_force()
+                win.wait_window()
+
+            elif payload in "wifi_full_locked":
+                win = ctk.CTkToplevel(self)
+                win.title("ROUTER FULL LOCKED")
+                width = 500
+                height = 500
+
+                win.update_idletasks()
+                screen_width = win.winfo_screenwidth()
+                screen_height = win.winfo_screenheight()
+
+                x = int((screen_width / 2) - (width / 2))
+                y = int((screen_height / 2) - (height / 2))
+
+                win.geometry(f"{width}x{height}+{x}+{y}")
+                win.attributes("-topmost", True)
+                win.lift()
+
+                try:
+                    img_error_wifi_locked = ctk.CTkImage(
+                        light_image=Image.open(error_wifi_locked_path),
+                        dark_image=Image.open(error_wifi_locked_path),
+                        size=(500, 500),
+                    )
+                    labelAux = ctk.CTkLabel(win, text="", image=img_error_wifi_locked)
+                    labelAux.image = img_error_wifi_locked
+                    labelAux.pack()
+                except Exception:
+                    label = ctk.CTkLabel(
+                        win,
+                        text="ONT BLOQUEADO\n\nEl dispositivo está bloqueado (full locked).\nNo se pueden realizar más pruebas.\nDesconecte el equipo y presione reinicio.",
+                        font=ctk.CTkFont(size=18, weight="bold"),
+                        wraplength=460,
+                    )
+                    label.pack(expand=True, padx=20, pady=20)
+
+                win.grab_set()
+                win.focus_force()
+                win.wait_window()
+
+            elif payload == "mac_locked":
+                win = ctk.CTkToplevel(self)
+                win.title("MAC BLOQUEADA")
+                width = 500
+                height = 500
+
+                win.update_idletasks()
+                screen_width = win.winfo_screenwidth()
+                screen_height = win.winfo_screenheight()
+
+                x = int((screen_width / 2) - (width / 2))
+                y = int((screen_height / 2) - (height / 2))
+
+                win.geometry(f"{width}x{height}+{x}+{y}")
+                win.attributes("-topmost", True)
+                win.lift()
+
+                try:
+                    img_error_mac = ctk.CTkImage(
+                        light_image=Image.open(error_mac_locked_path),
+                        dark_image=Image.open(error_mac_locked_path),
+                        size=(500, 500),
+                    )
+                    labelAux = ctk.CTkLabel(win, text="", image=img_error_mac)
+                    labelAux.image = img_error_mac
+                    labelAux.pack()
+                except Exception:
+                    label = ctk.CTkLabel(
+                        win,
+                        text="MAC BLOQUEADA\n\nEl ISP bloqueó el acceso a la MAC del dispositivo.\nNo se pueden realizar más pruebas.\nDesconecte el equipo y presione reinicio.",
+                        font=ctk.CTkFont(size=18, weight="bold"),
+                        wraplength=460,
+                    )
+                    label.pack(expand=True, padx=20, pady=20)
+
+                win.grab_set()
+                win.focus_force()
+                win.wait_window()
+            
+            if payload in "desconexion":
+                win = ctk.CTkToplevel(self)
+                win.title("DESCONEXION INESPERADA")
                 # Centrar ventana
                 width = 500
                 height = 500
@@ -1008,13 +1122,13 @@ class TesterView(ctk.CTkFrame):
 
                 # label = ctk.CTkLabel(win, text="El dispositivo ONT tiene credenciales cambiadas, requiere reinicio de fábrica manual", font=ctk.CTkFont(size=16, weight="bold"))
                 # label.pack(pady=20)
-                img_error_login = ctk.CTkImage(
-                    light_image=Image.open(error_login_path),
-                    dark_image=Image.open(error_login_path),
+                img_desconexion = ctk.CTkImage(
+                    light_image=Image.open(desconexion_path),
+                    dark_image=Image.open(desconexion_path),
                     size=(500, 500),
                 )
 
-                labelAux = ctk.CTkLabel(win, text="", image=img_error_login)
+                labelAux = ctk.CTkLabel(win, text="", image=img_desconexion)
                 labelAux.pack()
 
                 win.grab_set()

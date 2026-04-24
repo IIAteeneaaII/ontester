@@ -246,7 +246,7 @@ def is_bad_info(v) -> bool:
     s_up = s.upper()
     return s_up in {"NAN", "NONE", "NULL", "N/A", "NA", "--", "---", "SIN_DATO", "—"}
 
-def iniciar_testerConexion(resetFabrica, usb, fibra, wifi, out_q = None, stop_event = None, auto_test_on_detect = True, start_in_monitor = False):
+def iniciar_testerConexion(resetFabrica, usb, fibra, wifi, out_q = None, stop_event = None, dispatcher= None, auto_test_on_detect = True, start_in_monitor = False):
     def emit(kind, payload):
         if out_q:
             out_q.put((kind, payload))
@@ -285,7 +285,7 @@ def iniciar_testerConexion(resetFabrica, usb, fibra, wifi, out_q = None, stop_ev
     emit("log", "Iniciando pruebas...")
     # print("CONEXION: wifi: "+str(wifi))
     # Mandar a llamar al main loop de ont_automatico
-    main_loop(opcionesTest, out_q, stop_event, auto_test_on_detect=auto_test_on_detect, start_in_monitor=start_in_monitor)
+    main_loop(opcionesTest, out_q, stop_event, dispatcher, auto_test_on_detect=auto_test_on_detect, start_in_monitor=start_in_monitor)
     # Se hará desde dentro del main_loop
     # from src.backend.mixins.common_mixin import _resultados_finales
     # resultados = _resultados_finales()  # función de resultados finales

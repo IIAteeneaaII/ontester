@@ -599,7 +599,15 @@ class ONTAutomatedTester(ZTEMixin, HuaweiMixin, FiberMixin, GrandStreamMixin, Co
         login_ok = self.login()
 
         if not login_ok:
-            print("[!] Error: No se pudo autenticar")
+            reason = self.test_results.get("metadata", {}).get("abort_reason", "login")
+            if reason == "full_locked":
+                print("[!] Router full locked. Flujo de pruebas abortado.")
+            else:
+                print("[!] Error: No se pudo autenticar")
+            self.test_results.setdefault("metadata", {})["flow_aborted"] = True
+            # if(self.model == "MOD001"):
+            #     return self.test_results
+            #print("[!] Error: No se pudo autenticar")
             # if(self.model == "MOD001"):
             #     return self.test_results
             return {'error': 'CREDENCIALES'}
@@ -1383,7 +1391,7 @@ def wait_for_reconnect(ip: str, grace_s: int = 240, interval_s: float = 2.0, sto
         time.sleep(interval_s)
     return False
 
-def main_loop(opciones, out_q = None, stop_event = None, auto_test_on_detect = True, start_in_monitor=False):
+def main_loop(opciones, out_q = None, stop_event = None, dispatcher = None, auto_test_on_detect = True, start_in_monitor=False):
     """
     Ciclo principal recursivo:
     1. Escanea red y encuentra dispositivo
@@ -1464,7 +1472,14 @@ def main_loop(opciones, out_q = None, stop_event = None, auto_test_on_detect = T
             # Marcar PING como PASS automáticamente (conexión confirmada por _scan_for_device)
             emit("test_individual", {"name": "ping", "status": "PASS"})
             last_tested_ip = ip
-
+            # Aqui es donde hay que empezar a monitorear la IP
+            from src.backend.utils.ping_service import control_monitoreo
+            monitor, monitor_thread = control_monitoreo(
+                last_tested_ip,
+                dispatcher=dispatcher,
+                out_q=out_q,
+                stop_event=stop_event,
+            )
             # Mostrar modelo en UI
             nombre = temp_tester._get_model_display_name(detected_model)
             emit("logSuper", nombre if detected_model else "Por confirmar...")
@@ -1489,7 +1504,7 @@ def main_loop(opciones, out_q = None, stop_event = None, auto_test_on_detect = T
                 tester = ONTAutomatedTester(ip, detected_model)
                 tester.out_q = out_q
                 tester.opcionesTest = copy.deepcopy(opciones)
-                tester._stop_event = stop_event
+                tester.stop_event = stop_event # el evento real para interrumpir
 
                 # Debugeo
                 print("[DEBUG] factory_reset opt:", tester.opcionesTest.get("tests", {}).get("factory_reset"))
@@ -1499,6 +1514,15 @@ def main_loop(opciones, out_q = None, stop_event = None, auto_test_on_detect = T
                 emit("pruebas", "Autenticando dispositivo")
                 pruebas = tester.run_all_tests()
 
+                if stop_event and stop_event.is_set():
+                    emit("log", "Ejecución cancelada por desconexión inesperada.")
+                    break
+
+                if tester.test_results.get("metadata", {}).get("flow_aborted", False):
+                    emit("log", "Flujo abortado por full locked/login.")
+                    print("[*] Flujo abortado por full locked/login.")
+                    break
+                
                 if not pruebas.get("error") == "CREDENCIALES":
                     resultados = tester._resultados_finales()
                     # Guardar para base diaria y global
@@ -1544,11 +1568,19 @@ def main_loop(opciones, out_q = None, stop_event = None, auto_test_on_detect = T
                 emit("pruebas", "Extrayendo datos de etiqueta")
                 pruebas = et.run_all_tests()
 
+                if stop_event and stop_event.is_set():
+                    emit("log", "Extracción cancelada por desconexión inesperada.")
+                if et.test_results.get("metadata", {}).get("flow_aborted", False):
+                    emit("log", "Flujo abortado por full locked/login.")
+                    print("[*] Flujo abortado por full locked/login.")
+                    break
+
                 if not pruebas.get("error") == "CREDENCIALES":
                     resultados = et._resultados_finales()
                     # Guardar para base diaria y global
                     et.saveBDiaria(resultados)
                     emit("resultados", resultados)
+                    
                 if (et.model == "MOD001" or et.model == "MOD008"):
                     if isinstance(pruebas, dict) and pruebas.get("error") == "CREDENCIALES":
                         # Significa error de credenciales en fiberhome
