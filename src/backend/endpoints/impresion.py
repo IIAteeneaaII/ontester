@@ -117,6 +117,7 @@ FIELD_MAP_BY_TEMPLATE = {
         "pass_wifi": 3,
         "wifi24": 4,
         "wifi5": 5,
+        "qr": 6,
     },
     "R:zte1.ZPL": {
         "sn": 1,
@@ -171,6 +172,16 @@ def construir_recall_zpl(datos: dict, template_path: str) -> str:
         "pass_wifi": escape_zpl(datos.get("pass_wifi", "")),
         "wifi24": escape_zpl(datos.get("wifi24", "")),
         "wifi5": escape_zpl(datos.get("wifi5", "")),
+        "qr": escape_zpl(
+            "QA,"
+            + datos.get("sn", "")
+            + "*"
+            + datos.get("mac", "")
+            + "*"
+            + datos.get("wifi24", "")
+            + "*"
+            + datos.get("pass_wifi", "")
+        ),
     }
 
     lines = ["^XA", f"^XF{template_path}^FS", "^CI27"]
