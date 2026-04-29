@@ -1081,6 +1081,7 @@ class TesterView(ctk.CTkFrame):
 
         if self.modo_var.get() == "Etiqueta" and not from_unit_test:
             from src.backend.endpoints.conexion import generaEtiquetaTxt
+            # la informacion debe construirse desde la UI
             generaEtiquetaTxt(payload)
 
         self.panel_pruebas.modelo = info.get("modelo", "—")
